@@ -17,7 +17,7 @@ class SharedPropsTest extends TestCase
 
     public function test_guest_receives_empty_shared_props(): void
     {
-        $this->get(route('dashboard'))
+        $this->get(route('login'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('auth.user', null)

@@ -4,16 +4,38 @@ use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserRoleController;
+use App\Http\Controllers\Auth\EmergencyLoginController;
+use App\Http\Controllers\Auth\MicrosoftLoginController;
+use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CompanySwitchController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 
-Route::inertia('/dashboard', 'Dashboard')->name('dashboard');
+Route::inertia('/dashboard', 'Dashboard')->middleware('auth')->name('dashboard');
 
-// TEMPORARY (replaced in A5): named `login` route so the `auth` middleware
-// can redirect guests. Microsoft and emergency login arrive in A5.
-Route::inertia('/login', 'Auth/Login')->middleware('guest')->name('login');
+// Authentication (A5). `throttle:login` = per-IP limit (AppServiceProvider);
+// the emergency login adds its own 5-failure lockout.
+Route::get('/login', [SessionController::class, 'create'])->middleware('guest')->name('login');
+Route::post('/logout', [SessionController::class, 'destroy'])->middleware('auth')->name('logout');
+
+Route::middleware('throttle:login')->group(function () {
+    Route::get('/auth/microsoft/redirect', [MicrosoftLoginController::class, 'redirect'])
+        ->middleware('guest')
+        ->name('auth.microsoft.redirect');
+    // Serves both sign-in and the vault re-authentication.
+    Route::get('/auth/microsoft/callback', [MicrosoftLoginController::class, 'callback'])
+        ->name('auth.microsoft.callback');
+    Route::get('/auth/microsoft/reauth', [MicrosoftLoginController::class, 'reauth'])
+        ->middleware('auth')
+        ->name('auth.microsoft.reauth');
+
+    // Emergency local login: 404 while EMERGENCY_ADMIN_EMAIL is not set.
+    Route::middleware('guest')->group(function () {
+        Route::get('/emergency-login', [EmergencyLoginController::class, 'create'])->name('emergency.login');
+        Route::post('/emergency-login', [EmergencyLoginController::class, 'store'])->name('emergency.login.store');
+    });
+});
 
 // Company selector of the top bar (only `companies.view_all`; null = "Todas").
 Route::post('/company/switch', CompanySwitchController::class)

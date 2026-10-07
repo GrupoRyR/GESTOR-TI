@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureModuleIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireRecentMicrosoftAuth;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'module' => EnsureModuleIsActive::class,
+            'reauth' => RequireRecentMicrosoftAuth::class,
         ]);
 
         // Inactive modules must 404 before `auth` redirects guests to login,

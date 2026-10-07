@@ -5,6 +5,10 @@ namespace Tests\Feature;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
+/**
+ * Inertia wiring checked on the login page (the only Inertia page a guest
+ * can reach since A5 protected `dashboard` with `auth`).
+ */
 class InertiaSetupTest extends TestCase
 {
     public function test_root_redirects_to_dashboard(): void
@@ -12,12 +16,12 @@ class InertiaSetupTest extends TestCase
         $this->get('/')->assertRedirect(route('dashboard'));
     }
 
-    public function test_dashboard_renders_inertia_page_with_flash_prop(): void
+    public function test_login_renders_inertia_page_with_flash_prop(): void
     {
-        $this->get(route('dashboard'))
+        $this->get(route('login'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Dashboard')
+                ->component('Auth/Login', false)
                 ->has('flash', fn (Assert $flash) => $flash
                     ->where('success', null)
                     ->where('error', null)
@@ -28,7 +32,7 @@ class InertiaSetupTest extends TestCase
     public function test_flash_prop_exposes_session_messages(): void
     {
         $this->withSession(['success' => 'Guardado correctamente'])
-            ->get(route('dashboard'))
+            ->get(route('login'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('flash.success', 'Guardado correctamente')
                 ->where('flash.error', null)
