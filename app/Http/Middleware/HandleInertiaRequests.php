@@ -2,8 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Company;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Tenancy\CurrentCompany;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -18,7 +20,10 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
-    public function __construct(private readonly ModuleRegistry $modules) {}
+    public function __construct(
+        private readonly ModuleRegistry $modules,
+        private readonly CurrentCompany $currentCompany,
+    ) {}
 
     /**
      * Determines the current asset version.
@@ -49,8 +54,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $user ? $this->authUser($user) : null,
             ],
-            'companies' => fn () => $this->companies($request),
-            'current_company_id' => fn () => $this->currentCompanyId($request),
+            'companies' => fn () => $user ? $this->companies($user) : [],
+            'current_company_id' => fn () => $user ? $this->currentCompany->forUser($user) : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -69,29 +74,34 @@ class HandleInertiaRequests extends Middleware
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            // Columns added by later tasks (A3 companies, A5 Microsoft login).
-            'avatar_url' => $user->getAttribute('avatar_url'),
-            'company_id' => $user->getAttribute('company_id'),
+            'avatar_url' => $user->avatar_url,
+            'company_id' => $user->company_id,
             'roles' => $user->getRoleNames()->values()->all(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
         ];
     }
 
     /**
-     * Companies available to the current user (filled in by A3).
+     * Active companies the user may see: all of them with
+     * `companies.view_all`, otherwise only the user's own company.
      *
-     * @return list<array{id: int, slug: string, name: string, short_name: string, logo_url: ?string, logo_dark_url: ?string, colors: array{primary: string, accent: string, dark: string}}>
+     * @return list<array{id: int, slug: string, name: string, short_name: string, logo_url: ?string, logo_dark_url: ?string, colors: array{primary: ?string, accent: ?string, dark: ?string}}>
      */
-    protected function companies(Request $request): array
+    protected function companies(User $user): array
     {
-        return [];
-    }
+        $query = Company::query()->active()->orderBy('name');
 
-    /**
-     * Selected company, or null for "Todas" (filled in by A3).
-     */
-    protected function currentCompanyId(Request $request): ?int
-    {
-        return null;
+        if (! $this->currentCompany->canViewAll($user)) {
+            if ($user->company_id === null) {
+                return [];
+            }
+
+            $query->whereKey($user->company_id);
+        }
+
+        return $query->get()
+            ->map(fn (Company $company) => $company->toSharedArray())
+            ->values()
+            ->all();
     }
 }
