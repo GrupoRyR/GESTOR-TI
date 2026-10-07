@@ -23,6 +23,7 @@ IT platform for Grupo Empresarial RYR (Segurex Latam, Soluciones y Derivados de 
 ## Commands
 - `php artisan test` — test suite.
 - `vendor/bin/pint` — code style.
+- Deploy to cPanel (GitHub Actions, first install, cron, backups): `docs/deploy-cpanel.md`.
 
 ## Work tracking
 Feature documents live in `odd/tasks/`.

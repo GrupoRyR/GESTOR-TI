@@ -1,0 +1,95 @@
+# Despliegue en cPanel (GoDaddy)
+
+Guía para instalar el Gestor TI la primera vez y para los despliegues siguientes. Las contraseñas, tokens y llaves van **solo** en el `.env` del servidor o en los *secrets* de GitHub; nunca en el repositorio ni por chat.
+
+## Cómo funciona
+
+- Cada `push` a `main` (o *Run workflow* en la pestaña Actions) ejecuta `.github/workflows/deploy.yml`: corre las pruebas, compila el front-end, instala `vendor` sin dependencias de desarrollo y sube todo por SSH con `rsync`.
+- En el servidor: modo mantenimiento → subida → `migrate --force` → `optimize:clear` + `optimize` → `storage:link` → `up`.
+- Nunca se suben ni se borran: `.env`, `storage/` (archivos, registros, respaldos), `public/storage`, `.user.ini`.
+- El despliegue **no corre seeders** (volver a correr `RolesAndPermissionsSeeder` reinicia la matriz de roles). Los seeders se corren a mano solo en la primera instalación.
+- `.github/workflows/ci.yml` corre Pint, pruebas, compilación y tipos en cada pull request.
+
+## 1. Preparar cPanel (una vez)
+
+1. Subdominio (por ejemplo `ti.segurex.com`) con SSL activo.
+2. **Raíz del documento del subdominio → `/home/<usuario>/gestor-ti/public`**. Si el cPanel no deja cambiarla, borra la carpeta del subdominio y crea un enlace: `ln -s ~/gestor-ti/public ~/ti.segurex.com`.
+3. PHP 8.3 para ese subdominio, con `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `curl`, `zip`, `intl` y `gd`. Revisa por SSH que `php -v` también sea 8.3; si no, usa la ruta completa (por ejemplo `/opt/cpanel/ea-php83/root/usr/bin/php`) y créala como variable `CPANEL_PHP_BIN` en GitHub.
+4. Base de datos MySQL y su usuario (con todos los privilegios sobre esa base).
+5. SSH activo. Crea una llave **solo para el despliegue** (sin frase de paso), agrega la pública en *SSH Access → Manage SSH Keys* y autorízala.
+6. Revisa que exista `mysqldump` (lo usan los respaldos): `which mysqldump`.
+
+## 2. Secrets de GitHub
+
+En el repositorio: *Settings → Secrets and variables → Actions*.
+
+| Secret | Valor |
+|---|---|
+| `CPANEL_HOST` | Servidor SSH (dominio o IP) |
+| `CPANEL_USER` | Usuario de cPanel |
+| `CPANEL_SSH_KEY` | Llave **privada** del despliegue (contenido completo) |
+| `CPANEL_PORT` | Puerto SSH (opcional, por defecto 22) |
+| `CPANEL_APP_PATH` | Carpeta de la app, por ejemplo `~/gestor-ti` |
+| `CPANEL_KNOWN_HOSTS` | Opcional: salida de `ssh-keyscan -p <puerto> <host>` (si falta, se toma en cada despliegue) |
+
+Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
+
+## 3. Primera instalación
+
+1. Por SSH crea la carpeta y el `.env` **antes** del primer despliegue:
+   ```bash
+   mkdir -p ~/gestor-ti && nano ~/gestor-ti/.env && chmod 600 ~/gestor-ti/.env
+   ```
+   Contenido mínimo (ver la lista completa abajo): `APP_NAME`, `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://ti.segurex.com`, `APP_KEY=` (vacío por ahora), `DB_*`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database`, `CACHE_STORE=database`, `MAIL_*`.
+2. Lanza el despliegue (push a `main` o *Run workflow*). Sube el código y corre las migraciones.
+3. Por SSH, en `~/gestor-ti`:
+   ```bash
+   php artisan key:generate --force
+   php artisan db:seed --class=CompanySeeder --force
+   php artisan db:seed --class=AreaSeeder --force
+   php artisan db:seed --class=RolesAndPermissionsSeeder --force
+   php artisan db:seed --class=AccessSystemSeeder --force
+   php artisan gestor:emergency-admin <correo-de-emergencia>   # muestra la contraseña una sola vez
+   php artisan gestor:telegram-webhook                         # cuando el bot ya esté en el .env
+   php artisan optimize
+   ```
+   No uses `php artisan db:seed` sin `--class`: el `DatabaseSeeder` crea un usuario de prueba y necesita paquetes de desarrollo.
+   Los roles de las personas (`GESTOR_SUPER_ADMIN_EMAILS`, etc.) se asignan solos en su primer inicio de sesión.
+4. Cron en cPanel (*Cron Jobs*), cada minuto:
+   ```
+   * * * * * cd ~/gestor-ti && php artisan schedule:run >> /dev/null 2>&1
+   ```
+   El programador procesa la cola (`queue:work --stop-when-empty`), la sincronización de colaboradores (05:00) y los respaldos (02:00). Ver `php artisan schedule:list`.
+
+## 4. Variables del `.env`
+
+- App: `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE=America/Bogota`.
+- Base de datos: `DB_CONNECTION=mysql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
+- Cola, caché y sesión: `QUEUE_CONNECTION=database`, `CACHE_STORE=database`, `SESSION_DRIVER=database`.
+- Correo: `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`.
+- Microsoft: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI=${APP_URL}/auth/microsoft/callback`, `MICROSOFT_TENANT=organizations`.
+- Acceso de emergencia: `EMERGENCY_ADMIN_EMAIL`.
+- Roles iniciales: `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL` (separados por coma).
+- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (solo letras, números, `_` y `-`), `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`.
+- Alertas: `GESTOR_ALERTS_RECIPIENT_PERMISSION=ai.manage`.
+- Respaldos: `BACKUP_NOTIFICATION_EMAIL` (recibe los avisos de fallas), `BACKUP_ARCHIVE_PASSWORD` (opcional, cifra el zip).
+- Módulos: `MODULE_AI_ENABLED`, `MODULE_ASSISTANT_ENABLED`, `MODULE_ADMIN_ENABLED` (y los reservados).
+- Etapa C: `DEEPSEEK_API_KEY` (puede esperar).
+
+## 5. Respaldos
+
+- `backup:run` diario 02:00: base de datos (`mysqldump`) + archivos del proyecto (sin `vendor`, `node_modules`, `public/build`, `storage/framework`).
+- Se guardan en `storage/app/private/gestor-ti/` (fuera de `public`). Retención: 7 diarios, 4 semanales, 3 mensuales (`backup:clean` 01:30).
+- `backup:monitor` 08:00: avisa por correo a `BACKUP_NOTIFICATION_EMAIL` si no hay respaldo reciente. Solo se envían correos cuando algo falla.
+- Recomendado: descargar de vez en cuando un respaldo fuera del servidor.
+
+## 6. Verificar
+
+1. Pestaña *Actions* de GitHub: el despliegue en verde.
+2. `https://ti.segurex.com` muestra el inicio de sesión; entrar con una cuenta de Segurex y otra de Derivados.
+3. Por SSH: `php artisan about`, `php artisan migrate:status`, `php artisan schedule:list`.
+4. Al día siguiente: `php artisan backup:list` muestra un respaldo y `storage/logs/laravel.log` no tiene errores.
+
+## Si un despliegue falla
+
+El sitio queda en mantenimiento. Revisa el registro en *Actions*, corrige y vuelve a desplegar, o por SSH: `cd ~/gestor-ti && php artisan up`.

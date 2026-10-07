@@ -18,7 +18,9 @@ return [
          * The name of this application. You can use this name to monitor
          * the backups.
          */
-        'name' => env('APP_NAME', 'laravel-backup'),
+        // Fixed name: it is also the folder of the archives on the disk
+        // (storage/app/private/gestor-ti, never public).
+        'name' => 'gestor-ti',
 
         'source' => [
             'files' => [
@@ -38,6 +40,8 @@ return [
                 'exclude' => [
                     base_path('vendor'),
                     base_path('node_modules'),
+                    base_path('.git'),
+                    base_path('public/build'),
                     storage_path('framework'),
                 ],
 
@@ -89,8 +93,10 @@ return [
              *
              * For a complete list of available customization options, see https://github.com/spatie/db-dumper
              */
+            // Needs the `mysqldump` binary on the server (available on the
+            // GoDaddy cPanel hosting; check with `which mysqldump`).
             'databases' => [
-                env('DB_CONNECTION', 'mysql'),
+                'mysql',
             ],
         ],
 
@@ -224,9 +230,10 @@ return [
             BackupHasFailedNotification::class => ['mail'],
             UnhealthyBackupWasFoundNotification::class => ['mail'],
             CleanupHasFailedNotification::class => ['mail'],
-            BackupWasSuccessfulNotification::class => ['mail'],
-            HealthyBackupWasFoundNotification::class => ['mail'],
-            CleanupWasSuccessfulNotification::class => ['mail'],
+            // Only problems are mailed (no daily "everything is fine" mail).
+            BackupWasSuccessfulNotification::class => [],
+            HealthyBackupWasFoundNotification::class => [],
+            CleanupWasSuccessfulNotification::class => [],
         ],
 
         /*
@@ -236,7 +243,9 @@ return [
         'notifiable' => Notifiable::class,
 
         'mail' => [
-            'to' => 'your@example.com',
+            // Must be a valid address (the package validates it), hence the
+            // fallback to the default sender.
+            'to' => env('BACKUP_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
 
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
@@ -296,7 +305,7 @@ return [
      */
     'monitor_backups' => [
         [
-            'name' => env('APP_NAME', 'laravel-backup'),
+            'name' => 'gestor-ti',
             'disks' => ['local'],
             'health_checks' => [
                 MaximumAgeInDays::class => 1,
@@ -339,26 +348,27 @@ return [
              * of that day will be kept. Older backups within the same day will be removed.
              * If you create backups only once a day, no backups will be removed yet.
              */
-            'keep_daily_backups_for_days' => 16,
+            // Retention (one backup per day): 7 daily, then 4 weekly, then 3 monthly.
+            'keep_daily_backups_for_days' => 0,
 
             /*
              * After the "keep_daily_backups_for_days" period is over, the most recent backup
              * of that week will be kept. Older backups within the same week will be removed.
              * If you create backups only once a week, no backups will be removed yet.
              */
-            'keep_weekly_backups_for_weeks' => 8,
+            'keep_weekly_backups_for_weeks' => 4,
 
             /*
              * After the "keep_weekly_backups_for_weeks" period is over, the most recent backup
              * of that month will be kept. Older backups within the same month will be removed.
              */
-            'keep_monthly_backups_for_months' => 4,
+            'keep_monthly_backups_for_months' => 3,
 
             /*
              * After the "keep_monthly_backups_for_months" period is over, the most recent backup
              * of that year will be kept. Older backups within the same year will be removed.
              */
-            'keep_yearly_backups_for_years' => 2,
+            'keep_yearly_backups_for_years' => 0,
 
             /*
              * After cleaning up the backups remove the oldest backup until
