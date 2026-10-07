@@ -25,7 +25,7 @@ Out of scope: PHP, `routes/`, controllers, `HandleInertiaRequests`, Laravel `vit
 
 ## Tasks
 - [x] T1 Scaffold and tokens: package.json, tsconfig, ui-preview Vite config with Inertia/Ziggy shims, `resources/css/app.css` tokens (light/dark, brand vars, status families), brand assets, `lib/` helpers (`can`, `route`, date formatting es-CO / America/Bogota), shared types. Route: delegated (writer trigger: 2+ non-trivial files).
-- [ ] T2 Design-system components and layouts: Button, StatusChip, PhaseRail, CompanyMark, Panel, DataTable parts, EmptyState/ErrorState/Skeleton, Switch, Checkbox, TextField, Select, Tabs; AppLayout (side nav from `modules[]`, top bar with company selector, phone bottom bar + "Más"), AdminLayout tabs, GuestLayout. Route: delegated.
+- [x] T2 Design-system components and layouts: Button, StatusChip, PhaseRail, CompanyMark, Panel, DataTable parts, EmptyState/ErrorState/Skeleton, Switch, Checkbox, TextField, Select, Tabs; AppLayout (side nav from `modules[]`, top bar with company selector, phone bottom bar + "Más"), AdminLayout tabs, GuestLayout. Route: delegated.
 - [ ] T3 Stage A pages + prop types + mocks: Auth/Login, Auth/Emergency, Auth/CompanyNotEnabled, Home, Employees/Index, Profile/Edit, Admin/Companies/Index, Admin/Companies/Create (wizard), Admin/Areas/Index, Admin/Users/Index, Admin/Roles/Index, Admin/Integrations/Index, Admin/Audit/Index. Route: delegated.
 - [ ] T4 ui-preview gallery: page × mock-variant list, viewport (phone/tablet/desktop), theme (system/light/dark), brand (Segurex/Derivados/Andina). Route: delegated.
 - [ ] T5 Handoff: `docs/design/stage-a-contract.md` (pages, props types, route names, permissions) and short design-system usage notes. Route: inline.
@@ -42,5 +42,8 @@ No runnable test framework exists yet; functional checks are typecheck + preview
 - 2026-10-07: document created; starting T1.
 - 2026-10-07 T1 done (delegated writer). Evidence: `npm test` RED (modules missing) → GREEN 45/45; `npm run typecheck` pass; `npm run build:preview` pass (parent re-ran test + typecheck). Stack resolved: React 19.3, @inertiajs/react 2.3, Vite 8.3, Tailwind 4.3, Vitest 5, TypeScript 7. Deviations accepted: `@types/node` added; no vitest config (type-only `@/` imports); dates built from `formatToParts` ("7 oct 2026"); brand derivation approximates canvas values (Segurex button #CD4B00 vs canvas #C4470F, both ≥ 4.5:1). RDD off → ordinary checks.
 
+- T1 commit: `7e819e3`.
+- 2026-10-07 T2 done (delegated writer): 30 ui components + brandScope/utils, AppLayout (side nav ≥1024, icon rail 768–1023, bottom bar + "Más" dialog <768, modules only from `shared.modules`), AdminLayout tabs, GuestLayout; `dark:` custom variant honoring system + `data-theme`; `.brand-scope` switches brand vars per theme. Evidence: typecheck pass, 45/45 tests, preview build pass; parent visual check in browser pane at 1440 and 390, light and dark, "Más" sheet, no console errors. Route names: company.switch, search, notifications.index, profile.edit, logout, home, admin.{companies,areas,users,roles,integrations,audit}.index. Added `.claude/launch.json` (ui-preview on port 5174).
+
 ## Next step
-T2 components and layouts.
+T3 pages, types and mocks.

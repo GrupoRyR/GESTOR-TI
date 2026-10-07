@@ -204,3 +204,70 @@
     font-feature-settings: 'tnum' 1;
     font-variant-numeric: tabular-nums;
 }
+
+/*
+ * `dark:` follows the same rule as the tokens above: the system preference
+ * unless the page forces light, or an explicit data-theme="dark".
+ */
+@custom-variant dark {
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) & {
+            @slot;
+        }
+    }
+
+    :root[data-theme='dark'] & {
+        @slot;
+    }
+}
+
+/*
+ * Brand scope. AppLayout and CompanyMark set both brand sets inline as
+ * `--brand-light-*` and `--brand-dark-*` (see Components/ui/brandScope.ts);
+ * these rules expose the set for the active scheme as `--brand-*`, which the
+ * `brand-*` color utilities read. An unset source makes the utility fall back
+ * to the neutral default declared in `@theme inline`.
+ */
+.brand-scope {
+    --brand-primary: var(--brand-light-primary);
+    --brand-accent: var(--brand-light-accent);
+    --brand-dark: var(--brand-light-dark);
+    --brand-button: var(--brand-light-button);
+    --brand-button-ink: var(--brand-light-button-ink);
+    --brand-tint: var(--brand-light-tint);
+    --brand-ink: var(--brand-light-ink);
+    --brand-mark: var(--brand-light-mark, #17191c);
+    --brand-mark-ink: var(--brand-light-mark-ink, #ffffff);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .brand-scope {
+        --brand-primary: var(--brand-dark-primary);
+        --brand-accent: var(--brand-dark-accent);
+        --brand-dark: var(--brand-dark-dark);
+        --brand-button: var(--brand-dark-button);
+        --brand-button-ink: var(--brand-dark-button-ink);
+        --brand-tint: var(--brand-dark-tint);
+        --brand-ink: var(--brand-dark-ink);
+        --brand-mark: var(--brand-dark-mark, #f2f2ef);
+        --brand-mark-ink: var(--brand-dark-mark-ink, #121315);
+    }
+}
+
+:root[data-theme='dark'] .brand-scope {
+    --brand-primary: var(--brand-dark-primary);
+    --brand-accent: var(--brand-dark-accent);
+    --brand-dark: var(--brand-dark-dark);
+    --brand-button: var(--brand-dark-button);
+    --brand-button-ink: var(--brand-dark-button-ink);
+    --brand-tint: var(--brand-dark-tint);
+    --brand-ink: var(--brand-dark-ink);
+    --brand-mark: var(--brand-dark-mark, #f2f2ef);
+    --brand-mark-ink: var(--brand-dark-mark-ink, #121315);
+}
+
+/* Letter mark of the current company (rail, phone header). */
+@theme inline {
+    --color-brand-mark: var(--brand-mark, #17191c);
+    --color-brand-mark-ink: var(--brand-mark-ink, #ffffff);
+}
