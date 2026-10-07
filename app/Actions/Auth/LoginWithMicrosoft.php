@@ -4,6 +4,7 @@ namespace App\Actions\Auth;
 
 use App\Actions\Users\AssignInitialRoles;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -17,7 +18,8 @@ use Illuminate\Support\Str;
  * accounts are rejected. The user is matched by `azure_id`, then by email
  * (linking the `azure_id`), or created. Name, tenant, company and
  * `last_login_at` are refreshed on every sign-in, and the initial roles are
- * (re)applied (AssignInitialRoles is additive and idempotent).
+ * (re)applied (AssignInitialRoles is additive and idempotent). A not yet
+ * linked employee of the company with the same azure id or email is linked.
  *
  * It does not authenticate the session: the caller logs the user in.
  *
@@ -68,10 +70,36 @@ class LoginWithMicrosoft
                 'last_login_at' => now(),
             ])->save();
 
+            $this->linkEmployee($user, $company, $email);
+
             return $user;
         });
 
         return $this->assignInitialRoles->handle($user);
+    }
+
+    /**
+     * Links the user to the employee of the same company with the same
+     * `azure_id` (preferred) or email, when neither is linked yet.
+     */
+    private function linkEmployee(User $user, Company $company, string $email): void
+    {
+        $alreadyLinked = Employee::withoutGlobalScopes()->where('user_id', $user->id)->exists();
+
+        if ($alreadyLinked) {
+            return;
+        }
+
+        $employee = Employee::withoutGlobalScopes()
+            ->where('company_id', $company->id)
+            ->whereNull('user_id')
+            ->where(fn ($query) => $query
+                ->where('azure_id', $user->azure_id)
+                ->orWhereRaw('lower(email) = ?', [$email]))
+            ->orderByRaw('case when azure_id = ? then 0 else 1 end', [$user->azure_id])
+            ->first();
+
+        $employee?->update(['user_id' => $user->id]);
     }
 
     private function companyFor(?string $tenantId): Company

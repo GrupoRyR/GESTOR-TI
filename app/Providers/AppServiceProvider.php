@@ -42,5 +42,9 @@ class AppServiceProvider extends ServiceProvider
         // Login routes (PROMPT §8): per-IP limit on the Microsoft redirect,
         // callback and reauth, and on the emergency login.
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(10)->by((string) $request->ip()));
+
+        // "Revelar" contraseña de un acceso: 10 per minute per user.
+        RateLimiter::for('credentials-reveal', fn (Request $request) => Limit::perMinute(10)
+            ->by('credentials-reveal:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }
 }

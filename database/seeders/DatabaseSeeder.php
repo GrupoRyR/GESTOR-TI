@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             AreaSeeder::class,
             RolesAndPermissionsSeeder::class,
+            AccessSystemSeeder::class,
         ]);
 
         // User::factory(10)->create();

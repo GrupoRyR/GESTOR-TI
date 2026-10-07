@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\DepartmentMappingController;
+use App\Http\Controllers\Admin\EmployeeAccessController;
+use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
@@ -81,4 +84,35 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
     Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])
         ->middleware('can:users.manage')
         ->name('users.roles.update');
+
+    // Employees (colaboradores) and their accesses. Bindings honour
+    // CompanyScope; access routes are scoped to their employee.
+    Route::post('/employees/sync', [EmployeeController::class, 'sync'])
+        ->middleware('can:employees.manage')
+        ->name('employees.sync');
+
+    Route::middleware('can:employees.view')->group(function () {
+        Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
+    });
+
+    Route::middleware('can:employees.manage')->scopeBindings()->group(function () {
+        Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+        Route::post('/employees/{employee}/accesses', [EmployeeAccessController::class, 'store'])->name('employees.accesses.store');
+        Route::put('/employees/{employee}/accesses/{access}', [EmployeeAccessController::class, 'update'])->name('employees.accesses.update');
+        Route::delete('/employees/{employee}/accesses/{access}', [EmployeeAccessController::class, 'destroy'])->name('employees.accesses.destroy');
+    });
+
+    // The only JSON endpoint of the module: plain password, audited,
+    // `Cache-Control: no-store`, 10 per minute per user.
+    Route::post('/employees/{employee}/accesses/{access}/reveal', [EmployeeAccessController::class, 'reveal'])
+        ->middleware(['can:credentials.view', 'throttle:credentials-reveal'])
+        ->scopeBindings()
+        ->name('employees.accesses.reveal');
+
+    Route::middleware('can:employees.manage')->group(function () {
+        Route::get('/department-mappings', [DepartmentMappingController::class, 'index'])->name('department-mappings.index');
+        Route::post('/department-mappings', [DepartmentMappingController::class, 'store'])->name('department-mappings.store');
+        Route::delete('/department-mappings/{mapping}', [DepartmentMappingController::class, 'destroy'])->name('department-mappings.destroy');
+    });
 });

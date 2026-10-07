@@ -70,6 +70,31 @@ class Company extends Model
     }
 
     /**
+     * @return HasMany<Employee, $this>
+     */
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeSyncable(Builder $query): void
+    {
+        $query->active()->whereNotNull('tenant_id')->where('tenant_id', '!=', '');
+    }
+
+    /**
+     * Active company with a Microsoft tenant: its employees can be
+     * synchronized from Graph.
+     */
+    public function isSyncable(): bool
+    {
+        return $this->is_active && trim((string) $this->tenant_id) !== '';
+    }
+
+    /**
      * @return HasMany<User, $this>
      */
     public function users(): HasMany
