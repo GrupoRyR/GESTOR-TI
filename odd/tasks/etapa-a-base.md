@@ -189,9 +189,9 @@ Each task: feature tests green (`php artisan test`), Pint clean, commit on the b
 - Mailbox send permission for `segurex.info@segurex.com` and `derivados.info@derivadoscol.com` (Graph `Mail.Send` scoped or SMTP AUTH).
 - GitHub secrets: `CPANEL_HOST`, `CPANEL_USER`, `CPANEL_SSH_KEY`, `CPANEL_PORT` (optional), `CPANEL_APP_PATH`, `CPANEL_KNOWN_HOSTS` (optional); variable `CPANEL_PHP_BIN` (optional).
 - Emails of Leonardo (Súper Admin) and Edward Ramanan (Aprobador de proyectos).
-- `.env.example` keys to add manually (file not editable by the writer): `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI=${APP_URL}/auth/microsoft/callback`, `MICROSOFT_TENANT=organizations`, `EMERGENCY_ADMIN_EMAIL`, `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`, `GESTOR_ALERTS_RECIPIENT_PERMISSION=ai.manage`, `BACKUP_NOTIFICATION_EMAIL`, `BACKUP_ARCHIVE_PASSWORD` (optional). CI copies `.env.example`, so it must stay free of secrets.
+- `.env.example` keys to add manually (file not editable by agents; MICROSOFT_*, EMERGENCY_ADMIN_EMAIL already present): `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL`, `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`, `GESTOR_ALERTS_RECIPIENT_PERMISSION=ai.manage`, `BACKUP_NOTIFICATION_EMAIL`, `BACKUP_ARCHIVE_PASSWORD` (optional).
 - MySQL 8 verification on the server (migrations, FULLTEXT when added, `mysqldump` for backups).
-- Remove the factory `Test User` from `DatabaseSeeder` (production seeding uses `--class`).
+- [done 0787b88] Removed the factory `Test User` from `DatabaseSeeder`.
 - Design pages pending (page types + mocks): `Auth/Login`, `Auth/EmergencyLogin`, `Admin/Companies/Index`, `Admin/Areas/Index`, `Admin/Roles/Index`, `Admin/Employees/Index`, `Admin/Employees/Show`, `Admin/DepartmentMappings/Index`, `Admin/Audit/Index`, `Profile/Notifications`, `Notifications/Index`, logout button, bell link, 30-second credential reveal.
 - Open questions: adopt manual employees on Graph sync by email (today not adopted); company logo upload (paths only today).
 
