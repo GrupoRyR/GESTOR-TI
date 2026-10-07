@@ -85,3 +85,15 @@ export interface Paginated<T> {
 }
 
 export type FormErrors = Record<string, string>;
+
+/**
+ * Shared props for guest pages (sign-in, emergency access, errors before
+ * login): no user, modules, notifications or selected company yet.
+ * `companies` holds the enabled companies, used for logos and copy.
+ */
+export type GuestSharedProps = Omit<SharedProps, 'auth' | 'notifications_unread' | 'modules' | 'current_company_id'> & {
+    auth: { user: null };
+};
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type GuestPageProps<T = {}> = GuestSharedProps & T;

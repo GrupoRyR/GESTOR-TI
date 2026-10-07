@@ -58,9 +58,10 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, label, empty, min
                             <span
                                 key={column.key}
                                 role="columnheader"
-                                className={cx(ALIGN[column.align ?? 'start'], column.hideHeader && 'sr-only')}
+                                className={ALIGN[column.align ?? 'start']}
                             >
-                                {column.header}
+                                {/* sr-only on an inner span: the header cell must keep its grid track. */}
+                                {column.hideHeader ? <span className="sr-only">{column.header}</span> : column.header}
                             </span>
                         ))}
                     </div>

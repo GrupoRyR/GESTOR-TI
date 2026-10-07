@@ -5,8 +5,11 @@ const PHASES: Phase[] = [1, 2, 3, 4, 5];
 
 export interface PhaseRailProps {
     status: RequestStatusKey;
-    /** `compact` for rows (5 × 10 px), `full` with labels under each phase. */
-    variant?: 'compact' | 'full';
+    /**
+     * `compact` for rows (5 × 10 px), `bar` stretches to its container
+     * without labels (cards), `full` with labels under each phase.
+     */
+    variant?: 'compact' | 'bar' | 'full';
     className?: string;
 }
 
@@ -32,6 +35,16 @@ export function PhaseRail({ status, variant = 'compact', className }: PhaseRailP
     if (variant === 'compact') {
         return (
             <span role="img" aria-label={description} title={description} className={cx('inline-grid grid-cols-[repeat(5,10px)] gap-0.5', className)}>
+                {PHASES.map((index) => (
+                    <span key={index} className={segment(index, 'h-1.5 rounded-[3px]')} />
+                ))}
+            </span>
+        );
+    }
+
+    if (variant === 'bar') {
+        return (
+            <span role="img" aria-label={description} title={description} className={cx('grid grid-cols-5 gap-[3px]', className)}>
                 {PHASES.map((index) => (
                     <span key={index} className={segment(index, 'h-1.5 rounded-[3px]')} />
                 ))}
