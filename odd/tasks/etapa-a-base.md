@@ -31,8 +31,8 @@ audit, modules by configuration, open doors (`monitored_apps`, `alerts`, `AlertS
 - [x] A5 · Microsoft multitenant login (only active companies' tenants, company from `tid`) + emergency local login (lockout after 5). Route: delegated (writer trigger: 2+ non-trivial files).
 - [x] A6 · Employees + daily Graph sync per company (skip guests, department→area mapping), access systems, employee accesses (encrypted, reveal with audit). Route: delegated (writer trigger: 2+ non-trivial files).
 - [x] A7 · Notifications: preferences, Telegram link + webhook (secret in URL), `AlertService` + `alerts`, `monitored_apps`, `settings`. Route: delegated (writer trigger: 2+ non-trivial files).
-- [ ] A8 · Audit log listing with filters.
-- [ ] A9 · Scheduler (`queue:work --stop-when-empty`), backups, GitHub Actions deploy to cPanel over SSH.
+- [x] A8 · Audit log listing with filters (+ A7 review fix: critical alerts always reach the bell). Route: delegated (writer trigger: 2+ non-trivial files).
+- [x] A9 · Scheduler (`queue:work --stop-when-empty`), backups, GitHub Actions CI + deploy to cPanel over SSH. Route: delegated (writer trigger: 2+ non-trivial files).
 
 ## Acceptance
 Each task: feature tests green (`php artisan test`), Pint clean, commit on the branch.
@@ -142,5 +142,58 @@ Each task: feature tests green (`php artisan test`), Pint clean, commit on the b
   - Bell: `notifications.index` → `Notifications/Index` `{notifications: {data[{id,type,data,read_at,created_at}], links, meta{current_page,last_page,per_page(20),total}}}` (newest first, own only); `notifications.read` POST `{id}` (404 for others'); `notifications.read_all` POST. Profile: `profile.notifications.edit` → `Profile/Notifications` `{events[{key,label,channels,default_channels}], telegram{linked,username,link_url}}`; `profile.notifications.update` PUT `{preferences: {event: channels[]}}` → "Preferencias de notificación guardadas.".
   - Pending: create the bot with BotFather and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (only `[A-Za-z0-9_-]`, so it also travels as header) in the server `.env`, then run `php artisan gestor:telegram-webhook` after deploy. `.env.example` not editable by the writer: add `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`, `GESTOR_ALERTS_RECIPIENT_PERMISSION=ai.manage` (Telegram keys already in services.php). Design must add page types `Profile/Notifications` and `Notifications/Index` (props above) and the bell link.
 
+- A8 test-first exception: tests and implementation were written in the same pass; no RED run was observed (first run of the new tests: 31 passed). The tests do assert the scope, sanitization and filters (restricted user + foreign `causer_id` → 0 rows).
+- A8 GREEN: `php artisan test` → passed, 292 tests, 1895 assertions. `vendor/bin/pint` → passed; `vendor/bin/pint --test` → passed.
+- A8 commit: 473f02b (8 files, +519/-4, 265 lines are tests). Slightly over the ~400-line heuristic: one coherent slice.
+- A8 notes:
+  - `admin.audit.index` GET `/admin/audit` (`module:admin`, `auth`, `can:audit.view`) → `Admin/Audit/Index` `{activities: {data[{id, log_name, description, event, subject_type (class basename), subject_id, causer{id,name}|null, properties (sanitized), created_at ISO}], links, meta{current_page,last_page,per_page(25),total}}, filters{search, causer_id, subject_type, log_name, from, to}, options{log_names[], subject_types[], causers[{id,name}]}}`. Newest first. `search` matches description/event; `from`/`to` are `Y-m-d` (inclusive days, app timezone); unknown `log_name`/`subject_type` and invalid dates are ignored (null in `filters`).
+  - Company scope (simple, documented in `AuditController`): uses `CurrentCompany`. "Todas" → everything; a company context (restricted users, or a global user who picked a company) → only activities whose causer is a `User` of that company. Activities without causer (jobs, console, e.g. `employees_synced`) are only visible in "Todas". Options are computed within the same scope.
+  - `App\Support\Audit\ActivityPropertiesSanitizer::sanitize()` drops, at every level, keys matching `/password|secret|token|value|key/i` (defence in depth; note it also hides harmless keys such as `group_key` or `settings.value`). Unit tested.
+  - A7 review fix: `config/notifications.php` events accept `required_channels`; `alert.critical` → `['database']`. `NotificationPreferences::channelsFor()` always adds them (`requiredChannels()`), so a user who unchecks every channel still gets critical alerts in the bell. The preferences page props are unchanged (design may show the bell box as locked for `alert.critical`).
+  - Design must add the `Admin/Audit/Index` page type (props above).
+
+- A9 test-first exception: scheduler/config test written with the implementation (no RED observed); workflows and the deploy guide are not runnable locally (structural checks: YAML parse).
+- A9 GREEN: `php artisan test` → passed, 296 tests, 1921 assertions. `vendor/bin/pint` → passed; `vendor/bin/pint --test` → passed.
+- A9 `php artisan schedule:list` → `* * * * * queue:work --stop-when-empty --max-time=50 --tries=3`, `30 1 * * * backup:clean`, `0 2 * * * backup:run`, `0 8 * * * backup:monitor`, `30 3 * * * queue:prune-failed --hours=168`, `0 3 1 * * activitylog:clean --force`, `0 5 * * * gestor:sync-employees`.
+- A9 YAML: both workflows parsed with symfony/yaml (installed only in a scratch folder, not in the repo) → `ci.yml: OK (on: pull_request,push; jobs: backend,frontend)`, `deploy.yml: OK (on: push,workflow_dispatch; jobs: deploy)`. Not run on GitHub yet.
+- A9 `php artisan backup:list` → config loads; `gestor-ti` on `local` reported unhealthy only because no backup exists yet.
+- A9 commit: 0f50b16 (7 files, +414/-12).
+- A9 notes:
+  - `routes/console.php`: queue worker every minute, `withoutOverlapping(2)` (lock expires after 2 min so a killed worker does not block the queue for 24 h), defined last so the other tasks of the minute start first. No `model:prune` (no Prunable models yet). `activitylog:clean --force` monthly (day 1, 03:00; retention 365 days already in config/activitylog.php). All times America/Bogota.
+  - `config/backup.php`: name `gestor-ti` (archives in `storage/app/private/gestor-ti`, not `.../backups` as first planned: spatie uses the backup name as the folder and `config/filesystems.php` was outside the edit surface), databases `['mysql']` (needs `mysqldump`), excludes `vendor`, `node_modules`, `.git`, `public/build`, `storage/framework` (destination and temp dirs are excluded by the package). Retention 7 daily / 4 weekly / 3 monthly / 0 yearly, max 5000 MB. Mail `to` = `BACKUP_NOTIFICATION_EMAIL`, fallback `MAIL_FROM_ADDRESS` (the package rejects an invalid address). Only failure/unhealthy notifications are mailed (success mails disabled to avoid daily noise).
+  - `.github/workflows/ci.yml` (PR + push to main): PHP 8.3 (`shivammathur/setup-php@v2`), composer install, `.env.example` → `.env`, `key:generate`, `pint --test`, `php artisan test`; Node 24 `npm ci`, `npm run build`, `npx tsc --noEmit`.
+  - `.github/workflows/deploy.yml` (push to main + manual; `concurrency: deploy-production`, `environment: production`): runs the tests, builds the front-end, `composer install --no-dev --optimize-autoloader`, SSH key from secret written to a file (never echoed, removed at the end), known_hosts from `CPANEL_KNOWN_HOSTS` or `ssh-keyscan`; `artisan down` BEFORE rsync when the app exists (deviation from "after rsync": avoids serving half-uploaded code), `rsync -az --delete` excluding `.git`, `.github`, `.env*`, `.user.ini`, `.well-known`, `node_modules`, `tests`, `odd`, `storage/`, `bootstrap/cache/`, `public/storage`, `public/hot` (excluded paths are also protected from `--delete`); then creates the storage skeleton, `migrate --force`, `optimize:clear`, `optimize`, `storage:link || true`, `up`. A failed step leaves the site in maintenance (documented). No seeders on deploy. Optional repo variable `CPANEL_PHP_BIN`.
+  - `docs/deploy-cpanel.md` (Spanish): cPanel preparation, GitHub secrets, first install (create `.env` before the first deploy, then `key:generate`, seeders by `--class`, `gestor:emergency-admin`, `gestor:telegram-webhook`, cron), `.env` key list, backups, verification, recovery.
+  - Found: `DatabaseSeeder` creates a factory `Test User` (`test@example.com`) and factories need `fakerphp/faker` (dev dependency) → plain `db:seed` must not run in production. The guide uses `--class` seeders only. Recommended follow-up: remove the test user from `DatabaseSeeder` (outside this task's edit surface).
+
+## Stage A summary
+
+### What was built
+- Laravel 13 + Inertia/React/TS skeleton, modules by configuration (`config/modules.php`, `module:{key}` 404), shared props (user, permissions, modules, companies, current company).
+- Companies (configurable, sender mailbox, tenant), areas, `BelongsToCompany` scope + company selector (`companies.view_all`).
+- Roles and permissions from `config/permissions.php` (30 permissions, 5 roles, `ai.vault.access` exclusive), role × permission matrix, initial roles by email.
+- Microsoft multitenant login (company from `tid`), reauthentication hook, emergency local login with lockouts and `gestor:emergency-admin`.
+- Employees synced daily from Microsoft Graph, department → area mappings, access systems, encrypted employee accesses with audited reveal.
+- Notifications (mail from each company's mailbox, Telegram, bell), preferences per event, Telegram link + webhook, `AlertService` + `alerts`, open-door tables (`monitored_apps`, `ai_interactions`), `settings`.
+- Audit listing with filters and company scope.
+- Scheduler for the cron-driven queue, daily backups, CI and cPanel deploy.
+
+### How to test
+- Locally: `php artisan test` (296 tests, SQLite in-memory), `vendor/bin/pint --test`, `npm run build`, `npx tsc --noEmit`, `php artisan schedule:list`, `php artisan route:list --except-vendor`.
+- On the server (after `docs/deploy-cpanel.md`): sign in with a Segurex account and a Derivados account, switch company, run `php artisan gestor:sync-employees`, link Telegram from Perfil and raise a test alert, check `/admin/audit`, and next day `php artisan backup:list`.
+
+### Pending (consolidated)
+- Microsoft Entra: register the multitenant app (redirect `https://<host>/auth/microsoft/callback`), delegated `User.Read` + application `User.Read.All` with admin consent in Segurex and Derivados; client id/secret in the server `.env`.
+- Telegram: create the bot (BotFather), set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, then `php artisan gestor:telegram-webhook`.
+- DeepSeek API key and monthly cost cap (Stage C; `ai.monthly_cost_cap_usd` setting).
+- Mailbox send permission for `segurex.info@segurex.com` and `derivados.info@derivadoscol.com` (Graph `Mail.Send` scoped or SMTP AUTH).
+- GitHub secrets: `CPANEL_HOST`, `CPANEL_USER`, `CPANEL_SSH_KEY`, `CPANEL_PORT` (optional), `CPANEL_APP_PATH`, `CPANEL_KNOWN_HOSTS` (optional); variable `CPANEL_PHP_BIN` (optional).
+- Emails of Leonardo (Súper Admin) and Edward Ramanan (Aprobador de proyectos).
+- `.env.example` keys to add manually (file not editable by the writer): `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI=${APP_URL}/auth/microsoft/callback`, `MICROSOFT_TENANT=organizations`, `EMERGENCY_ADMIN_EMAIL`, `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`, `GESTOR_ALERTS_RECIPIENT_PERMISSION=ai.manage`, `BACKUP_NOTIFICATION_EMAIL`, `BACKUP_ARCHIVE_PASSWORD` (optional). CI copies `.env.example`, so it must stay free of secrets.
+- MySQL 8 verification on the server (migrations, FULLTEXT when added, `mysqldump` for backups).
+- Remove the factory `Test User` from `DatabaseSeeder` (production seeding uses `--class`).
+- Design pages pending (page types + mocks): `Auth/Login`, `Auth/EmergencyLogin`, `Admin/Companies/Index`, `Admin/Areas/Index`, `Admin/Roles/Index`, `Admin/Employees/Index`, `Admin/Employees/Show`, `Admin/DepartmentMappings/Index`, `Admin/Audit/Index`, `Profile/Notifications`, `Notifications/Index`, logout button, bell link, 30-second credential reveal.
+- Open questions: adopt manual employees on Graph sync by email (today not adopted); company logo upload (paths only today).
+
 ## Next step
-A8.
+Open stacked PRs; then Stage B.
