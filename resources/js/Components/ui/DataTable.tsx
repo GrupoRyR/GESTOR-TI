@@ -24,6 +24,8 @@ export interface DataTableProps<T> {
     rows: T[];
     rowKey: (row: T) => Key;
     rowHref?: (row: T) => string;
+    /** Marks the row open in a side panel (`aria-current`, inset bar). */
+    isCurrentRow?: (row: T) => boolean;
     /** Accessible name of the table. */
     label: string;
     /** Shown instead of rows when `rows` is empty. */
@@ -39,7 +41,7 @@ const ALIGN = { start: 'justify-self-start text-left', center: 'justify-self-cen
  * Dense data grid (ARIA table roles on CSS grid): 40 px header on the subtle
  * surface, rows of at least 56 px. Scrolls horizontally on narrow screens.
  */
-export function DataTable<T>({ columns, rows, rowKey, rowHref, label, empty, minWidth = 720, className }: DataTableProps<T>) {
+export function DataTable<T>({ columns, rows, rowKey, rowHref, isCurrentRow, label, empty, minWidth = 720, className }: DataTableProps<T>) {
     const template: CSSProperties = {
         gridTemplateColumns: columns.map((column) => column.width ?? 'minmax(0, 1fr)').join(' '),
     };
@@ -76,15 +78,18 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, label, empty, min
                     ) : null}
                     {rows.map((row) => {
                         const href = rowHref?.(row);
+                        const current = isCurrentRow?.(row) ?? false;
                         return (
                             <div
                                 key={rowKey(row)}
                                 role="row"
+                                aria-current={current ? 'true' : undefined}
                                 style={template}
                                 className={cx(
                                     rowClasses,
                                     'relative min-h-14 border-t border-line py-2 text-sm',
                                     href && 'transition-colors duration-150 hover:bg-ground has-focus-visible:bg-ground',
+                                    current && 'bg-ground shadow-[inset_3px_0_0_var(--color-fg)]',
                                 )}
                             >
                                 {columns.map((column, index) => {
