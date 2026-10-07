@@ -35,4 +35,36 @@ return [
         ],
     ],
 
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'redirect' => env('MICROSOFT_REDIRECT_URI'),
+        'tenant' => env('MICROSOFT_TENANT', 'organizations'),
+    ],
+
+    'emergency' => [
+        'admin_email' => env('EMERGENCY_ADMIN_EMAIL'),
+    ],
+
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'bot_username' => env('TELEGRAM_BOT_USERNAME'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
+
+    'deepseek' => [
+        'api_key' => env('DEEPSEEK_API_KEY'),
+    ],
+
+    'github' => [
+        'app_id' => env('GITHUB_APP_ID'),
+        'private_key_path' => env('GITHUB_PRIVATE_KEY_PATH'),
+        'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
+        'token' => env('GITHUB_TOKEN'),
+    ],
+
+    'vault' => [
+        'key' => env('VAULT_KEY'),
+    ],
+
 ];
