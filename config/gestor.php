@@ -30,4 +30,41 @@ return [
         'vault_owner' => $emails(env('GESTOR_VAULT_OWNER_EMAIL'))[0] ?? null,
     ],
 
+    /*
+    | Defaults of `App\Support\Settings` (table `settings` stores only the
+    | overrides made later from Administración). Keep the PHP type of each
+    | value: it is the type callers receive.
+    */
+    'settings_defaults' => [
+        // AlertService: minutes before a grouped alert is notified again.
+        'alerts.cooldown_minutes' => 60,
+
+        // Gestor IA: business days for the first response to a request.
+        'ai.first_response_business_days' => 3,
+
+        // AI spend: monthly cap in USD (0 = not configured yet; pending
+        // from Jhon) and warning threshold in percent of the cap.
+        'ai.monthly_cost_cap_usd' => 0.0,
+        'ai.cost_warning_percent' => 80,
+    ],
+
+    'alerts' => [
+        // Default recipients of AlertService: users holding this permission
+        // (through a role or directly) in the alert's company, plus global
+        // users. Group-wide alerts (no company) go to every holder.
+        'recipient_permission' => env('GESTOR_ALERTS_RECIPIENT_PERMISSION', 'ai.manage'),
+    ],
+
+    'telegram' => [
+        // How webhook updates are processed: `after_response` (default; runs
+        // in the same PHP process right after answering 200 to Telegram) or
+        // `queue` (database queue, handled by the cron-driven worker, ~1 min).
+        'processing' => env('TELEGRAM_PROCESSING', 'after_response'),
+
+        // callback_data prefix => handler class (App\Telegram\Contracts\CallbackHandler).
+        // callback_data is `{prefix}:{payload}` (max 64 bytes, Telegram limit).
+        // Stage B registers the approval handlers here.
+        'callbacks' => [],
+    ],
+
 ];

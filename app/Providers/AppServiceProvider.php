@@ -4,10 +4,14 @@ namespace App\Providers;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Notifications\Channels\TelegramChannel;
 use App\Support\Tenancy\CurrentCompany;
+use App\Telegram\CallbackRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
@@ -22,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Company context of the request (or of a job, via runAs()).
         $this->app->singleton(CurrentCompany::class);
+
+        // Telegram callback_data prefix => handler (Stage B registers approvals).
+        $this->app->singleton(CallbackRegistry::class);
 
         // Application permission models: they guard the exclusive
         // `ai.vault.access` permission (never attached to a role).
@@ -46,5 +53,15 @@ class AppServiceProvider extends ServiceProvider
         // "Revelar" contraseña de un acceso: 10 per minute per user.
         RateLimiter::for('credentials-reveal', fn (Request $request) => Limit::perMinute(10)
             ->by('credentials-reveal:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
+        // Telegram webhook (PROMPT §8): generous per-IP limit, Telegram
+        // delivers bursts from a few addresses.
+        RateLimiter::for('telegram-webhook', fn (Request $request) => Limit::perMinute(120)
+            ->by('telegram-webhook:'.$request->ip()));
+
+        // `telegram` notification channel (App\Notifications\GestorNotification).
+        Notification::resolved(function (ChannelManager $channels): void {
+            $channels->extend('telegram', fn ($app) => $app->make(TelegramChannel::class));
+        });
     }
 }

@@ -50,6 +50,10 @@ return [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'bot_username' => env('TELEGRAM_BOT_USERNAME'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+        // Also require the `X-Telegram-Bot-Api-Secret-Token` header (sent by
+        // Telegram when `gestor:telegram-webhook` registered it). A header
+        // that is present is always checked.
+        'require_secret_header' => (bool) env('TELEGRAM_REQUIRE_SECRET_HEADER', false),
     ],
 
     'deepseek' => [

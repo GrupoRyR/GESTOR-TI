@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -114,5 +115,32 @@ class User extends Authenticatable
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class)->withoutGlobalScopes();
+    }
+
+    /**
+     * @return HasMany<NotificationPreference, $this>
+     */
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
+
+    /**
+     * @return HasOne<TelegramLink, $this>
+     */
+    public function telegramLink(): HasOne
+    {
+        return $this->hasOne(TelegramLink::class);
+    }
+
+    /**
+     * Chat id for the `telegram` notification channel; null while the chat
+     * is not linked (the channel is then dropped by GestorNotification).
+     */
+    public function routeNotificationForTelegram(): ?string
+    {
+        $link = $this->telegramLink;
+
+        return $link !== null && $link->isLinked() ? $link->chat_id : null;
     }
 }

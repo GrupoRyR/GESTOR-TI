@@ -11,6 +11,9 @@ use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CompanySwitchController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Profile\NotificationPreferenceController;
+use App\Http\Controllers\Profile\TelegramLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
@@ -44,6 +47,18 @@ Route::middleware('throttle:login')->group(function () {
 Route::post('/company/switch', CompanySwitchController::class)
     ->middleware('auth')
     ->name('company.switch');
+
+// Notifications (A7): bell, preferences per event type and Telegram link.
+Route::middleware('auth')->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read_all');
+
+    Route::get('/profile/notifications', [NotificationPreferenceController::class, 'edit'])->name('profile.notifications.edit');
+    Route::put('/profile/notifications', [NotificationPreferenceController::class, 'update'])->name('profile.notifications.update');
+    Route::post('/profile/telegram', [TelegramLinkController::class, 'store'])->name('profile.telegram.link');
+    Route::delete('/profile/telegram', [TelegramLinkController::class, 'destroy'])->name('profile.telegram.unlink');
+});
 
 // Module routes: each group is gated by `module:{key}` (404 when the module
 // is inactive in config/modules.php) and `auth`.
