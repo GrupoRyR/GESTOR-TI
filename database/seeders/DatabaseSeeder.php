@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CompanySeeder::class,
             AreaSeeder::class,
+            RolesAndPermissionsSeeder::class,
         ]);
 
         // User::factory(10)->create();
@@ -26,5 +27,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Roles of existing users from GESTOR_* emails (see config/gestor.php).
+        $this->call(InitialUsersSeeder::class);
     }
 }

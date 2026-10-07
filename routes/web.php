@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\CompanySwitchController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,4 +48,15 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
         Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
         Route::put('/areas/{area}', [AreaController::class, 'update'])->name('areas.update');
     });
+
+    // Role × permission matrix. Exclusive permissions (`ai.vault.access`)
+    // are rejected by the form request and by the Role model.
+    Route::middleware('can:roles.manage')->group(function () {
+        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    });
+
+    Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])
+        ->middleware('can:users.manage')
+        ->name('users.roles.update');
 });
