@@ -12,6 +12,8 @@ const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
  */
 export default defineConfig({
     root: here('.'),
+    // Relative asset URLs: the built gallery works from any folder or static host.
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
         alias: {
@@ -25,5 +27,12 @@ export default defineConfig({
     build: {
         outDir: here('./dist'),
         emptyOutDir: true,
+        rollupOptions: {
+            // Gallery shell + the single-page frame it embeds.
+            input: {
+                index: here('./index.html'),
+                frame: here('./frame.html'),
+            },
+        },
     },
 });

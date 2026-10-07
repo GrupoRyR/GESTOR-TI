@@ -4,6 +4,7 @@
     "scripts": {
         "dev:preview": "vite --config ui-preview/vite.config.ts",
         "build:preview": "vite build --config ui-preview/vite.config.ts",
+        "preview:dist": "vite preview --config ui-preview/vite.config.ts",
         "typecheck": "tsc --noEmit",
         "test": "vitest run"
     },

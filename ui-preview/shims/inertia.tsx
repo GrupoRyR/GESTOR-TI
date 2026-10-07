@@ -2,9 +2,11 @@
  * Backend-free stand-in for `@inertiajs/react`, aliased only in the preview
  * build. Pages are typechecked against the real package; this shim mirrors
  * the subset they use so they render without a server: navigation and form
- * submissions are logged instead of sent.
+ * submissions are logged instead of sent. Inside the gallery frame they are
+ * also posted to the parent shell, which shows "Navegación simulada: …".
  */
 import { useCallback, useEffect, useRef, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
+import { navigationMessage } from '../lib/navigation';
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 type VisitData = Record<string, unknown>;
@@ -14,10 +16,17 @@ function log(action: string, ...details: unknown[]) {
     console.info(`[inertia-shim] ${action}`, ...details);
 }
 
+/** Tell the gallery shell (if any) that the page tried to navigate. Never leaves the page. */
+function notifyParent(method: string, url: string) {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    window.parent.postMessage(navigationMessage(method, url), '*');
+}
+
 // ---- router ---------------------------------------------------------------
 
 function visit(url: string, options: VisitOptions = {}) {
     log('visit', url, options);
+    notifyParent(typeof options.method === 'string' ? options.method : 'get', url);
 }
 
 export const router = {
@@ -63,6 +72,7 @@ export function Link({
         onClick?.(event);
         event.preventDefault();
         log('link', method.toUpperCase(), href, data ?? {});
+        notifyParent(method, href);
     };
 
     if (as === 'button') {
@@ -74,6 +84,7 @@ export function Link({
                 onClick={(event) => {
                     event.preventDefault();
                     log('link', method.toUpperCase(), href, data ?? {});
+                    notifyParent(method, href);
                 }}
             >
                 {children}
@@ -186,6 +197,7 @@ export function useForm<T extends FormDataShape>(initialValues: T) {
         options.onStart?.();
         setProcessing(true);
         log(`form ${method.toUpperCase()}`, url, transformer.current(data));
+        notifyParent(method, url);
         return Promise.resolve().then(() => {
             setProcessing(false);
             setWasSuccessful(true);

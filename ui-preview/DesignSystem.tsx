@@ -1,7 +1,7 @@
 /**
  * Design-system sheet for the backend-free preview: every UI component in a
- * few states, plus the three layouts with inline sample data. T4 replaces
- * this with the full page gallery.
+ * few states, plus the three layouts with inline sample data. Shown as the
+ * first gallery entry ("Sistema de diseño") inside the frame.
  */
 import { useState, type ReactNode } from 'react';
 import logoDerivadosDark from '../resources/brand/logo-derivados-dark.svg';
