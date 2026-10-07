@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\DepartmentMappingController;
 use App\Http\Controllers\Admin\EmployeeAccessController;
@@ -130,4 +131,10 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
         Route::post('/department-mappings', [DepartmentMappingController::class, 'store'])->name('department-mappings.store');
         Route::delete('/department-mappings/{mapping}', [DepartmentMappingController::class, 'destroy'])->name('department-mappings.destroy');
     });
+
+    // Activity log (A8): restricted users only see activities caused by
+    // users of their company; properties are sanitized again.
+    Route::get('/audit', [AuditController::class, 'index'])
+        ->middleware('can:audit.view')
+        ->name('audit.index');
 });

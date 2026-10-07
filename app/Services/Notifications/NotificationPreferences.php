@@ -17,7 +17,7 @@ class NotificationPreferences
     public const FALLBACK_CHANNELS = ['database'];
 
     /**
-     * @return array<string, array{label: string, channels: list<string>}>
+     * @return array<string, array{label: string, channels: list<string>, required_channels?: list<string>}>
      */
     public function catalog(): array
     {
@@ -44,7 +44,8 @@ class NotificationPreferences
 
     /**
      * Channels the user receives for the event: their choice, else the
-     * catalog default. Ordered as `supportedChannels()`.
+     * catalog default, plus the event's required channels. Ordered as
+     * `supportedChannels()`.
      *
      * @return list<string>
      */
@@ -58,9 +59,22 @@ class NotificationPreferences
             ? $user->notificationPreferences->firstWhere('event_type', $eventType)
             : $user->notificationPreferences()->where('event_type', $eventType)->first();
 
-        return $preference === null
+        $channels = $preference === null
             ? $this->defaultChannels($eventType)
             : $this->normalize($preference->channels ?? []);
+
+        return $this->normalize(array_merge($channels, $this->requiredChannels($eventType)));
+    }
+
+    /**
+     * Channels that are always used for the event, whatever the user chose
+     * (e.g. critical alerts always reach the bell).
+     *
+     * @return list<string>
+     */
+    public function requiredChannels(string $eventType): array
+    {
+        return $this->normalize((array) ($this->catalog()[$eventType]['required_channels'] ?? []));
     }
 
     /**

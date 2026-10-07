@@ -10,7 +10,8 @@
 | (`notification_preferences`); without a choice the default channels below
 | apply. `telegram` is dropped for users without a linked chat.
 |
-| events: key => [label (Spanish, visible), channels (default)].
+| events: key => [label (Spanish, visible), channels (default),
+|         required_channels (optional: always added, whatever the user chose)].
 | The order here is the order of the preferences page.
 |
 */
@@ -25,6 +26,8 @@ return [
         'alert.critical' => [
             'label' => 'Alertas críticas',
             'channels' => ['mail', 'telegram', 'database'],
+            // Always delivered to the bell, even when the user unchecks it.
+            'required_channels' => ['database'],
         ],
         'alert.warning' => [
             'label' => 'Alertas de atención',
