@@ -46,6 +46,7 @@ Each task: feature tests green (`php artisan test`), Pint clean, commit on the b
 - A1 `npm run build` → built OK (no pages yet; glob empty); `npx tsc --noEmit` → exit 0.
 - A1 `php artisan route:list --except-vendor` → `/` redirect (dashboard is `Route::inertia`, listed without --except-vendor: GET dashboard).
 - A1 migrations run on SQLite in-memory (users, cache, jobs, permission tables, activity_log x3).
+- A1 commit: f064fed.
 - A1 notes: config/inertia.php → SSR off by default (cPanel), pages path `js/Pages`, `testing.ensure_pages_exist` env-driven default false; tests call `withoutVite()` in TestCase; `npm audit` reports 2 critical in skeleton dev dep `concurrently`→`shell-quote` (pre-existing, not fixed).
 
 ## Next step
