@@ -16,16 +16,24 @@ class StageAShellRoutesTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Route name => parameters, as used by `types/pages/home.ts`. */
+    /**
+     * Route name => parameters, as used by `types/pages/home.ts` and the
+     * GestorLayout tabs. The requester routes are real since B3.
+     */
     private const STAGE_B_ROUTES = [
         'ai.requests.index' => [],
-        'ai.requests.create' => [],
-        'ai.requests.show' => ['request' => 'GIA-148'],
         'ai.tasks.show' => ['request' => 'GIA-131', 'task' => 'T2'],
         'ai.requirements.show' => ['requirement' => 57],
         'ai.vault.index' => [],
-        'ai.ratings.create' => ['request' => 'GIA-118'],
         'ai.approvals.show' => ['request' => 'GIA-146'],
+        'ai.inbox.index' => [],
+        'ai.backlog.index' => [],
+        'ai.areas.index' => [],
+        'ai.projects.index' => [],
+        'ai.products.index' => [],
+        'ai.docs.index' => [],
+        'ai.week.index' => [],
+        'ai.value.index' => [],
     ];
 
     protected function setUp(): void

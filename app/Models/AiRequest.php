@@ -286,6 +286,47 @@ class AiRequest extends Model
         return $this->hasMany(AiRequestStatusChange::class)->orderBy('id');
     }
 
+    /**
+     * People who receive its updates ("Seguir"): the requester and +1
+     * voters automatically, anyone who can view it on demand.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function followers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ai_request_followers')->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<AiRating, $this>
+     */
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(AiRating::class);
+    }
+
+    /**
+     * @return HasMany<AiHoursSavedReport, $this>
+     */
+    public function hoursSavedReports(): HasMany
+    {
+        return $this->hasMany(AiHoursSavedReport::class);
+    }
+
+    /**
+     * When it last reached production (null while it never did).
+     */
+    public function inProductionSince(): ?Carbon
+    {
+        $change = $this->statusChanges()
+            ->reorder()
+            ->where('to_status', RequestStatus::InProduction->value)
+            ->latest('id')
+            ->first();
+
+        return $change?->created_at;
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

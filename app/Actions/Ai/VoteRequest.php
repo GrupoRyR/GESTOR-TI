@@ -20,6 +20,8 @@ class VoteRequest
 
         return DB::transaction(function () use ($request, $user): AiRequest {
             $request->votes()->firstOrCreate(['user_id' => $user->id]);
+            // Voters follow it; removing the vote keeps following ("Siguiendo" toggles it).
+            $request->followers()->syncWithoutDetaching([$user->id]);
 
             return $this->refresh($request);
         });

@@ -243,19 +243,35 @@ class AiProduct extends Model
     }
 
     /**
-     * Average of "resolvió mi necesidad" ratings (B7: `ai_ratings`).
+     * Average of the "resolvió mi necesidad" scores (`ai_ratings`) of its
+     * requests, one decimal; null without ratings.
      */
     public function averageRating(): ?float
     {
-        return null;
+        $average = AiRating::query()->whereIn('ai_request_id', $this->requests()->select('id'))->avg('solved_need');
+
+        return $average === null ? null : round((float) $average, 1);
+    }
+
+    public function ratingsCount(): int
+    {
+        return AiRating::query()->whereIn('ai_request_id', $this->requests()->select('id'))->count();
     }
 
     /**
-     * Hours saved per month from the 30-day answers (B7).
+     * Hours saved per month from the 30-day answers (`ai_hours_saved_reports`):
+     * the reported hours per week of its requests × 52 / 12, one decimal;
+     * null without answers.
      */
     public function hoursSaved(): ?float
     {
-        return null;
+        $reports = AiHoursSavedReport::query()->whereIn('ai_request_id', $this->requests()->select('id'));
+
+        if (! $reports->exists()) {
+            return null;
+        }
+
+        return round((float) $reports->sum('hours_per_week') * 52 / 12, 1);
     }
 
     /**

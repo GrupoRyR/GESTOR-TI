@@ -50,25 +50,61 @@ class AiRequestPolicyTest extends AiTestCase
 
     public function test_view_matrix(): void
     {
+        // Same-company module users see the public requester view (roadmap, B3).
         $this->assertMatrix('view', $this->request(), [
             'requester' => true,
-            'colleague' => false,
+            'colleague' => true,
             'ia_leader' => true,
             'project_approver' => true,
             'super_admin' => true,
             'area_approver' => true,
             'area_viewer' => true,
-            'other_area_viewer' => false,
+            'other_area_viewer' => true,
             'other_company' => false,
         ]);
     }
 
-    public function test_a_voter_follows_and_can_view(): void
+    public function test_comment_needs_taking_part(): void
+    {
+        $request = $this->request();
+
+        $this->assertMatrix('comment', $request, [
+            'requester' => true,
+            'colleague' => false,
+            'ia_leader' => true,
+            'project_approver' => true,
+            'area_approver' => true,
+            'area_viewer' => true,
+            'other_area_viewer' => false,
+            'other_company' => false,
+        ]);
+
+        $request->followers()->attach($this->juan->id);
+        $this->assertTrue($this->juan->can('comment', $request));
+    }
+
+    public function test_a_voter_follows_and_can_comment(): void
     {
         $request = $this->request();
         AiRequestVote::factory()->create(['ai_request_id' => $request->id, 'user_id' => $this->juan->id]);
 
         $this->assertTrue($this->juan->can('view', $request));
+        $this->assertTrue($this->juan->can('comment', $request));
+    }
+
+    public function test_rate_and_hours_saved_are_for_the_requester_in_production(): void
+    {
+        $request = $this->request(['status' => RequestStatus::InProduction]);
+
+        $this->assertTrue($this->paola->can('rate', $request));
+        $this->assertFalse($this->juan->can('rate', $request));
+        $this->assertTrue($this->paola->can('reportHoursSaved', $request));
+
+        $request->ratings()->create(['user_id' => $this->paola->id, 'solved_need' => 5, 'ease_of_use' => 5, 'rated_at' => now()]);
+        $this->assertFalse($this->paola->can('rate', $request->refresh()));
+
+        $request->forceFill(['status' => RequestStatus::InTesting])->save();
+        $this->assertFalse($this->paola->can('reportHoursSaved', $request));
     }
 
     public function test_internal_notes_and_triage_are_only_for_ai_managers(): void

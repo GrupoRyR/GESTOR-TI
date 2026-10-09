@@ -6,6 +6,12 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AI\AcceptanceValidationController;
+use App\Http\Controllers\AI\RatingController;
+use App\Http\Controllers\AI\RequestController;
+use App\Http\Controllers\AI\RequestInteractionController;
+use App\Http\Controllers\AI\RequestWizardController;
+use App\Http\Controllers\AI\RoadmapController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
@@ -76,16 +82,54 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(function () {
     Route::inertia('/', 'AI/Index')->name('index');
 
-    // TEMPORARY (Stage B): routes the Stage A design links to (types/pages/home.ts).
-    // They redirect to Inicio with a notice until Stage B replaces them.
+    // Requester pages (B3, types/pages/ai-requester.ts). `{request}` is the
+    // key (GIA-n), bound through CompanyScope (other companies answer 404);
+    // abilities live in AiRequestPolicy.
+    Route::middleware('can:ai.requests.create')->group(function () {
+        Route::get('/requests/create', [RequestWizardController::class, 'create'])->name('requests.create');
+        Route::put('/requests/draft', [RequestWizardController::class, 'updateDraft'])->name('requests.draft.update');
+        Route::post('/requests', [RequestWizardController::class, 'store'])->name('requests.store');
+        Route::get('/requests/mine', [RequestController::class, 'mine'])->name('requests.mine');
+    });
+    Route::get('/roadmap', RoadmapController::class)->name('roadmap.index');
+
+    Route::get('/requests/{request}', [RequestController::class, 'show'])->name('requests.show');
+    Route::get('/requests/{request}/submitted', [RequestWizardController::class, 'submitted'])->name('requests.submitted');
+    Route::post('/requests/{request}/vote', [RequestInteractionController::class, 'vote'])->name('requests.vote');
+    Route::delete('/requests/{request}/vote', [RequestInteractionController::class, 'unvote'])->name('requests.vote.destroy');
+    Route::post('/requests/{request}/follow', [RequestInteractionController::class, 'follow'])->name('requests.follow');
+    Route::delete('/requests/{request}/follow', [RequestInteractionController::class, 'unfollow'])->name('requests.follow.destroy');
+    Route::post('/requests/{request}/comments', [RequestInteractionController::class, 'comment'])->name('requests.comments.store');
+    // Signed links only (FileRef.url, 30 minutes), then authorized again.
+    Route::get('/requests/{request}/attachments/{attachment}', [RequestInteractionController::class, 'attachment'])
+        ->middleware('signed')
+        ->scopeBindings()
+        ->name('requests.attachments.show');
+    // GET not named by the design contract (no link on the pages yet): notifications use it.
+    Route::get('/requests/{request}/validation', [AcceptanceValidationController::class, 'edit'])->name('requests.validation.edit');
+    Route::put('/requests/{request}/validation', [AcceptanceValidationController::class, 'update'])->name('requests.validation.update');
+    Route::get('/requests/{request}/rating', [RatingController::class, 'create'])->name('ratings.create');
+    Route::post('/requests/{request}/rating', [RatingController::class, 'store'])->name('ratings.store');
+    // GET not named by the design contract: the 30-day reminder (B7) links to it.
+    Route::get('/requests/{request}/hours-saved', [RatingController::class, 'createHours'])->name('ratings.hours.create');
+    Route::post('/requests/{request}/hours-saved', [RatingController::class, 'storeHours'])->name('ratings.hours.store');
+
+    // TEMPORARY (Stage B): IT routes the design links to (types/pages/home.ts,
+    // GestorLayout tabs). They redirect to Inicio with a notice until B4/B5+
+    // replace them.
     Route::get('/requests', StageBPlaceholderController::class)->name('requests.index');
-    Route::get('/requests/create', StageBPlaceholderController::class)->name('requests.create');
-    Route::get('/requests/{request}', StageBPlaceholderController::class)->name('requests.show');
     Route::get('/requests/{request}/tasks/{task}', StageBPlaceholderController::class)->name('tasks.show');
-    Route::get('/requests/{request}/rating', StageBPlaceholderController::class)->name('ratings.create');
     Route::get('/requirements/{requirement}', StageBPlaceholderController::class)->name('requirements.show');
     Route::get('/approvals/{request}', StageBPlaceholderController::class)->name('approvals.show');
     Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
+    Route::get('/inbox', StageBPlaceholderController::class)->name('inbox.index');
+    Route::get('/backlog', StageBPlaceholderController::class)->name('backlog.index');
+    Route::get('/areas', StageBPlaceholderController::class)->name('areas.index');
+    Route::get('/projects', StageBPlaceholderController::class)->name('projects.index');
+    Route::get('/products', StageBPlaceholderController::class)->name('products.index');
+    Route::get('/docs', StageBPlaceholderController::class)->name('docs.index');
+    Route::get('/week', StageBPlaceholderController::class)->name('week.index');
+    Route::get('/value', StageBPlaceholderController::class)->name('value.index');
 });
 
 // Colaboradores (`Employees/Index`). Bindings honour CompanyScope; access

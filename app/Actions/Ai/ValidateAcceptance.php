@@ -4,6 +4,7 @@ namespace App\Actions\Ai;
 
 use App\Domain\Ai\RequestAttachments;
 use App\Enums\Ai\AcceptanceResult;
+use App\Enums\Ai\RequestStatus;
 use App\Models\AcceptanceCriterion;
 use App\Models\AiRequest;
 use App\Models\User;
@@ -17,10 +18,18 @@ use Illuminate\Validation\ValidationException;
  * requester marks each acceptance criterion pass/fail while the request is
  * "En pruebas"; a failed one needs a comment and may carry one photo
  * (private disk). Moving to production stays a TI decision.
+ *
+ * Resulting status (RequestStatusMachine): when any criterion of the
+ * request ends "fail", the request goes back from "En pruebas" to "En
+ * desarrollo" (history row with a public note); when every one passes it
+ * stays "En pruebas" until TI moves it to production.
  */
 class ValidateAcceptance
 {
-    public function __construct(private readonly RequestAttachments $attachments) {}
+    public function __construct(
+        private readonly RequestAttachments $attachments,
+        private readonly TransitionRequest $transition,
+    ) {}
 
     /**
      * @param  list<array{id: int, result: string, comment?: ?string, photo?: ?UploadedFile}>  $results
@@ -73,6 +82,17 @@ class ValidateAcceptance
                 $criterion->save();
             }
         });
+
+        $failed = $request->criteria()->where('result', AcceptanceResult::Fail->value)->count();
+
+        if ($failed > 0) {
+            $this->transition->apply(
+                $request,
+                RequestStatus::InDevelopment,
+                $requester,
+                $failed === 1 ? 'La validación encontró 1 criterio sin cumplir.' : "La validación encontró {$failed} criterios sin cumplir.",
+            );
+        }
 
         return $request;
     }

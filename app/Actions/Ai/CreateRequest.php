@@ -40,6 +40,7 @@ use Throwable;
  *   and the area has an approver, the request waits for them
  *   (`area_approval_status = pending`) and they are notified;
  * - `criteria` (list of texts) become acceptance criteria;
+ * - the requester follows it (`ai_request_followers`);
  * - attachments are validated first (nothing is created on a bad file) and
  *   stored on the private disk;
  * - product: `product` (slug, the `?producto={slug}` entry point) or
@@ -117,6 +118,9 @@ class CreateRequest
                 ]);
 
                 $this->syncAreas($request, $area, (array) ($data['benefited_area_ids'] ?? []));
+
+                // The requester follows their request ("Seguir").
+                $request->followers()->syncWithoutDetaching([$requester->id]);
 
                 foreach (array_values(array_filter((array) ($data['criteria'] ?? []), 'filled')) as $i => $text) {
                     $request->criteria()->create(['position' => $i + 1, 'text' => trim((string) $text)]);
