@@ -23,7 +23,7 @@ Mapping report from 2026-10-09 (summarised in tasks below): shared props/modules
 ## Tasks
 - [x] C1 · Merge design branch; resolve build conflicts (package.json union, Inertia v3, design fonts/app.css/tsconfig, app.tsx css import + titles, .gitignore union, lockfile regenerated); build + typecheck + vitest green.
 - [x] C2 · Shared props & shell: modules (`home`, `ai`, `assistant`, `employees`, `admin`; inactive `monitoring`, `tickets`, `inventory`, `operations`; icon = key; inactive included with `active:false`), guest `companies`, role fix, `home` route + `Home` page (Stage A data), Stage B placeholder routes, `search` route, `Errors/Error` renderer.
-- [ ] C3 · Auth pages: `Auth/Login` (companies, error codes, `prompt`), `Auth/Emergency` (routes `login.emergency*`, `username`, lockout props), `Auth/CompanyNotEnabled`, redirects to `home`.
+- [x] C3 · Auth pages: `Auth/Login` (companies, error codes, `prompt`), `Auth/Emergency` (routes `login.emergency*`, `username`, lockout props), `Auth/CompanyNotEnabled`, redirects to `home`.
 - [ ] C4 · `Employees/Index` (routes `employees.*` outside admin, filters, counts, last sync), `Profile/Edit`, `Profile/TelegramLink` (+ toggle update, routes `profile.telegram.*`).
 - [ ] C5 · `Admin/Companies/Index|Create` (`admin_companies`, edit/create routes, logo upload, `active`), `Admin/Areas/Index` (area approver model, departments, mappings bulk update, area approval setting).
 - [ ] C6 · `Admin/Users/Index` (users.active, deactivate, show), `Admin/Roles/Index` (labels/scope/system, bulk update, store), `Admin/Audit/Index` (entries, rendered description, origin/ip, changes, range filters, CSV export).
@@ -57,5 +57,20 @@ Mapping report from 2026-10-09 (summarised in tasks below): shared props/modules
 - Notes for design: `auth.user.company_id` is nullable on the backend (users without company, e.g. emergency admin) while `AuthUser.company_id` is `number`; guest pages also receive `current_company_id: null`, `notifications_unread: 0`, `modules: []` (extra keys); `flash.success/error` arrive as `null`, not absent; menu modules `ai.index`/`assistant.index` still render components without a design page (`AI/Index`, `Assistant/Index`).
 - Notes for C4: `employees.index` reads `search`, design sends `q`.
 
+### C3 · done (2026-10-09)
+- Route: delegated (writer trigger: 2+ non-trivial files — session, Microsoft and emergency controllers, emergency action/request, command, routes, tests).
+- Commit: `9b9ae3b` feat(frontend): wire login, emergency and company-not-enabled pages.
+- Test-first: updated/new auth tests failed first (3 failures, 23 errors: missing routes `login.emergency*`, `SessionController` constants, `GenerateEmergencyPassword`, `error` prop, `prompt`), then green.
+- `Auth/Login` (`login`): props `companies` (active companies, same `toSharedArray()` objects as the guest shared `companies`; the page prop overwrites the shared key with an identical list) and `error` (`tenant_not_allowed` | `microsoft_failed` | null). Old `microsoft_url`, `emergency_enabled`, `status` removed.
+- Callback failures are pulled once from the session (`SessionController::LOGIN_ERROR`, `COMPANY_NOT_ENABLED`); the callback no longer flashes the Spanish `error` message (GuestLayout would show it twice). Mapping: tenant or domain not enabled (with an email) → `Auth/CompanyNotEnabled` rendered on `GET /login` (no route of its own in the type) with the Microsoft email; guest `#EXT#` account or email linked to another Microsoft account → Login `tenant_not_allowed`; Socialite state/HTTP failure or missing identity → Login `microsoft_failed`. Vault re-auth failures still flash `error` on `home`.
+- `auth.microsoft.redirect` forwards `?prompt=` only when it is `select_account` or `login`.
+- `Auth/CompanyNotEnabled`: `email`, `support_email` (`gestor.support_email`, env `GESTOR_SUPPORT_EMAIL`, null hides the link).
+- `Auth/Emergency`: routes `login.emergency` (GET) and `login.emergency.store` (POST), same path `/emergency-login`; old `emergency.login*` names removed. Body `username` (validated as email, label "usuario") + `password`; credential and throttle errors go on `password` (as in the design mock). Success → `home` (intended). Disabled (no `EMERGENCY_ADMIN_EMAIL`) → 404.
+- Emergency props (safe approach): `lockout` and `attempts_left` are null on a fresh GET; after a failed POST they are flashed once from the per-username+IP RateLimiter (`AttemptEmergencyLogin::throttleState`), which counts every typed username the same way, so the page never reveals whether the username is the emergency account. The persistent per-user lock (`failed_login_attempts`, `locked_until`) still blocks silently with the generic error (tested from another IP: shows 4 attempts left, no lockout). For one IP both counters advance together, so the UI lockout matches the real lock.
+- Flaky `EmergencyAdminCommandTest`: the password line is written with `OUTPUT_RAW` (Str::password symbols include `<`, `>`, `\`, which the console formatter read as tags/escapes); generation moved to `App\Actions\Auth\GenerateEmergencyPassword` (32 chars, letters+numbers+symbols, no spaces) so the test pins a password full of `<info>`/`\` deterministically.
+- Checks: `php artisan test` 331 passed (run twice); `vendor/bin/pint` fixed 1 test file, `vendor/bin/pint --test` passed; `npm run typecheck` ok; `php artisan route:list --path=login` → `login`, `login.emergency` (GET), `login.emergency.store` (POST).
+- Env keys: `GESTOR_SUPPORT_EMAIL` (new, optional), `EMERGENCY_ADMIN_EMAIL` (existing).
+- Notes for design: Login always links `login.emergency`, which answers 404 while the emergency account is not configured (backend no longer sends `emergency_enabled`); the `Auth/Emergency` lockout copy says administrators were alerted by Telegram, but the backend does not send that alert yet (no Stage A requirement); `lockout`/`attempts_left` disappear on reload (one-shot by design).
+
 ## Next step
-C3 · auth pages.
+C4 · `Employees/Index`, `Profile/Edit`, `Profile/TelegramLink`.
