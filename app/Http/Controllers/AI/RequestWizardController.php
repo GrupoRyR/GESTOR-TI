@@ -108,7 +108,13 @@ class RequestWizardController extends Controller
     {
         /** @var User $user */
         $user = $form->user();
-        $request = $create->handle($user, $form->toActionData(), $form->attachments());
+        $requester = $form->requester();
+        $request = $create->handle($user, $form->toActionData(), $form->attachments(), $requester);
+
+        if ($requester !== null) {
+            // Filed by IT on behalf of a colleague: back to the IT detail.
+            return redirect()->route('ai.requests.show', $request)->with('success', "{$request->key} quedó creada a nombre de {$requester->name}.");
+        }
 
         AiRequestDraft::query()->where('user_id', $user->id)->delete();
 

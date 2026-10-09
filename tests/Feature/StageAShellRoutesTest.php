@@ -21,19 +21,27 @@ class StageAShellRoutesTest extends TestCase
      * GestorLayout tabs. The requester routes are real since B3.
      */
     private const STAGE_B_ROUTES = [
-        'ai.requests.index' => [],
         'ai.tasks.show' => ['request' => 'GIA-131', 'task' => 'T2'],
         'ai.requirements.show' => ['requirement' => 57],
         'ai.vault.index' => [],
-        'ai.approvals.show' => ['request' => 'GIA-146'],
-        'ai.inbox.index' => [],
-        'ai.backlog.index' => [],
-        'ai.areas.index' => [],
         'ai.projects.index' => [],
+        'ai.projects.show' => ['project' => 'P-07'],
         'ai.products.index' => [],
+        'ai.products.show' => ['product' => 'toma-pedidos'],
         'ai.docs.index' => [],
-        'ai.week.index' => [],
         'ai.value.index' => [],
+    ];
+
+    /**
+     * POST placeholders the B4 pages already call (projects B5, timer B6,
+     * weekly review): they go back with the notice.
+     */
+    private const STAGE_B_ACTIONS = [
+        'ai.requests.convert' => ['request' => 'GIA-131'],
+        'ai.timer.start' => ['project' => 'P-07', 'task' => 'T4'],
+        'ai.timer.stop' => [],
+        'ai.requirements.remind' => ['requirement' => 57],
+        'ai.reviews.store' => [],
     ];
 
     protected function setUp(): void
@@ -62,13 +70,26 @@ class StageAShellRoutesTest extends TestCase
         }
     }
 
+    public function test_stage_b_action_placeholders_go_back_with_a_notice(): void
+    {
+        $user = tap(User::factory()->create())->assignRole('Líder IA');
+
+        foreach (self::STAGE_B_ACTIONS as $name => $parameters) {
+            $this->actingAs($user)
+                ->from(route('home'))
+                ->post(route($name, $parameters))
+                ->assertRedirect(route('home'))
+                ->assertSessionHas('error', 'Disponible en la etapa B.');
+        }
+    }
+
     public function test_stage_b_placeholders_require_login_and_the_ai_module(): void
     {
-        $this->get(route('ai.requests.index'))->assertRedirect(route('login'));
+        $this->get(route('ai.vault.index'))->assertRedirect(route('login'));
 
         config(['modules.ai.active' => false]);
 
-        $this->get(route('ai.requests.index'))->assertNotFound();
+        $this->get(route('ai.vault.index'))->assertNotFound();
     }
 
     public function test_search_sends_employee_viewers_to_the_employee_list(): void

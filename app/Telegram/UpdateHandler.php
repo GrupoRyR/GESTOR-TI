@@ -7,6 +7,7 @@ use App\Services\Telegram\TelegramClient;
 use App\Support\Audit\AuditOrigin;
 use App\Support\Integrations\IntegrationsOverview;
 use App\Support\Settings;
+use App\Telegram\Handlers\ApprovalCallbackHandler;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -19,7 +20,9 @@ use Illuminate\Support\Facades\Log;
  *
  * - `/start {token}` links the private chat to the user that generated the
  *   token (single use, 30 min).
- * - `/start` without token and any other command or text: help message.
+ * - `/start` without token and any other command or text: help message,
+ *   except the reason of a ❌ Rechazar pressed just before (and `/cancelar`),
+ *   which ApprovalCallbackHandler takes.
  *   (The Asistente TI takes over plain text in Stage C.)
  * - `callback_query`: routed through `CallbackRegistry` for linked chats.
  *
@@ -105,6 +108,11 @@ class UpdateHandler implements ShouldQueue
 
         [$command, $argument] = $this->parseCommand($text);
 
+        // The reason of a ❌ Rechazar pressed just before (or /cancelar).
+        if (($command === null || $command === ApprovalCallbackHandler::CANCEL_COMMAND) && $this->handlePendingReason((string) $chatId, $text)) {
+            return;
+        }
+
         if ($command === '/start' && $argument !== '') {
             $client->sendMessage($chatId, $this->link((string) $chatId, $argument, $message['from']['username'] ?? null));
 
@@ -112,6 +120,17 @@ class UpdateHandler implements ShouldQueue
         }
 
         $client->sendMessage($chatId, self::HELP_TEXT);
+    }
+
+    private function handlePendingReason(string $chatId, string $text): bool
+    {
+        if (! Cache::has(ApprovalCallbackHandler::reasonCacheKey($chatId))) {
+            return false;
+        }
+
+        $link = TelegramLink::findLinkedChat($chatId);
+
+        return $link?->user !== null && app(ApprovalCallbackHandler::class)->handleReason($link->user, $chatId, $text);
     }
 
     /**

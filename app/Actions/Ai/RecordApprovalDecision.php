@@ -8,6 +8,7 @@ use App\Enums\Ai\ApprovalKind;
 use App\Enums\Ai\AreaApprovalStatus;
 use App\Enums\Ai\RejectReason;
 use App\Enums\Ai\RequestStatus;
+use App\Events\RequestApproved;
 use App\Models\AiRequest;
 use App\Models\AiRequestApproval;
 use App\Models\User;
@@ -27,6 +28,7 @@ use InvalidArgumentException;
  *   soon as one approver approves, or once every asked approver approved
  *   when the request was sent with `require_all`; rejected → "Rechazada".
  *   The estimate snapshot of the pending row stays with the decision.
+ *   Reaching "Aprobada" dispatches App\Events\RequestApproved (B5 hook).
  *
  * Each approver decides once.
  */
@@ -137,6 +139,9 @@ class RecordApprovalDecision
 
         if (! $waiting) {
             $this->transition->apply($request, RequestStatus::Approved, $approver, $comment);
+
+            // B5 creates the project from it (after the commit).
+            RequestApproved::dispatch($request, $approver);
         }
     }
 }

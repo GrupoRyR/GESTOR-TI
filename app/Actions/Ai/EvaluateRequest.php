@@ -18,7 +18,8 @@ use Illuminate\Validation\ValidationException;
  * risk and optionally a final priority that overrides the suggestion
  * (null = follow the suggestion). The server recomputes the suggestion; it
  * never trusts the client's. Counts as first response and moves a received
- * request to "En evaluación".
+ * request to "En evaluación". Leaves an `estimate` event on the IT timeline
+ * ("Jhon Castro la evaluó · talla L, prioridad 71").
  */
 class EvaluateRequest
 {
@@ -65,6 +66,12 @@ class EvaluateRequest
             if ($request->status === RequestStatus::Received) {
                 $this->transition->apply($request, RequestStatus::Evaluating, $actor);
             }
+
+            $detail = array_filter([
+                $size !== null ? "talla {$size->value}" : null,
+                $request->final_priority !== null ? "prioridad {$request->final_priority}".($request->priority_overridden ? ' (decidida por TI)' : '') : null,
+            ]);
+            $request->recordEvent('estimate', 'gray', "{$actor->name} la evaluó", $actor, null, $detail === [] ? null : implode(', ', $detail));
         });
 
         return $request;

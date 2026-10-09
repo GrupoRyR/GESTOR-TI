@@ -37,6 +37,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ?int $area_id
  * @property int $requester_id
  * @property int $created_by_id
+ * @property ?int $assignee_id
  * @property RequestType $type
  * @property string $title
  * @property ?int $product_id
@@ -68,6 +69,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ?Carbon $first_responded_at
  * @property ?RejectReason $rejection_reason
  * @property ?string $rejection_message
+ * @property ?int $merged_into_id
+ * @property ?int $backlog_position
  * @property ?Carbon $closed_at
  * @property Carbon $created_at
  */
@@ -77,7 +80,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
     'success_criteria', 'systems', 'systems_notes', 'urgency', 'deadline', 'deadline_reason', 'status',
     'area_approval_status', 'size', 'risk', 'impact_money_per_month', 'votes_count', 'priority_score',
     'final_priority', 'priority_overridden', 'evaluated_by_id', 'evaluated_at', 'first_response_due_at',
-    'first_responded_at', 'rejection_reason', 'rejection_message', 'closed_at',
+    'first_responded_at', 'rejection_reason', 'rejection_message', 'closed_at', 'assignee_id', 'merged_into_id',
+    'backlog_position',
 ])]
 class AiRequest extends Model
 {
@@ -125,6 +129,7 @@ class AiRequest extends Model
             'final_priority' => 'integer',
             'impact_money_per_month' => 'integer',
             'priority_overridden' => 'boolean',
+            'backlog_position' => 'integer',
             'deadline' => 'date',
             'evaluated_at' => 'datetime',
             'first_response_due_at' => 'datetime',
@@ -236,6 +241,61 @@ class AiRequest extends Model
     }
 
     /**
+     * IT person it was assigned to ("Asignar a…").
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assignee_id');
+    }
+
+    /**
+     * The request that stayed when this duplicate was merged.
+     *
+     * @return BelongsTo<AiRequest, $this>
+     */
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(AiRequest::class, 'merged_into_id')->withoutGlobalScopes();
+    }
+
+    /**
+     * Estimates sent to approval, oldest first (the latest one is in force).
+     *
+     * @return HasMany<AiEstimate, $this>
+     */
+    public function estimates(): HasMany
+    {
+        return $this->hasMany(AiEstimate::class)->orderBy('id');
+    }
+
+    /**
+     * IT timeline entries that are not status changes.
+     *
+     * @return HasMany<AiRequestEvent, $this>
+     */
+    public function events(): HasMany
+    {
+        return $this->hasMany(AiRequestEvent::class)->orderBy('id');
+    }
+
+    /**
+     * Writes an IT timeline entry (App\Models\AiRequestEvent).
+     */
+    public function recordEvent(string $kind, string $family, string $title, ?User $user = null, ?string $quote = null, ?string $detail = null): AiRequestEvent
+    {
+        return $this->events()->create([
+            'kind' => $kind,
+            'family' => $family,
+            'title' => $title,
+            'quote' => $quote,
+            'detail' => $detail === null ? null : mb_substr($detail, 0, 255),
+            'user_id' => $user?->id,
+        ]);
+    }
+
+    /**
      * @return HasMany<AiRequestVote, $this>
      */
     public function votes(): HasMany
@@ -334,7 +394,7 @@ class AiRequest extends Model
             ->logOnly([
                 'key', 'company_id', 'area_id', 'requester_id', 'type', 'title', 'product_id', 'status',
                 'area_approval_status', 'urgency', 'size', 'risk', 'priority_score', 'final_priority',
-                'rejection_reason',
+                'rejection_reason', 'assignee_id', 'merged_into_id', 'backlog_position',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();

@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Ai\ApprovalRounds;
+use App\Domain\Ai\DueLabel;
+use App\Domain\Ai\Inbox;
 use App\Domain\Ai\Roadmap;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiRequest;
 use App\Models\MonitoredApp;
 use App\Models\Scopes\CompanyScope;
 use App\Models\User;
+use App\Support\Ai\Presenters\ApprovalPresenter;
 use App\Support\Ai\RequesterCopy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -18,17 +22,27 @@ use Inertia\Response;
  * Inicio (`Pages/Home.tsx`, props `HomeProps` of resources/js/types/pages/home.ts).
  *
  * Two views: `it` for users with `ai.manage`, `requester` for everybody
- * else. The requester view lists the person's open requests (B3); the IT
- * approvals, attention items and credentials arrive in B4, so they are
- * still empty; monitoring lists the registered apps as placeholders until
- * the module is enabled.
+ * else. The requester view lists the person's open requests (B3). The IT
+ * view (B4) lists unanswered requests past or near their first-response
+ * deadline and, for project approvers, the approvals waiting for them;
+ * tasks and requirements (B5) and credentials (B8) are still empty;
+ * monitoring lists the registered apps as placeholders until the module is
+ * enabled.
  */
 class HomeController extends Controller
 {
     /** Requests shown on the requester home (the rest live in Mis solicitudes). */
     private const REQUESTER_LIMIT = 10;
 
-    public function __construct(private readonly Roadmap $roadmap) {}
+    /** Unanswered requests shown under "Requiere atención". */
+    private const ATTENTION_LIMIT = 10;
+
+    public function __construct(
+        private readonly Roadmap $roadmap,
+        private readonly Inbox $inbox,
+        private readonly ApprovalRounds $rounds,
+        private readonly ApprovalPresenter $approvals,
+    ) {}
 
     public function __invoke(Request $request): Response
     {
@@ -49,13 +63,14 @@ class HomeController extends Controller
             'view' => 'it',
             ...$greeting,
             'attention' => [
-                'unanswered_requests' => [],
+                'unanswered_requests' => $this->unansweredRequests(),
+                // TODO B5: overdue tasks and requirements waiting on users.
                 'overdue_tasks' => [],
                 'waiting_requirements' => [],
-                // Only filled for `ai.vault.access` once the vault exists (Stage B).
+                // TODO B8: only filled for `ai.vault.access` once the vault exists.
                 'expiring_credentials' => [],
             ],
-            'pending_approvals' => [],
+            'pending_approvals' => $this->pendingApprovals($user),
             'monitoring' => [
                 'enabled' => false,
                 'apps' => $this->monitoredApps(),
@@ -95,6 +110,63 @@ class HomeController extends Controller
                 'roadmap_position' => $rank === null ? null : RequesterCopy::rankLabel($request, $rank),
             ];
         })->values()->all();
+    }
+
+    /**
+     * `AttentionItem` rows: requests of the company in view without first
+     * response whose deadline passed (`late`) or falls within 24 hours
+     * (`attention`), most overdue first.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function unansweredRequests(): array
+    {
+        return Inbox::quick($this->inbox->query(), 'unanswered')
+            ->whereNotNull('first_response_due_at')
+            ->where('first_response_due_at', '<=', now()->addDay())
+            ->orderBy('first_response_due_at')
+            ->orderBy('id')
+            ->limit(self::ATTENTION_LIMIT)
+            ->get()
+            ->map(function (AiRequest $request): array {
+                $due = DueLabel::for($request->first_response_due_at);
+
+                return [
+                    'id' => 'request-'.$request->id,
+                    'title' => "{$request->key} · {$due['label']}",
+                    'detail' => $request->title,
+                    'href_route' => 'ai.requests.show',
+                    'href_params' => ['request' => $request->key],
+                    'severity' => $due['level'] === 'late' ? 'late' : 'attention',
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * `ApprovalItem` rows for holders of `ai.projects.approve`: what waits
+     * for their decision (App\Domain\Ai\ApprovalRounds). `cost_cop` is the
+     * estimate total (0 while unknown or without `ai.costs.view`).
+     *
+     * @return list<array{key: string, title: string, estimate_hours: int|float, cost_cop: int, due_date: string}>
+     */
+    private function pendingApprovals(User $user): array
+    {
+        return $this->rounds->pendingFor($user)
+            ->map(function (AiRequest $request) use ($user): array {
+                $summary = $this->approvals->summary($request, $user);
+
+                return [
+                    'key' => $summary['key'],
+                    'title' => $summary['title'],
+                    'estimate_hours' => $summary['hours_total'],
+                    'cost_cop' => (int) ($summary['total_cost'] ?? 0),
+                    'due_date' => $summary['due_date'],
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

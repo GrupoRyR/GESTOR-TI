@@ -21,9 +21,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $name
  * @property string $slug
  * @property ?int $approver_user_id
+ * @property ?int $hour_value COP an hour of the area is worth (null = not set)
  * @property bool $is_active
  */
-#[Fillable(['company_id', 'name', 'slug', 'approver_user_id', 'is_active'])]
+#[Fillable(['company_id', 'name', 'slug', 'approver_user_id', 'is_active', 'hour_value'])]
 class Area extends Model
 {
     /** @use HasFactory<AreaFactory> */
@@ -36,6 +37,7 @@ class Area extends Model
     {
         return [
             'is_active' => 'boolean',
+            'hour_value' => 'integer',
         ];
     }
 

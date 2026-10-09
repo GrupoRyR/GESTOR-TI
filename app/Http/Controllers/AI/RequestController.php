@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\AI;
 
+use App\Domain\Ai\DuplicateFinder;
+use App\Domain\Ai\FirstResponse;
 use App\Domain\Ai\Roadmap;
 use App\Enums\Ai\CommentVisibility;
 use App\Enums\Ai\RequestStatus;
@@ -10,12 +12,14 @@ use App\Models\AiRequest;
 use App\Models\AiRequestComment;
 use App\Models\Scopes\CompanyScope;
 use App\Models\User;
+use App\Support\Ai\Presenters\ItDetailPresenter;
 use App\Support\Ai\Presenters\RequesterDetailPresenter;
 use App\Support\Ai\Presenters\RequestPresenter;
+use App\Support\Ai\Presenters\TriagePresenter;
 use App\Support\Ai\RequesterCopy;
 use App\Support\Paginated;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -33,7 +37,15 @@ class RequestController extends Controller
 {
     private const PER_PAGE = 10;
 
-    public function __construct(private readonly Roadmap $roadmap) {}
+    /** Possible duplicates shown on the IT view. */
+    private const DUPLICATES = 3;
+
+    public function __construct(
+        private readonly Roadmap $roadmap,
+        private readonly DuplicateFinder $duplicates,
+        private readonly TriagePresenter $triage,
+        private readonly FirstResponse $firstResponse,
+    ) {}
 
     public function mine(Request $http): Response
     {
@@ -69,14 +81,13 @@ class RequestController extends Controller
         ]);
     }
 
-    public function show(Request $http, AiRequest $request): Response|RedirectResponse
+    public function show(Request $http, AiRequest $request): Response
     {
         /** @var User $user */
         $user = $http->user();
 
-        // TEMPORARY (B4): the IT view (`ItShowProps`) of ai-triage.ts.
         if (Gate::allows('viewInternal', $request)) {
-            return redirect()->route('home')->with('error', StageBPlaceholderController::NOTICE);
+            return $this->itView($http, $request, $user);
         }
 
         Gate::authorize('view', $request);
@@ -90,6 +101,40 @@ class RequestController extends Controller
             'roadmap_position' => RequesterCopy::roadmapPosition($request, $rank),
             'following' => $request->followers()->whereKey($user->id)->exists(),
             'can_comment' => Gate::allows('comment', $request),
+        ]);
+    }
+
+    /**
+     * `ItShowProps`: full detail with internal notes, evaluation, possible
+     * duplicates (the first one is `similar_to`) and the action data.
+     * `merge_candidates` only on its partial reload (`{ q }`).
+     */
+    private function itView(Request $http, AiRequest $request, User $user): Response
+    {
+        $duplicates = $request->status->isFinished() ? new EloquentCollection : $this->duplicates->similar(
+            $request->title.' '.$request->problem,
+            (int) $request->company_id,
+            self::DUPLICATES,
+            $request->id,
+        );
+        $duplicates->load(RequestPresenter::RELATIONS);
+        $withCosts = $user->can('ai.costs.view');
+        $due = $request->first_response_due_at ?? $request->created_at;
+
+        return Inertia::render('Ai/Requests/Show', [
+            ...$this->triage->actionData($user),
+            'view' => 'it',
+            'request' => ItDetailPresenter::detail($request, $user, $this->roadmap->rank($request), $duplicates->first()),
+            'evaluation' => ItDetailPresenter::evaluation($request, $user),
+            'duplicates' => $duplicates->map(fn (AiRequest $duplicate) => RequestPresenter::summary($duplicate))->values()->all(),
+            'area_hour_value' => $withCosts ? $request->area?->hour_value : null,
+            'first_response' => [
+                'due_at' => $due->toIso8601String(),
+                'answered_at' => $request->first_responded_at?->toIso8601String(),
+            ],
+            'first_response_business_days' => $this->firstResponse->businessDays(),
+            'now' => now()->toIso8601String(),
+            'merge_candidates' => Inertia::optional(fn () => InboxController::mergeCandidates((string) $http->query('q', ''), $request)),
         ]);
     }
 

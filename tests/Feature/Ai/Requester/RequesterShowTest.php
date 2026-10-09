@@ -6,7 +6,6 @@ use App\Enums\Ai\ApprovalDecision;
 use App\Enums\Ai\ApprovalKind;
 use App\Enums\Ai\CommentVisibility;
 use App\Enums\Ai\RequestStatus;
-use App\Http\Controllers\AI\StageBPlaceholderController;
 use App\Models\AcceptanceCriterion;
 use App\Models\AiRating;
 use App\Models\AiRequestApproval;
@@ -152,14 +151,14 @@ class RequesterShowTest extends RequesterTestCase
         $this->actingAs($this->derivadosUser)->get(route('ai.requests.show', $request))->assertNotFound();
     }
 
-    public function test_ai_managers_wait_for_the_it_view(): void
+    public function test_ai_managers_get_the_it_view(): void
     {
         $request = $this->request();
 
         $this->actingAs($this->jhon)
             ->get(route('ai.requests.show', $request))
-            ->assertRedirect(route('home'))
-            ->assertSessionHas('error', StageBPlaceholderController::NOTICE);
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('view', 'it'));
     }
 
     public function test_rating_appears_once_given(): void

@@ -1,5 +1,7 @@
 <?php
 
+use App\Telegram\Handlers\ApprovalCallbackHandler;
+
 /*
 |--------------------------------------------------------------------------
 | Gestor TI RYR
@@ -53,6 +55,10 @@ return [
         // Project approval: when the approver is the person who evaluated
         // the request, require the other approver (off by default, 6.4).
         'ai.approval.require_other_if_evaluator' => false,
+
+        // Work in progress limit: projects "En desarrollo" at the same time
+        // (global, PROMPT 6.4.3). Shown on backlog, approvals and roadmap.
+        'ai.wip_limit' => 3,
 
         // AI spend: monthly cap in USD (0 = not configured yet; pending
         // from Jhon) and warning threshold in percent of the cap.
@@ -202,8 +208,10 @@ return [
 
         // callback_data prefix => handler class (App\Telegram\Contracts\CallbackHandler).
         // callback_data is `{prefix}:{payload}` (max 64 bytes, Telegram limit).
-        // Stage B registers the approval handlers here.
-        'callbacks' => [],
+        // `ai-approval`: ✅ Aprobar / ❌ Rechazar of project approvals (B4).
+        'callbacks' => [
+            'ai-approval' => ApprovalCallbackHandler::class,
+        ],
     ],
 
 ];

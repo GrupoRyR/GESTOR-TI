@@ -2,9 +2,9 @@
 
 namespace App\Support\Ai\Presenters;
 
+use App\Domain\Ai\ApprovalRounds;
 use App\Enums\Ai\AcceptanceResult;
 use App\Enums\Ai\ApprovalDecision;
-use App\Enums\Ai\ApprovalKind;
 use App\Enums\Ai\CommentVisibility;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AcceptanceCriterion;
@@ -87,7 +87,7 @@ final class RequesterDetailPresenter
      *
      * @return list<array<string, mixed>>
      */
-    private static function attachments(AiRequest $request): array
+    public static function attachments(AiRequest $request): array
     {
         $photoIds = $request->criteria->pluck('attachment_id')->filter()->all();
 
@@ -154,7 +154,7 @@ final class RequesterDetailPresenter
      *
      * @return list<array<string, mixed>>
      */
-    private static function comments(AiRequest $request): array
+    public static function comments(AiRequest $request): array
     {
         return $request->comments()
             ->where('visibility', CommentVisibility::Public->value)
@@ -181,15 +181,7 @@ final class RequesterDetailPresenter
      */
     private static function projectRound(AiRequest $request): Collection
     {
-        $rows = $request->approvals->where('kind', ApprovalKind::Project);
-
-        if ($rows->isEmpty()) {
-            return collect();
-        }
-
-        $latest = $rows->max(fn (AiRequestApproval $row) => $row->requested_at?->getTimestamp() ?? 0);
-
-        return $rows->filter(fn (AiRequestApproval $row) => ($row->requested_at?->getTimestamp() ?? 0) === $latest)->values();
+        return ApprovalRounds::current($request);
     }
 
     /**
@@ -215,7 +207,7 @@ final class RequesterDetailPresenter
     /**
      * @return array<string, mixed>|null
      */
-    private static function approval(AiRequest $request): ?array
+    public static function approval(AiRequest $request): ?array
     {
         $round = self::projectRound($request);
 
@@ -223,8 +215,7 @@ final class RequesterDetailPresenter
             return null;
         }
 
-        $decided = $round->first(fn (AiRequestApproval $row) => $row->decision === ApprovalDecision::Approved)
-            ?? $round->first(fn (AiRequestApproval $row) => $row->decision === ApprovalDecision::Rejected);
+        $decided = ApprovalRounds::decided($round);
         $first = $round->first();
         $requestedBy = $first->requestedBy ?? $request->requester;
 
@@ -249,7 +240,7 @@ final class RequesterDetailPresenter
      *
      * @return array<string, mixed>|null
      */
-    private static function rating(AiRequest $request): ?array
+    public static function rating(AiRequest $request): ?array
     {
         $rating = $request->ratings()->where('user_id', $request->requester_id)->first();
 

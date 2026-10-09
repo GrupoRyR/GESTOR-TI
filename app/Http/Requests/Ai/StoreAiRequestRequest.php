@@ -5,6 +5,7 @@ namespace App\Http\Requests\Ai;
 use App\Domain\Ai\ProductResolver;
 use App\Enums\Ai\RequestType;
 use App\Enums\Ai\Urgency;
+use App\Models\User;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
@@ -16,6 +17,8 @@ use Illuminate\Validation\Rule;
  * so error keys land on the right step (`product_slug`, `attachments.0`…).
  * Domain rules (area of the requester's company, files) stay in
  * App\Actions\Ai\CreateRequest; `ai.requests.create` is checked by the route.
+ * `requester_id` (not in the design contract yet) files it on behalf of a
+ * colleague: CreateRequest requires `ai.manage` for that.
  */
 class StoreAiRequestRequest extends FormRequest
 {
@@ -34,7 +37,7 @@ class StoreAiRequestRequest extends FormRequest
                 'nullable', 'string', 'max:100',
                 Rule::requiredIf(fn () => in_array($this->input('type'), [RequestType::Improvement->value, RequestType::Bug->value], true)),
                 function (string $attribute, mixed $value, Closure $fail): void {
-                    if (filled($value) && app(ProductResolver::class)->forUser((string) $value, $this->user()) === null) {
+                    if (filled($value) && app(ProductResolver::class)->forUser((string) $value, $this->requester() ?? $this->user()) === null) {
                         $fail('Escoge una app de tu empresa.');
                     }
                 },
@@ -52,6 +55,8 @@ class StoreAiRequestRequest extends FormRequest
             'deadline_reason' => ['nullable', 'required_with:deadline', 'string', 'max:'.self::TEXT_MAX],
             'area_id' => ['required', 'integer'],
             'attachments' => ['nullable', 'array'],
+            // IT files it on behalf of a colleague (`ai.manage`, checked by CreateRequest).
+            'requester_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('active', true)],
         ];
     }
 
@@ -76,6 +81,7 @@ class StoreAiRequestRequest extends FormRequest
             'deadline.date_format' => 'Escribe una fecha válida.',
             'deadline_reason.required_with' => 'Cuéntanos por qué esa fecha.',
             'area_id.*' => 'Escoge tu área.',
+            'requester_id.*' => 'Escoge a la persona que lo pide.',
         ];
     }
 
@@ -106,6 +112,21 @@ class StoreAiRequestRequest extends FormRequest
             'area_id' => (int) $data['area_id'],
             'criteria' => array_values(array_filter(array_map('trim', $criteria), 'filled')),
         ];
+    }
+
+    /**
+     * The colleague the request is filed for (`requester_id`), or null when
+     * the signed-in user asks for themselves.
+     */
+    public function requester(): ?User
+    {
+        $id = $this->input('requester_id');
+
+        if (blank($id) || (int) $id === $this->user()?->id) {
+            return null;
+        }
+
+        return User::query()->find((int) $id);
     }
 
     /**

@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 
 /**
- * TEMPORARY (Stage B): Gestor IA routes the Stage A design already links to
- * (`ai.requests.*`, `ai.tasks.show`, `ai.requirements.show`,
- * `ai.vault.index`, `ai.ratings.create`, `ai.approvals.show`). They exist so
- * Ziggy never throws; each one sends the user back to Inicio with a notice
- * until Stage B replaces it with its real controller.
+ * TEMPORARY (Stage B): Gestor IA routes the design pages already call but
+ * later tasks implement (projects, tasks and requirements in B5, timer in
+ * B6, products in B9, docs and value in B7, vault in B8). They exist so
+ * Ziggy never throws: a page sends the user back to Inicio, an action goes
+ * back where it came from, both with a notice, until the real controller
+ * replaces them.
  */
 class StageBPlaceholderController extends Controller
 {
@@ -18,6 +19,11 @@ class StageBPlaceholderController extends Controller
 
     public function __invoke(): RedirectResponse
     {
-        return redirect()->route('home')->with('error', self::NOTICE);
+        // No injected Request: `{request}` is a route parameter of several placeholders.
+        if (request()->isMethod('GET')) {
+            return redirect()->route('home')->with('error', self::NOTICE);
+        }
+
+        return back(fallback: route('home'))->with('error', self::NOTICE);
     }
 }

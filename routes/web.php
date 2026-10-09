@@ -7,12 +7,18 @@ use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AI\AcceptanceValidationController;
+use App\Http\Controllers\AI\ApprovalController;
+use App\Http\Controllers\AI\AreaBoardController;
+use App\Http\Controllers\AI\BacklogController;
+use App\Http\Controllers\AI\InboxController;
 use App\Http\Controllers\AI\RatingController;
 use App\Http\Controllers\AI\RequestController;
 use App\Http\Controllers\AI\RequestInteractionController;
 use App\Http\Controllers\AI\RequestWizardController;
 use App\Http\Controllers\AI\RoadmapController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
+use App\Http\Controllers\AI\TriageController;
+use App\Http\Controllers\AI\WeekController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\Auth\SessionController;
@@ -114,21 +120,61 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
     Route::get('/requests/{request}/hours-saved', [RatingController::class, 'createHours'])->name('ratings.hours.create');
     Route::post('/requests/{request}/hours-saved', [RatingController::class, 'storeHours'])->name('ratings.hours.store');
 
-    // TEMPORARY (Stage B): IT routes the design links to (types/pages/home.ts,
-    // GestorLayout tabs). They redirect to Inicio with a notice until B4/B5+
-    // replace them.
-    Route::get('/requests', StageBPlaceholderController::class)->name('requests.index');
+    // IT triage (B4, types/pages/ai-triage.ts): `ai.manage`. Each action
+    // re-checks the request with AiRequestPolicy (company access).
+    Route::middleware('can:ai.manage')->group(function () {
+        Route::get('/inbox', [InboxController::class, 'index'])->name('inbox.index');
+        // Inicio "Ver todas" (types/pages/home.ts): redirects to the inbox chip or Mi semana.
+        Route::get('/requests', [InboxController::class, 'requests'])->name('requests.index');
+        // Bulk bar: registered before `/requests/{request}/…` ("bulk" is not a key).
+        Route::post('/requests/bulk/ask', [InboxController::class, 'bulkAsk'])->name('requests.bulk.ask');
+        Route::post('/requests/bulk/assign', [InboxController::class, 'bulkAssign'])->name('requests.bulk.assign');
+
+        Route::put('/requests/{request}/evaluation', [TriageController::class, 'evaluate'])->name('requests.evaluation.update');
+        Route::post('/requests/{request}/notes', [TriageController::class, 'note'])->name('requests.notes.store');
+        Route::post('/requests/{request}/reject', [TriageController::class, 'reject'])->name('requests.reject');
+        Route::post('/requests/{request}/ask', [TriageController::class, 'ask'])->name('requests.ask');
+        Route::post('/requests/{request}/merge', [TriageController::class, 'merge'])->name('requests.merge');
+        Route::post('/requests/{request}/approval', [TriageController::class, 'sendToApproval'])->name('requests.approval.store');
+        // Not in the design contract yet: "Mover al backlog" (flagged for design).
+        Route::post('/requests/{request}/backlog', [TriageController::class, 'backlog'])->name('requests.backlog');
+        Route::post('/requests/{request}/remind', [TriageController::class, 'remind'])->name('requests.remind');
+        Route::post('/approvals/{request}/remind', [ApprovalController::class, 'remind'])->name('approvals.remind');
+
+        Route::get('/backlog', [BacklogController::class, 'index'])->name('backlog.index');
+        Route::put('/backlog/order', [BacklogController::class, 'reorder'])->name('backlog.reorder');
+        Route::delete('/backlog/order', [BacklogController::class, 'reset'])->name('backlog.manual');
+        Route::get('/areas', [AreaBoardController::class, 'index'])->name('areas.index');
+        Route::get('/week', WeekController::class)->name('week.index');
+    });
+
+    // Project approvals (B4): pages for every module user (the index renders
+    // NoPermission without `ai.projects.approve`, the show answers 403);
+    // deciding needs `ai.projects.approve` (Súper Admin does not inherit it).
+    Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    Route::get('/approvals/{request}', [ApprovalController::class, 'show'])->name('approvals.show');
+    Route::middleware('can:ai.projects.approve')->group(function () {
+        Route::post('/approvals/{request}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
+        Route::post('/approvals/{request}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
+    });
+
+    // TEMPORARY (Stage B): routes the B4 pages and the GestorLayout tabs
+    // already call, implemented by later tasks (projects/tasks/requirements
+    // and weekly review B5, timer B6, docs/value B7, vault B8, products B9).
+    // Pages redirect to Inicio and actions go back, both with a notice.
     Route::get('/requests/{request}/tasks/{task}', StageBPlaceholderController::class)->name('tasks.show');
     Route::get('/requirements/{requirement}', StageBPlaceholderController::class)->name('requirements.show');
-    Route::get('/approvals/{request}', StageBPlaceholderController::class)->name('approvals.show');
+    Route::post('/requirements/{requirement}/remind', StageBPlaceholderController::class)->name('requirements.remind');
+    Route::post('/requests/{request}/convert', StageBPlaceholderController::class)->name('requests.convert');
+    Route::post('/projects/{project}/tasks/{task}/timer', StageBPlaceholderController::class)->name('timer.start');
+    Route::post('/timer/stop', StageBPlaceholderController::class)->name('timer.stop');
+    Route::post('/reviews', StageBPlaceholderController::class)->name('reviews.store');
     Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
-    Route::get('/inbox', StageBPlaceholderController::class)->name('inbox.index');
-    Route::get('/backlog', StageBPlaceholderController::class)->name('backlog.index');
-    Route::get('/areas', StageBPlaceholderController::class)->name('areas.index');
     Route::get('/projects', StageBPlaceholderController::class)->name('projects.index');
+    Route::get('/projects/{project}', StageBPlaceholderController::class)->name('projects.show');
     Route::get('/products', StageBPlaceholderController::class)->name('products.index');
+    Route::get('/products/{product}', StageBPlaceholderController::class)->name('products.show');
     Route::get('/docs', StageBPlaceholderController::class)->name('docs.index');
-    Route::get('/week', StageBPlaceholderController::class)->name('week.index');
     Route::get('/value', StageBPlaceholderController::class)->name('value.index');
 });
 
