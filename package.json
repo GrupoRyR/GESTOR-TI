@@ -10,6 +10,7 @@
     },
     "dependencies": {
         "@inertiajs/react": "^2.3.28",
+        "markdown-it": "^15.0.2",
         "react": "^19.3.0",
         "react-dom": "^19.3.0"
     },

@@ -134,6 +134,72 @@ const ICONS = {
             <path d="m21 16-5-5-9 9" />
         </>
     ),
+    // ---- Gestor IA (Stage B) ----
+    play: <path d="M7 4.5v15l12-7.5z" />,
+    stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+    clock: (
+        <>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+        </>
+    ),
+    grip: (
+        <>
+            <circle cx="9" cy="6" r="1.2" />
+            <circle cx="15" cy="6" r="1.2" />
+            <circle cx="9" cy="12" r="1.2" />
+            <circle cx="15" cy="12" r="1.2" />
+            <circle cx="9" cy="18" r="1.2" />
+            <circle cx="15" cy="18" r="1.2" />
+        </>
+    ),
+    'arrow-up': <path d="M12 19V5M6 11l6-6 6 6" />,
+    'arrow-down': <path d="M12 5v14M6 13l6 6 6-6" />,
+    move: <path d="M5 9 2 12l3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />,
+    heading: <path d="M6 4v16M18 4v16M6 12h12" />,
+    bold: <path d="M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z" />,
+    italic: <path d="M10 4h8M6 20h8M14 4l-4 16" />,
+    'list-ordered': <path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1V9M4 15.5a1.5 1.5 0 0 1 3 .5L4 19h3" />,
+    link: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
+    table: (
+        <>
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M3 10h18M9 10v10" />
+        </>
+    ),
+    eye: (
+        <>
+            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+        </>
+    ),
+    'eye-off': <path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.8 8.4 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" />,
+    copy: <path d="M8 8h12v12H8zM16 8V4H4v12h4" />,
+    paperclip: <path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7" />,
+    'pull-request': (
+        <>
+            <circle cx="6" cy="6" r="2.5" />
+            <circle cx="6" cy="18" r="2.5" />
+            <circle cx="18" cy="18" r="2.5" />
+            <path d="M6 8.5v7M18 15.5V9a3 3 0 0 0-3-3h-4M13 3.5 10.5 6 13 8.5" />
+        </>
+    ),
+    issue: (
+        <>
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="1.5" />
+        </>
+    ),
+    subtasks: <path d="M4 6h2M4 12h2M4 18h2M10 6h10M10 12h10M10 18h10" />,
+    key: (
+        <>
+            <circle cx="7.5" cy="15.5" r="4" />
+            <path d="m10.5 12.5 9-9M16 7l3 3M14 9l2 2" />
+        </>
+    ),
+    shield: <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" />,
+    message: <path d="M5 5h14v10H9l-4 4z" />,
+    trend: <path d="m3 17 6-6 4 4 8-8M15 7h6v6" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof ICONS;

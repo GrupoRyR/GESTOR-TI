@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Tabs, type TabItem } from '@/Components/ui/Tabs';
+import { can } from '@/lib/can';
 import { route } from '@/lib/route';
 import type { SharedProps } from '@/types/shared';
 import { AppLayout } from './AppLayout';
 
-export type AdminTab = 'companies' | 'areas' | 'users' | 'roles' | 'integrations' | 'audit';
+export type AdminTab = 'companies' | 'areas' | 'users' | 'roles' | 'integrations' | 'costs' | 'audit';
 
 /** Route names behind each Administración tab. */
 export const ADMIN_TAB_ROUTES: Record<AdminTab, { label: string; route: string }> = {
@@ -13,6 +14,8 @@ export const ADMIN_TAB_ROUTES: Record<AdminTab, { label: string; route: string }
     users: { label: 'Usuarios', route: 'admin.users.index' },
     roles: { label: 'Roles y permisos', route: 'admin.roles.index' },
     integrations: { label: 'Integraciones', route: 'admin.integrations.index' },
+    /** Gestor IA rates, hour values, approvers and budget alerts (Stage B). Needs `ai.costs.view`. */
+    costs: { label: 'Costos y aprobaciones', route: 'admin.costs.index' },
     audit: { label: 'Auditoría', route: 'admin.audit.index' },
 };
 
@@ -28,11 +31,13 @@ export interface AdminLayoutProps {
 
 /** AppLayout on the "admin" module with the Administración section tabs. */
 export function AdminLayout({ shared, title, tab, badges, headerActions, children }: AdminLayoutProps) {
-    const items: TabItem[] = (Object.keys(ADMIN_TAB_ROUTES) as AdminTab[]).map((key) => ({
-        key,
-        label: ADMIN_TAB_ROUTES[key].label,
-        href: route(ADMIN_TAB_ROUTES[key].route),
-    }));
+    const items: TabItem[] = (Object.keys(ADMIN_TAB_ROUTES) as AdminTab[])
+        .filter((key) => key !== 'costs' || can(shared.auth.user, 'ai.costs.view'))
+        .map((key) => ({
+            key,
+            label: ADMIN_TAB_ROUTES[key].label,
+            href: route(ADMIN_TAB_ROUTES[key].route),
+        }));
 
     return (
         <AppLayout
