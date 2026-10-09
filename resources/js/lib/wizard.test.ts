@@ -3,7 +3,9 @@ import {
     canSubmit,
     emptyDraft,
     firstInvalidStep,
+    firstStepWithErrors,
     MAX_ATTACHMENT_BYTES,
+    stepOfField,
     teamHours,
     validateStep,
     WIZARD_STEPS,
@@ -133,5 +135,28 @@ describe('teamHours', () => {
     it('multiplies hours by people (6 × 8 = 48)', () => {
         expect(teamHours(COMPLETE)).toBe(48);
         expect(teamHours({ ...COMPLETE, people: null })).toBeNull();
+    });
+});
+
+describe('stepOfField', () => {
+    it('maps each server error key to the step that shows it', () => {
+        expect(stepOfField('type')).toBe(1);
+        expect(stepOfField('product_slug')).toBe(1);
+        expect(stepOfField('problem')).toBe(2);
+        expect(stepOfField('people')).toBe(3);
+        expect(stepOfField('success_criteria')).toBe(4);
+        expect(stepOfField('systems.1')).toBe(5);
+        expect(stepOfField('deadline_reason')).toBe(6);
+        expect(stepOfField('attachments.0')).toBe(7);
+        expect(stepOfField('area_id')).toBe(7);
+    });
+
+    it('sends unknown keys to the review step', () => {
+        expect(stepOfField('something_else')).toBe(7);
+    });
+
+    it('finds the first step among several errors', () => {
+        expect(firstStepWithErrors({ attachments: 'x', problem: 'y' })).toBe(2);
+        expect(firstStepWithErrors({})).toBeNull();
     });
 });

@@ -97,7 +97,7 @@ const ALL_PERMISSIONS: Permission[] = [
 
 const without = (...excluded: Permission[]) => ALL_PERMISSIONS.filter((permission) => !excluded.includes(permission));
 
-export type MockUserKey = 'jhon' | 'leonardo' | 'andres';
+export type MockUserKey = 'jhon' | 'leonardo' | 'andres' | 'paola';
 
 export const USERS: Record<MockUserKey, AuthUser> = {
     /** Líder IA + Súper Admin + Aprobador de proyectos: the only one with the vault. */
@@ -130,6 +130,16 @@ export const USERS: Record<MockUserKey, AuthUser> = {
         roles: ['Usuario final'],
         permissions: ['ai.requests.create'],
     },
+    /** Usuario final of Segurex (Ventas): asks, votes, validates and rates. */
+    paola: {
+        id: 4,
+        name: 'Paola Ríos',
+        email: 'paola.rios@segurex.com',
+        avatar_url: null,
+        company_id: SEGUREX.id,
+        roles: ['Usuario final'],
+        permissions: ['ai.requests.create'],
+    },
 };
 
 // ---- builders -------------------------------------------------------------
@@ -146,6 +156,8 @@ export interface SharedOptions {
 export function sharedFor(userKey: MockUserKey, options: SharedOptions = {}): SharedProps {
     const user = USERS[userKey];
     const viewsAll = user.permissions.includes('companies.view_all');
+    /** Usuarios finales (Andrés, Paola) only get the requester modules. */
+    const requester = !user.permissions.includes('ai.manage');
     const companies =
         options.companies ?? (viewsAll ? COMPANIES : COMPANIES.filter((company) => company.id === user.company_id));
 
@@ -154,8 +166,8 @@ export function sharedFor(userKey: MockUserKey, options: SharedOptions = {}): Sh
         companies,
         current_company_id: options.currentCompanyId !== undefined ? options.currentCompanyId : viewsAll ? null : user.company_id,
         flash: options.flash ?? {},
-        notifications_unread: options.notificationsUnread ?? (userKey === 'andres' ? 1 : 4),
-        modules: userKey === 'andres' ? REQUESTER_MODULES : MODULES,
+        notifications_unread: options.notificationsUnread ?? (requester ? 1 : 4),
+        modules: requester ? REQUESTER_MODULES : MODULES,
     };
 }
 

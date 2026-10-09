@@ -50,5 +50,6 @@ export { STATUS_ICONS, StatusChip, type StatusChipProps } from './StatusChip';
 export { Switch, type SwitchProps } from './Switch';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { Timeline, type TimelineItem, type TimelineProps } from './Timeline';
+export { TextArea, type TextAreaProps } from './TextArea';
 export { TextField, type TextFieldProps } from './TextField';
 export { cx, FAMILY_TONE, initials } from './utils';

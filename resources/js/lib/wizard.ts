@@ -188,3 +188,37 @@ export function firstInvalidStep(draft: RequestDraft, today: string): WizardStep
 export function canSubmit(draft: RequestDraft, today: string): boolean {
     return firstInvalidStep(draft, today) === null;
 }
+
+const FIELD_STEPS: Record<string, WizardStepNumber> = {
+    type: 1,
+    product_slug: 1,
+    problem: 2,
+    plus_one_key: 2,
+    hours_per_week: 3,
+    people: 3,
+    expected_result: 4,
+    success_criteria: 4,
+    systems: 5,
+    systems_notes: 5,
+    urgency: 6,
+    deadline: 6,
+    deadline_reason: 6,
+    area_id: 7,
+    attachments: 7,
+};
+
+/**
+ * Step that shows a field, for Laravel error keys too (`attachments.0`,
+ * `systems.1`). Unknown keys land on the review step, which lists everything.
+ */
+export function stepOfField(field: string): WizardStepNumber {
+    return FIELD_STEPS[field.split('.')[0] ?? field] ?? 7;
+}
+
+/** Earliest step with at least one error, or null without errors. */
+export function firstStepWithErrors(errors: Record<string, string | undefined>): WizardStepNumber | null {
+    const steps = Object.keys(errors)
+        .filter((key) => errors[key])
+        .map(stepOfField);
+    return steps.length > 0 ? (Math.min(...steps) as WizardStepNumber) : null;
+}

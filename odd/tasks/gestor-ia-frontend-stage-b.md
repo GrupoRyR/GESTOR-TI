@@ -24,7 +24,7 @@ Out of scope: PHP, routes, controllers; Stage C (Asistente), D (GitHub actions, 
 
 ## Tasks
 - [x] T1 Foundations: domain types (`types/ai.ts`), Stage B shared mocks (`mocks/ai-fixtures.ts`), GestorLayout (AppLayout + Gestor IA tabs, requester mode without tabs), ProjectLayout (project sub-header + tabs), new ui components (Timeline, ChoiceCard, NumberStepper, ChipSelect, RatingScale, Dialog, Drawer, Timer + CountdownRing, VaultZone, KanbanColumn/Card, SortableList keyboard-accessible, MarkdownEditor + safe preview, LineChart, BarList, StatTile, DiffView). Route: delegated.
-- [ ] T2 Requester pages (B1–B4): request wizard, submitted, my requests (+ empty), request detail requester view, acceptance validation, rating, hours saved, roadmap. Route: delegated.
+- [x] T2 Requester pages (B1–B4): request wizard, submitted, my requests (+ empty), request detail requester view, acceptance validation, rating, hours saved, roadmap. Route: delegated.
 - [ ] T3 IT triage (B5–B10): inbox, request detail IT view + action dialogs, approvals (phone + desktop + done), backlog, by area, my week. Route: delegated.
 - [ ] T4 Projects (B11–B17): project index, summary, board + task drawer, task phone, requirements + respond, time and costs + time entry, report, admin costs and approvers. Route: delegated.
 - [ ] T5 Products, docs, value, vault (B18–B22): products, product detail, docs editor/templates/history/repo, search, value dashboard, vault locked/open/denied, states. Route: delegated.
