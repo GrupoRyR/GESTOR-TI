@@ -23,6 +23,19 @@ class UpdateCompanyRequest extends CompanyRequest
         return $company instanceof Company ? $company : null;
     }
 
+    protected function requiresLogo(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Omitted = unchanged (the edit panel only sends a new tenant).
+     */
+    protected function tenantRules(): array
+    {
+        return ['sometimes', 'required'];
+    }
+
     private function changesTenant(): bool
     {
         if (! $this->exists('tenant_id')) {

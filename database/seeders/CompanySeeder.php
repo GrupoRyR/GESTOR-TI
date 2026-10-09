@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Company;
+use App\Support\CompanyLogos;
 use Illuminate\Database\Seeder;
 
 /**
@@ -39,7 +40,21 @@ class CompanySeeder extends Seeder
         ];
 
         foreach ($companies as $company) {
-            Company::updateOrCreate(['slug' => $company['slug']], $company);
+            $model = Company::updateOrCreate(['slug' => $company['slug']], $company);
+
+            $this->publishBrandLogos($model);
         }
+    }
+
+    /**
+     * Publishes `resources/brand/logo-{slug}.svg` and `logo-{slug}-dark.svg`
+     * to the public disk (`companies/{id}/`) as the company's logos, only
+     * when it has none: logos uploaded from Administración are kept.
+     * Requires `php artisan storage:link` on the server to be served.
+     */
+    private function publishBrandLogos(Company $company): void
+    {
+        CompanyLogos::publishIfMissing($company, 'logo', resource_path('brand/logo-'.$company->slug.'.svg'));
+        CompanyLogos::publishIfMissing($company, 'logo_dark', resource_path('brand/logo-'.$company->slug.'-dark.svg'));
     }
 }

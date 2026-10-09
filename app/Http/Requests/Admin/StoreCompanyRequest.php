@@ -18,4 +18,14 @@ class StoreCompanyRequest extends CompanyRequest
     {
         return null;
     }
+
+    protected function requiresLogo(): bool
+    {
+        return true;
+    }
+
+    protected function tenantRules(): array
+    {
+        return ['required'];
+    }
 }

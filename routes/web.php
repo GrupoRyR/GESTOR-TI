@@ -1,9 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminTabPlaceholderController;
 use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
-use App\Http\Controllers\Admin\DepartmentMappingController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
@@ -125,19 +125,32 @@ Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assi
 Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::inertia('/', 'Admin/Index')->name('index');
 
-    // Creating a company or changing its tenant also requires
-    // `companies.manage_tenant` (checked in the form requests).
+    // Empresas (`Admin/Companies/Index|Create`). Creating a company (wizard
+    // included) or changing its tenant also requires `companies.manage_tenant`
+    // (controller / form requests). Updates arrive as POST + `_method=PUT`
+    // multipart (logos).
     Route::middleware('can:companies.manage')->group(function () {
         Route::get('/companies', [CompanyController::class, 'index'])->name('companies.index');
+        Route::get('/companies/create', [CompanyController::class, 'create'])->name('companies.create');
         Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
+        Route::get('/companies/{company}/edit', [CompanyController::class, 'edit'])->name('companies.edit');
         Route::put('/companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
     });
 
+    // Áreas (`Admin/Areas/Index`), department mappings included. Company
+    // access is checked by the controller and form requests (`company_id`).
     Route::middleware('can:areas.manage')->group(function () {
         Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
         Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
-        Route::put('/areas/{area}', [AreaController::class, 'update'])->name('areas.update');
+        Route::put('/areas/mappings', [AreaController::class, 'updateMappings'])->name('areas.mappings.update');
+        Route::put('/areas/approval', [AreaController::class, 'updateApproval'])->name('areas.approval.update');
+        Route::put('/areas/{area}', [AreaController::class, 'update'])->whereNumber('area')->name('areas.update');
     });
+
+    // TEMPORARY: AdminLayout tabs not wired yet (C6 Usuarios, C7
+    // Integraciones); they redirect to Empresas with a notice.
+    Route::get('/users', AdminTabPlaceholderController::class)->middleware('can:users.manage')->name('users.index');
+    Route::get('/integrations', AdminTabPlaceholderController::class)->middleware('can:companies.manage')->name('integrations.index');
 
     // Role × permission matrix. Exclusive permissions (`ai.vault.access`)
     // are rejected by the form request and by the Role model.
@@ -149,12 +162,6 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
     Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])
         ->middleware('can:users.manage')
         ->name('users.roles.update');
-
-    Route::middleware('can:employees.manage')->group(function () {
-        Route::get('/department-mappings', [DepartmentMappingController::class, 'index'])->name('department-mappings.index');
-        Route::post('/department-mappings', [DepartmentMappingController::class, 'store'])->name('department-mappings.store');
-        Route::delete('/department-mappings/{mapping}', [DepartmentMappingController::class, 'destroy'])->name('department-mappings.destroy');
-    });
 
     // Activity log (A8): restricted users only see activities caused by
     // users of their company; properties are sanitized again.

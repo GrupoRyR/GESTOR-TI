@@ -3,12 +3,16 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Company;
+use App\Support\CompanyLogos;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Shared validation for creating and updating companies.
+ * Shared validation for creating and updating companies (multipart, as the
+ * `Admin/Companies/*` pages send it): name, short_name, slug, domains[],
+ * sender_email, colors{primary,accent,dark}, logo?, logo_dark?, active,
+ * tenant_id.
  *
  * The Microsoft tenant decides who can log in, so creating a company or
  * setting/changing its `tenant_id` requires `companies.manage_tenant`
@@ -19,6 +23,16 @@ abstract class CompanyRequest extends FormRequest
     public const MANAGE_TENANT_PERMISSION = 'companies.manage_tenant';
 
     abstract protected function company(): ?Company;
+
+    /**
+     * Whether `logo` must be uploaded (creation).
+     */
+    abstract protected function requiresLogo(): bool;
+
+    /**
+     * @return list<mixed>
+     */
+    abstract protected function tenantRules(): array;
 
     protected function prepareForValidation(): void
     {
@@ -34,6 +48,10 @@ abstract class CompanyRequest extends FormRequest
                 ),
             ]);
         }
+
+        if (is_string($this->input('sender_email'))) {
+            $this->merge(['sender_email' => strtolower(trim($this->input('sender_email')))]);
+        }
     }
 
     /**
@@ -47,19 +65,32 @@ abstract class CompanyRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'short_name' => ['required', 'string', 'max:60'],
             'slug' => ['required', 'string', 'max:60', 'alpha_dash:ascii', 'lowercase', Rule::unique('companies', 'slug')->ignore($ignore)],
-            'tenant_id' => ['sometimes', 'nullable', 'uuid', Rule::unique('companies', 'tenant_id')->ignore($ignore)],
-            'domains' => ['present', 'array'],
+            'tenant_id' => [...$this->tenantRules(), 'uuid', Rule::unique('companies', 'tenant_id')->ignore($ignore)],
+            'domains' => ['required', 'array', 'min:1'],
             'domains.*' => ['required', 'string', 'max:255', 'distinct', 'regex:/^(?!-)[a-z0-9-]+(\.[a-z0-9-]+)+$/'],
-            'logo_path' => ['nullable', 'string', 'max:255'],
-            'logo_dark_path' => ['nullable', 'string', 'max:255'],
+            'logo' => CompanyLogos::rules($this->requiresLogo()),
+            'logo_dark' => CompanyLogos::rules(false),
             'colors' => ['required', 'array:primary,accent,dark'],
             'colors.primary' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'colors.accent' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'colors.dark' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'sender_email' => ['required', 'email', 'max:255'],
-            'sender_name' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['required', 'boolean'],
+            'active' => ['required', 'boolean'],
         ];
+    }
+
+    /**
+     * Company columns from the validated input (`active` → `is_active`;
+     * logos are stored separately with `CompanyLogos`).
+     *
+     * @return array<string, mixed>
+     */
+    public function attributesForCompany(): array
+    {
+        $data = $this->safe()->except(['logo', 'logo_dark', 'active']);
+        $data['is_active'] = $this->boolean('active');
+
+        return $data;
     }
 
     /**
@@ -74,15 +105,14 @@ abstract class CompanyRequest extends FormRequest
             'tenant_id' => 'ID de inquilino',
             'domains' => 'dominios',
             'domains.*' => 'dominio',
-            'logo_path' => 'logo',
-            'logo_dark_path' => 'logo oscuro',
+            'logo' => 'logo',
+            'logo_dark' => 'logo oscuro',
             'colors' => 'colores',
             'colors.primary' => 'color principal',
             'colors.accent' => 'color de acento',
             'colors.dark' => 'color oscuro',
             'sender_email' => 'correo emisor',
-            'sender_name' => 'nombre del emisor',
-            'is_active' => 'activa',
+            'active' => 'activa',
         ];
     }
 

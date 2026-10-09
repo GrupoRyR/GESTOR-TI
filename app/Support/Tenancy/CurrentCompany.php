@@ -122,6 +122,16 @@ class CurrentCompany
         }
     }
 
+    /**
+     * Whether the user may act on data of the given company regardless of
+     * the selected context: any company with `companies.view_all`, else
+     * only their own.
+     */
+    public function canAccess(User $user, int $companyId): bool
+    {
+        return $this->canViewAll($user) || ($user->company_id !== null && (int) $user->company_id === $companyId);
+    }
+
     public function canViewAll(User $user): bool
     {
         return $user->can(self::VIEW_ALL_PERMISSION);

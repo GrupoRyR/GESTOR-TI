@@ -100,4 +100,28 @@ class StageAShellRoutesTest extends TestCase
         $this->actingAs($admin)->get(route('employees.index'))->assertOk();
         $this->actingAs($user)->get(route('employees.index'))->assertForbidden();
     }
+
+    public function test_every_admin_tab_route_exists(): void
+    {
+        foreach (['admin.companies.index', 'admin.areas.index', 'admin.users.index', 'admin.roles.index', 'admin.integrations.index', 'admin.audit.index'] as $name) {
+            $this->assertTrue(Route::has($name), "Route [{$name}] is missing.");
+        }
+
+        $this->assertFalse(Route::has('admin.department-mappings.index'));
+    }
+
+    public function test_admin_tabs_not_wired_yet_redirect_to_companies_with_a_notice(): void
+    {
+        $admin = tap(User::factory()->create())->assignRole('Súper Admin');
+        $user = tap(User::factory()->create())->assignRole('Usuario final');
+
+        foreach (['admin.users.index', 'admin.integrations.index'] as $name) {
+            $this->actingAs($admin)
+                ->get(route($name))
+                ->assertRedirect(route('admin.companies.index'))
+                ->assertSessionHas('error', 'Disponible pronto.');
+
+            $this->actingAs($user)->get(route($name))->assertForbidden();
+        }
+    }
 }

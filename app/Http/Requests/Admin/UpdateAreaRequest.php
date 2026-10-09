@@ -3,28 +3,36 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Area;
-use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * The area is resolved through `CompanyScope` (route binding), so it is
- * always inside the user's visible companies. Its company cannot change.
+ * The area is looked up without `CompanyScope` (the Áreas page switches
+ * company through its `company_id` query, not the session context) and then
+ * checked against the user's companies: areas of a company the user cannot
+ * access are 404. Its company cannot change; `company_id` in the body is
+ * ignored.
  */
 class UpdateAreaRequest extends AreaRequest
 {
+    private ?Area $resolvedArea = null;
+
     public function authorize(): bool
     {
+        $area = $this->area();
+
+        abort_if($area === null || ! $this->canAccessCompany($area->company_id), 404);
+
         return true;
     }
 
-    /**
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
+    public function area(): ?Area
     {
-        return [
-            'name' => $this->nameRules(),
-            'is_active' => ['required', 'boolean'],
-        ];
+        $id = $this->route('area');
+
+        if (! is_numeric($id)) {
+            return null;
+        }
+
+        return $this->resolvedArea ??= Area::withoutGlobalScopes()->find((int) $id);
     }
 
     public function companyId(): ?int
@@ -32,15 +40,13 @@ class UpdateAreaRequest extends AreaRequest
         return $this->area()?->company_id;
     }
 
+    protected function companyRules(): array
+    {
+        return ['sometimes', 'nullable'];
+    }
+
     protected function ignoredAreaId(): ?int
     {
         return $this->area()?->id;
-    }
-
-    private function area(): ?Area
-    {
-        $area = $this->route('area');
-
-        return $area instanceof Area ? $area : null;
     }
 }

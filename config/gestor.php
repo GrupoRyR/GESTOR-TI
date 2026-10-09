@@ -52,6 +52,16 @@ return [
         'ai.cost_warning_percent' => 80,
     ],
 
+    'microsoft' => [
+        // "Agregar empresa" wizard: admin-consent link for the new tenant.
+        // `{client_id}` is filled from services.microsoft.client_id on the
+        // server; `{tenant}` stays for the page to fill with the typed GUID.
+        'admin_consent_url_template' => env(
+            'MICROSOFT_ADMIN_CONSENT_URL_TEMPLATE',
+            'https://login.microsoftonline.com/{tenant}/adminconsent?client_id={client_id}',
+        ),
+    ],
+
     'brand' => [
         // Shared `companies[].colors` never carry null (design contract):
         // each missing key of a company falls back to these neutral colors.
