@@ -171,6 +171,7 @@ export function RequesterRequestView(props: Props) {
             shared={props}
             title={`${request.key} · Mis solicitudes`}
             mode="requester"
+            requesterNav="mine"
             breadcrumb={[{ label: 'Mis solicitudes', href: route('ai.requests.mine') }, { label: request.key }]}
         >
             <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4">

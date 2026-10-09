@@ -71,7 +71,10 @@ export interface RequestSummary {
     /** What TI decided; equals the suggested one unless someone changed it. */
     priority_final: number | null;
     urgency: Urgency | null;
-    /** First-response SLA: 1 business day from creation. */
+    /**
+     * First-response deadline: creation + the configured number of business
+     * days (configurable; the spec's example is 3). `due_at` is server-computed.
+     */
     first_response: { due_at: string; answered_at: string | null };
     /** App the request is about (improvement / bug). */
     product: ProductRef | null;

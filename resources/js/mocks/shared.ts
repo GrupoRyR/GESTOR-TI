@@ -97,7 +97,7 @@ const ALL_PERMISSIONS: Permission[] = [
 
 const without = (...excluded: Permission[]) => ALL_PERMISSIONS.filter((permission) => !excluded.includes(permission));
 
-export type MockUserKey = 'jhon' | 'leonardo' | 'andres' | 'paola';
+export type MockUserKey = 'jhon' | 'leonardo' | 'edward' | 'andres' | 'paola';
 
 export const USERS: Record<MockUserKey, AuthUser> = {
     /** Líder IA + Súper Admin + Aprobador de proyectos: the only one with the vault. */
@@ -119,6 +119,16 @@ export const USERS: Record<MockUserKey, AuthUser> = {
         company_id: SEGUREX.id,
         roles: ['Súper Admin'],
         permissions: without('ai.vault.access', 'ai.projects.approve'),
+    },
+    /** Aprobador de proyectos (Gerencia): approves from Telegram, sees costs, no IT tabs. */
+    edward: {
+        id: 3,
+        name: 'Edward Ramanan',
+        email: 'edward.ramanan@segurex.com',
+        avatar_url: null,
+        company_id: SEGUREX.id,
+        roles: ['Aprobador de proyectos'],
+        permissions: ['ai.requests.create', 'ai.projects.approve', 'ai.costs.view', 'companies.view_all'],
     },
     /** Usuario final of Derivados: can only create requests. */
     andres: {
@@ -156,7 +166,7 @@ export interface SharedOptions {
 export function sharedFor(userKey: MockUserKey, options: SharedOptions = {}): SharedProps {
     const user = USERS[userKey];
     const viewsAll = user.permissions.includes('companies.view_all');
-    /** Usuarios finales (Andrés, Paola) only get the requester modules. */
+    /** Without `ai.manage` (Andrés, Paola, Edward) only the requester modules show. */
     const requester = !user.permissions.includes('ai.manage');
     const companies =
         options.companies ?? (viewsAll ? COMPANIES : COMPANIES.filter((company) => company.id === user.company_id));

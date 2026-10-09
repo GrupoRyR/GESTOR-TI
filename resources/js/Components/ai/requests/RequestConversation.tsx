@@ -15,10 +15,25 @@ export interface RequestConversationProps {
     canComment: boolean;
     /** Set on the phone copy only, so the in-page nav can jump to it. */
     id?: string;
+    /** Label of the reply box; defaults to "Escribe a TI" (IT writes to the requester). */
+    composerLabel?: string;
+    /** Placeholder of the reply box. */
+    composerPlaceholder?: string;
+    /** Inside a tab panel: no card and no visible heading (the tab names it). */
+    embedded?: boolean;
 }
 
 /** Public conversation of a request (requester, IT and followers) with the reply form. */
-export function RequestConversation({ requestKey, comments, viewerId, canComment, id }: RequestConversationProps) {
+export function RequestConversation({
+    requestKey,
+    comments,
+    viewerId,
+    canComment,
+    id,
+    composerLabel = 'Escribe a TI',
+    composerPlaceholder = 'Tu mensaje',
+    embedded = false,
+}: RequestConversationProps) {
     const form = useForm<{ body: string; attachments: File[] }>({ body: '', attachments: [] });
     const fileRef = useRef<HTMLInputElement>(null);
     const titleId = `${id ?? 'conversacion-d'}-t`;
@@ -37,8 +52,12 @@ export function RequestConversation({ requestKey, comments, viewerId, canComment
     };
 
     return (
-        <section id={id} aria-labelledby={titleId} className="flex scroll-mt-24 flex-col gap-3 rounded-card border border-line bg-surface p-4 md:p-5">
-            <h2 id={titleId} className="text-base font-bold">
+        <section
+            id={id}
+            aria-labelledby={titleId}
+            className={cx('flex scroll-mt-24 flex-col gap-3', !embedded && 'rounded-card border border-line bg-surface p-4 md:p-5')}
+        >
+            <h2 id={titleId} className={embedded ? 'sr-only' : 'text-base font-bold'}>
                 Conversación
             </h2>
             {comments.length === 0 ? <p className="text-sm text-fg-muted">Todavía no hay mensajes.</p> : null}
@@ -74,12 +93,12 @@ export function RequestConversation({ requestKey, comments, viewerId, canComment
             {canComment ? (
                 <form onSubmit={send} className="flex flex-col gap-2 border-t border-line pt-3">
                     <label htmlFor={`${titleId}-msg`} className="text-[13px] font-semibold">
-                        Escribe a TI
+                        {composerLabel}
                     </label>
                     <textarea
                         id={`${titleId}-msg`}
                         rows={2}
-                        placeholder="Tu mensaje"
+                        placeholder={composerPlaceholder}
                         value={form.data.body}
                         aria-invalid={form.errors.body ? true : undefined}
                         aria-describedby={`${titleId}-help`}

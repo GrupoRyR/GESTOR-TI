@@ -115,7 +115,7 @@ export default function RoadmapIndex(props: PageProps<RoadmapIndexProps>) {
     );
 
     return (
-        <GestorLayout shared={props} title="Hoja de ruta · Gestor IA">
+        <GestorLayout shared={props} title="Hoja de ruta · Gestor IA" requesterNav="roadmap">
             <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                     <div className="flex min-w-0 flex-col gap-1">

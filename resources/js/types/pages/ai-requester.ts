@@ -6,7 +6,8 @@
  * - `Ai/Requests/Create`     RequestsCreateProps     "Pedir un desarrollo o una mejora" (7-step wizard)
  * - `Ai/Requests/Submitted`  RequestsSubmittedProps  "Recibimos tu solicitud"
  * - `Ai/Requests/Mine`       RequestsMineProps       "Mis solicitudes" (+ empty state)
- * - `Ai/Requests/Show`       RequestsShowProps       request detail; this file defines `view: 'requester'`
+ * - `Ai/Requests/Show`       RequestsShowProps       request detail; this file defines `view: 'requester'`,
+ *                                                    ai-triage.ts defines `view: 'it'`
  * - `Ai/Requests/Validate`   RequestsValidateProps   acceptance validation while "En pruebas"
  * - `Ai/Ratings/Create`      RatingsCreateProps      "Calificar la entrega"
  * - `Ai/Ratings/HoursSaved`  RatingsHoursSavedProps  "30 días después"
@@ -44,11 +45,13 @@
  *                         same item shape to everyone: RoadmapItem never carries costs.
  * - Requester pages never receive `internal_notes`, `estimate.total_cost`, `estimate.external_costs`,
  *   rates or per-person hours: the server omits them (see RequesterRequestDetail).
+ * - First response: within the configured number of business days (configurable; example 3).
  */
 import type { Rating } from '@/Components/ui/RatingScale';
 import type { RequestStatusKey } from '@/lib/status';
 import type { RequestDraft, RequestType, WizardStepNumber } from '@/lib/wizard';
 import type { AreaRef, ProductRef, RequestDetail, RequestSummary } from '@/types/ai';
+import type { ItShowProps } from '@/types/pages/ai-triage';
 import type { Company, FormErrors, Paginated } from '@/types/shared';
 
 type AreaOption = Pick<AreaRef, 'id' | 'name'>;
@@ -149,8 +152,8 @@ export interface RequesterShowProps {
     can_comment: boolean;
 }
 
-/** Union grows with `view: 'it'` (IT view, task T3). */
-export type RequestsShowProps = RequesterShowProps;
+/** The server picks the view: `requester` here, `it` in ai-triage.ts (holders of `ai.manage`). */
+export type RequestsShowProps = RequesterShowProps | ItShowProps;
 
 // ---- Validate ---------------------------------------------------------------
 

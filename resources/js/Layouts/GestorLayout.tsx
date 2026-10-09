@@ -5,7 +5,7 @@ import { Tabs, type TabItem } from '@/Components/ui/Tabs';
 import { can } from '@/lib/can';
 import { route } from '@/lib/route';
 import type { Permission, SharedProps } from '@/types/shared';
-import { AppLayout } from './AppLayout';
+import { AppLayout, type BottomNavOverride } from './AppLayout';
 
 export type GestorTab = 'inbox' | 'backlog' | 'areas' | 'projects' | 'products' | 'docs' | 'week' | 'value' | 'vault';
 
@@ -57,7 +57,25 @@ export interface GestorLayoutProps {
     subheader?: ReactNode;
     badges?: Record<string, number>;
     headerActions?: ReactNode;
+    /** Requester mode: current item of the phone bar (Inicio · Solicitudes · Hoja de ruta · Perfil). */
+    requesterNav?: RequesterNavKey;
     children: ReactNode;
+}
+
+export type RequesterNavKey = 'home' | 'mine' | 'roadmap' | 'profile';
+
+/** Phone bottom bar of requesters (boards PhoneHome, B-MyRequests). */
+export function requesterBottomNav(active?: RequesterNavKey): BottomNavOverride {
+    return {
+        label: 'Gestor IA',
+        active,
+        items: [
+            { key: 'home', label: 'Inicio', icon: 'home', href: route('home') },
+            { key: 'mine', label: 'Solicitudes', icon: 'list', href: route('ai.requests.mine') },
+            { key: 'roadmap', label: 'Hoja de ruta', icon: 'calendar', href: route('ai.roadmap.index') },
+            { key: 'profile', label: 'Perfil', icon: 'user', href: route('profile.edit') },
+        ],
+    };
 }
 
 export function gestorTabsFor(shared: SharedProps, counts: GestorLayoutProps['counts'] = {}): TabItem[] {
@@ -122,7 +140,8 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
 
 /**
  * AppLayout on the "ai" module. IT users get the Gestor IA tab strip
- * (filtered by permission); requesters get no tabs, only a breadcrumb.
+ * (filtered by permission); requesters get no tabs, only a breadcrumb, and
+ * their own phone bar (Inicio · Solicitudes · Hoja de ruta · Perfil).
  */
 export function GestorLayout({
     shared,
@@ -134,6 +153,7 @@ export function GestorLayout({
     subheader,
     badges,
     headerActions,
+    requesterNav,
     children,
 }: GestorLayoutProps) {
     const resolved = mode ?? (can(shared.auth.user, 'ai.manage') ? 'it' : 'requester');
@@ -154,6 +174,7 @@ export function GestorLayout({
             active="ai"
             badges={badges}
             headerActions={headerActions}
+            bottomNav={resolved === 'requester' ? requesterBottomNav(requesterNav) : undefined}
             subnav={
                 tabs || subheader ? (
                     <>

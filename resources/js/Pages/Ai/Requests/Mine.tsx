@@ -35,7 +35,7 @@ export default function RequestsMine(props: PageProps<RequestsMineProps>) {
     };
 
     return (
-        <GestorLayout shared={props} title="Mis solicitudes · Gestor IA" mode="requester">
+        <GestorLayout shared={props} title="Mis solicitudes · Gestor IA" mode="requester" requesterNav="mine">
             <div className="mx-auto flex w-full max-w-[880px] flex-col gap-4">
                 <div className="flex items-center gap-3">
                     <h1 className="flex-1 font-display text-[26px] leading-tight font-bold tracking-[-0.02em] md:text-[32px]">Mis solicitudes</h1>
