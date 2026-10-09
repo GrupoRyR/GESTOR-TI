@@ -29,7 +29,8 @@
 |     project approval (`ai.projects.approve`).
 |   - Líder IA: the whole Gestor IA and Asistente TI (except the vault,
 |     `ai.projects.approve` and `assistant.credentials`) plus
-|     `companies.view_all` (global scope). No `admin.access`: administration
+|     `companies.view_all` (global scope) and `employees.view` (Colaboradores;
+|     create/sync come with `ai.manage`). No `admin.access`: administration
 |     stays with Súper Admin.
 |   - `ai.projects.approve` belongs only to Aprobador de proyectos (holders
 |     come from GESTOR_PROJECT_APPROVER_EMAILS).
@@ -53,9 +54,9 @@ return [
         'companies.manage' => ['label' => 'Administrar empresas', 'module' => 'admin'],
         'companies.manage_tenant' => ['label' => 'Crear empresas y cambiar su inquilino', 'module' => 'admin'],
         'areas.manage' => ['label' => 'Administrar áreas', 'module' => 'admin'],
-        'employees.view' => ['label' => 'Ver colaboradores', 'module' => 'admin'],
-        'employees.manage' => ['label' => 'Administrar colaboradores y sus accesos', 'module' => 'admin'],
-        'credentials.view' => ['label' => 'Ver contraseñas de los accesos', 'module' => 'admin'],
+        'employees.view' => ['label' => 'Ver colaboradores', 'module' => 'employees'],
+        'employees.manage' => ['label' => 'Administrar colaboradores y sus accesos', 'module' => 'employees'],
+        'credentials.view' => ['label' => 'Ver contraseñas de los accesos', 'module' => 'employees'],
         'roles.manage' => ['label' => 'Administrar roles y permisos', 'module' => 'admin'],
         'users.manage' => ['label' => 'Administrar usuarios y sus roles', 'module' => 'admin'],
         'audit.view' => ['label' => 'Ver auditoría', 'module' => 'admin'],
@@ -93,6 +94,7 @@ return [
 
         'Líder IA' => [
             'companies.view_all',
+            'employees.view',
             'ai.manage',
             'ai.requests.create',
             'ai.requests.approve_area',

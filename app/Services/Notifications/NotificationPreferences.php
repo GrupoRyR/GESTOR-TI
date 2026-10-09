@@ -17,7 +17,7 @@ class NotificationPreferences
     public const FALLBACK_CHANNELS = ['database'];
 
     /**
-     * @return array<string, array{label: string, channels: list<string>, required_channels?: list<string>}>
+     * @return array<string, array{label: string, hint?: string, channels: list<string>, required_channels?: list<string>}>
      */
     public function catalog(): array
     {
@@ -78,24 +78,30 @@ class NotificationPreferences
     }
 
     /**
-     * Rows of the preferences page.
+     * Rows of `Profile/Edit` (`NotificationEvent[]`): what the user
+     * receives per channel (their choice, else the default, plus the
+     * required channels), in catalog order.
      *
-     * @return list<array{key: string, label: string, channels: list<string>, default_channels: list<string>}>
+     * @return list<array{key: string, label: string, hint: string, channels: array<string, bool>}>
      */
-    public function forUser(User $user): array
+    public function matrixFor(User $user): array
     {
-        $stored = $user->notificationPreferences()->get()->keyBy('event_type');
+        $user->loadMissing('notificationPreferences');
         $rows = [];
 
         foreach ($this->catalog() as $key => $event) {
-            $default = $this->normalize($event['channels'] ?? []);
-            $preference = $stored->get($key);
+            $enabled = $this->channelsFor($user, $key);
+            $channels = [];
+
+            foreach ($this->supportedChannels() as $channel) {
+                $channels[$channel] = in_array($channel, $enabled, true);
+            }
 
             $rows[] = [
                 'key' => $key,
                 'label' => $event['label'],
-                'channels' => $preference === null ? $default : $this->normalize($preference->channels ?? []),
-                'default_channels' => $default,
+                'hint' => (string) ($event['hint'] ?? ''),
+                'channels' => $channels,
             ];
         }
 
@@ -103,21 +109,34 @@ class NotificationPreferences
     }
 
     /**
-     * Stores the given choices (event type => channels); events not given
-     * keep their current choice. Input must be validated beforehand.
-     *
-     * @param  array<string, list<string>>  $preferences
+     * Turns one channel of one event on or off, starting from what the user
+     * currently receives. Input must be validated beforehand (catalog event,
+     * supported channel, not disabling a required channel).
      */
-    public function update(User $user, array $preferences): void
+    public function toggle(User $user, string $eventType, string $channel, bool $enabled): void
     {
-        DB::transaction(function () use ($user, $preferences): void {
-            foreach ($preferences as $eventType => $channels) {
-                NotificationPreference::query()->updateOrCreate(
-                    ['user_id' => $user->id, 'event_type' => $eventType],
-                    ['channels' => $this->normalize($channels)],
-                );
-            }
+        DB::transaction(function () use ($user, $eventType, $channel, $enabled): void {
+            $preference = NotificationPreference::query()
+                ->where('user_id', $user->id)
+                ->where('event_type', $eventType)
+                ->lockForUpdate()
+                ->first();
+
+            $current = $preference === null
+                ? $this->defaultChannels($eventType)
+                : $this->normalize($preference->channels ?? []);
+
+            $channels = $enabled
+                ? array_merge($current, [$channel])
+                : array_diff($current, [$channel]);
+
+            NotificationPreference::query()->updateOrCreate(
+                ['user_id' => $user->id, 'event_type' => $eventType],
+                ['channels' => $this->normalize($channels)],
+            );
         });
+
+        $user->unsetRelation('notificationPreferences');
     }
 
     /**

@@ -2,7 +2,9 @@
 
 namespace App\Actions\Auth;
 
+use App\Models\Alert;
 use App\Models\User;
+use App\Services\Alerts\AlertService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +22,9 @@ use Illuminate\Validation\ValidationException;
  *   tell the emergency account apart.
  *
  * Every attempt is written to the activity log (`auth` log name); the
- * password is never logged.
+ * password is never logged. Locking the emergency account (either lockout
+ * reached by an attempt) raises a critical `auth` alert grouped under
+ * `auth.emergency_lockout`.
  */
 class AttemptEmergencyLogin
 {
@@ -32,6 +36,11 @@ class AttemptEmergencyLogin
 
     /** Form field that carries the credential errors (`Auth/Emergency`). */
     public const ERROR_FIELD = 'password';
+
+    /** Alert group of every emergency-account lockout (`AlertService`). */
+    public const LOCKOUT_GROUP_KEY = 'auth.emergency_lockout';
+
+    public function __construct(private readonly AlertService $alerts) {}
 
     /**
      * What `Auth/Emergency` may show after a failed attempt. It comes ONLY
@@ -96,6 +105,10 @@ class AttemptEmergencyLogin
             RateLimiter::hit($key, self::LOCK_MINUTES * 60);
             $this->log('emergency_login_locked', $email, $ip, $user);
 
+            if ($this->throttleJustReached($key)) {
+                $this->alertLockout($ip);
+            }
+
             throw $this->genericFailure();
         }
 
@@ -105,8 +118,15 @@ class AttemptEmergencyLogin
 
         if ($user === null || ! $valid) {
             RateLimiter::hit($key, self::LOCK_MINUTES * 60);
-            $this->registerFailure($user);
+            $locked = $this->registerFailure($user);
             $this->log('emergency_login_failed', $email, $ip, $user);
+
+            // Only the emergency account (`$user` is null for any other
+            // username) alerts, once per lockout: persistent lock or the
+            // per-IP limiter reached on this attempt.
+            if ($user !== null && ($locked || $this->throttleJustReached($key))) {
+                $this->alertLockout($ip);
+            }
 
             throw $this->genericFailure();
         }
@@ -124,20 +144,55 @@ class AttemptEmergencyLogin
         return $user;
     }
 
-    private function registerFailure(?User $user): void
+    /**
+     * Counts the failure on the account; true when it locks it now.
+     */
+    private function registerFailure(?User $user): bool
     {
         if ($user === null) {
-            return;
+            return false;
         }
 
         $attempts = $user->failed_login_attempts + 1;
+        $locks = $attempts >= self::MAX_ATTEMPTS;
 
         // Reaching the limit locks the account and restarts the counter, so
         // after the lock expires the account gets a fresh set of attempts.
-        $user->forceFill($attempts >= self::MAX_ATTEMPTS
+        $user->forceFill($locks
             ? ['failed_login_attempts' => 0, 'locked_until' => now()->addMinutes(self::LOCK_MINUTES)]
             : ['failed_login_attempts' => $attempts]
         )->save();
+
+        return $locks;
+    }
+
+    /**
+     * True when the attempt just counted is the one that blocks this
+     * username + IP (later attempts never reach the hit: they are throttled).
+     */
+    private function throttleJustReached(string $key): bool
+    {
+        return RateLimiter::attempts($key) === self::MAX_ATTEMPTS;
+    }
+
+    /**
+     * Critical `auth` alert for the alert recipients (bell, Telegram, mail),
+     * grouped under one key. Never includes the typed password.
+     */
+    private function alertLockout(string $ip): void
+    {
+        $this->alerts->raise(
+            level: Alert::LEVEL_CRITICAL,
+            source: 'auth',
+            title: 'Cuenta de emergencia bloqueada',
+            body: sprintf(
+                'La cuenta de emergencia quedó bloqueada %d minutos después de %d intentos fallidos. Último intento desde la IP %s. Si no fue alguien de TI, revisa el acceso y cambia la contraseña.',
+                self::LOCK_MINUTES,
+                self::MAX_ATTEMPTS,
+                $ip,
+            ),
+            groupKey: self::LOCKOUT_GROUP_KEY,
+        );
     }
 
     private function genericFailure(): ValidationException

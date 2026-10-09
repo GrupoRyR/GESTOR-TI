@@ -117,7 +117,7 @@ class Employee extends Model
     }
 
     /**
-     * Shape of the employees listing (`Admin/Employees/Index`).
+     * Base shape of an employee on the backend page `Admin/Employees/Show`.
      *
      * @return array{id: int, name: string, email: ?string, job_title: ?string, department: ?string, area: ?array{id: int, name: string}, status: string, user_id: ?int, source: string, last_synced_at: ?string}
      */

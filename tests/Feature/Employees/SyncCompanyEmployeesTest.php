@@ -8,9 +8,12 @@ use App\Models\Company;
 use App\Models\DepartmentAreaMapping;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\EmployeeSyncStatus;
+use App\Support\Settings;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Spatie\Activitylog\Models\Activity;
@@ -27,6 +30,9 @@ class SyncCompanyEmployeesTest extends TestCase
      */
     private array $directory = [];
 
+    /** HTTP status every Graph directory call answers with (null = the directory). */
+    private ?int $graphStatus = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -41,6 +47,10 @@ class SyncCompanyEmployeesTest extends TestCase
         Http::fake(function (Request $request) {
             if (preg_match('#login\.microsoftonline\.com/([^/]+)/#', $request->url(), $match)) {
                 return Http::response(['access_token' => 'token-'.$match[1], 'expires_in' => 3600]);
+            }
+
+            if ($this->graphStatus !== null) {
+                return Http::response(['error' => ['code' => 'Authorization_RequestDenied']], $this->graphStatus);
             }
 
             $tenant = substr($request->header('Authorization')[0] ?? '', strlen('Bearer token-'));
@@ -296,5 +306,51 @@ class SyncCompanyEmployeesTest extends TestCase
         SyncCompanyEmployees::dispatch($company->id);
 
         $this->assertTrue(Employee::withoutGlobalScopes()->where('azure_id', 'ana')->exists());
+    }
+
+    public function test_a_successful_run_records_the_last_sync(): void
+    {
+        $this->freezeSecond();
+        $company = $this->company('tenant-a');
+        $this->directory['tenant-a'] = [$this->graphUser('ana')];
+        app(EmployeeSyncStatus::class)->recordFailure($company->id, 'Error anterior.');
+
+        $this->sync($company);
+
+        $this->assertSame([
+            'last_success_at' => now()->toIso8601String(),
+            'error' => null,
+            'failed_at' => null,
+            'created' => 1,
+            'updated' => 0,
+            'deactivated' => 0,
+        ], app(Settings::class)->get('employees.last_sync.'.$company->id));
+        $this->assertSame(['last_sync_at' => now()->toIso8601String(), 'sync_error' => null], app(EmployeeSyncStatus::class)->summary([$company]));
+    }
+
+    public function test_a_failed_run_records_a_spanish_error_and_keeps_the_last_success(): void
+    {
+        $this->freezeSecond();
+        $company = $this->company('tenant-a');
+        $this->directory['tenant-a'] = [$this->graphUser('ana')];
+        $this->sync($company);
+        $syncedAt = now()->toIso8601String();
+
+        $this->travel(1)->day();
+        $this->graphStatus = 403;
+
+        try {
+            $this->sync($company);
+            $this->fail('The job must rethrow so the queue retries it.');
+        } catch (RequestException) {
+            // Expected.
+        }
+
+        $summary = app(EmployeeSyncStatus::class)->summary([$company]);
+        $this->assertSame($syncedAt, $summary['last_sync_at']);
+        $this->assertSame(
+            'Microsoft rechazó el acceso al directorio. Un administrador de Microsoft de la empresa debe aprobar el permiso User.Read.All; después vuelve a intentar. Código graph_403.',
+            $summary['sync_error'],
+        );
     }
 }

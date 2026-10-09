@@ -4,8 +4,6 @@ use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\DepartmentMappingController;
-use App\Http\Controllers\Admin\EmployeeAccessController;
-use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
@@ -13,9 +11,11 @@ use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CompanySwitchController;
+use App\Http\Controllers\Employees\EmployeeAccessController;
+use App\Http\Controllers\Employees\EmployeeController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\Profile\NotificationPreferenceController;
+use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Profile\TelegramLinkController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
@@ -54,18 +54,19 @@ Route::post('/company/switch', CompanySwitchController::class)
     ->middleware('auth')
     ->name('company.switch');
 
-// Notifications (A7): bell, preferences per event type and Telegram link.
+// Notifications (A7): bell. Perfil (`Profile/Edit`, `Profile/TelegramLink`):
+// any signed-in user, no extra permission.
 Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read_all');
 
-    // TEMPORARY (until C4 ships `Profile/Edit`): the layout links `profile.edit`.
-    Route::get('/profile', [NotificationPreferenceController::class, 'edit'])->name('profile.edit');
-    Route::get('/profile/notifications', [NotificationPreferenceController::class, 'edit'])->name('profile.notifications.edit');
-    Route::put('/profile/notifications', [NotificationPreferenceController::class, 'update'])->name('profile.notifications.update');
-    Route::post('/profile/telegram', [TelegramLinkController::class, 'store'])->name('profile.telegram.link');
-    Route::delete('/profile/telegram', [TelegramLinkController::class, 'destroy'])->name('profile.telegram.unlink');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // One checkbox of the event × channel matrix: `{event, channel, enabled}`.
+    Route::put('/profile/notifications', [ProfileController::class, 'updateNotification'])->name('profile.notifications.update');
+    Route::get('/profile/telegram', [TelegramLinkController::class, 'create'])->name('profile.telegram.create');
+    Route::post('/profile/telegram', [TelegramLinkController::class, 'store'])->name('profile.telegram.store');
+    Route::delete('/profile/telegram', [TelegramLinkController::class, 'destroy'])->name('profile.telegram.destroy');
 });
 
 // Module routes: each group is gated by `module:{key}` (404 when the module
@@ -87,10 +88,34 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
     Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
 });
 
-// Colaboradores (design route names). TEMPORARY: C4 moves the employee
-// pages here; `admin.employees.*` keeps working until then.
-Route::middleware(['module:employees', 'auth', 'can:employees.view'])->group(function () {
-    Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+// Colaboradores (`Employees/Index`). Bindings honour CompanyScope; access
+// routes are scoped to their employee. Create and sync accept `ai.manage`
+// or `employees.manage` (checked in the controller).
+Route::middleware(['module:employees', 'auth'])->prefix('employees')->name('employees.')->group(function () {
+    Route::get('/', [EmployeeController::class, 'index'])->middleware('can:employees.view')->name('index');
+    // TEMPORARY: no design page for manual creation yet (redirects with a notice).
+    Route::get('/create', [EmployeeController::class, 'create'])->name('create');
+    Route::post('/sync', [EmployeeController::class, 'sync'])->name('sync');
+
+    // Backend page `Admin/Employees/Show` until design ships one.
+    Route::get('/{employee}', [EmployeeController::class, 'show'])
+        ->middleware('can:employees.view')
+        ->whereNumber('employee')
+        ->name('show');
+
+    Route::middleware('can:employees.manage')->scopeBindings()->group(function () {
+        Route::put('/{employee}', [EmployeeController::class, 'update'])->name('update');
+        Route::post('/{employee}/accesses', [EmployeeAccessController::class, 'store'])->name('accesses.store');
+        Route::put('/{employee}/accesses/{access}', [EmployeeAccessController::class, 'update'])->name('accesses.update');
+        Route::delete('/{employee}/accesses/{access}', [EmployeeAccessController::class, 'destroy'])->name('accesses.destroy');
+    });
+
+    // The only JSON endpoint of the module: plain password, audited,
+    // `Cache-Control: no-store`, 10 per minute per user.
+    Route::post('/{employee}/accesses/{access}/reveal', [EmployeeAccessController::class, 'reveal'])
+        ->middleware(['can:credentials.view', 'throttle:credentials-reveal'])
+        ->scopeBindings()
+        ->name('accesses.reveal');
 });
 
 Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assistant.')->group(function () {
@@ -124,31 +149,6 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
     Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])
         ->middleware('can:users.manage')
         ->name('users.roles.update');
-
-    // Employees (colaboradores) and their accesses. Bindings honour
-    // CompanyScope; access routes are scoped to their employee.
-    Route::post('/employees/sync', [EmployeeController::class, 'sync'])
-        ->middleware('can:employees.manage')
-        ->name('employees.sync');
-
-    Route::middleware('can:employees.view')->group(function () {
-        Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
-        Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
-    });
-
-    Route::middleware('can:employees.manage')->scopeBindings()->group(function () {
-        Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
-        Route::post('/employees/{employee}/accesses', [EmployeeAccessController::class, 'store'])->name('employees.accesses.store');
-        Route::put('/employees/{employee}/accesses/{access}', [EmployeeAccessController::class, 'update'])->name('employees.accesses.update');
-        Route::delete('/employees/{employee}/accesses/{access}', [EmployeeAccessController::class, 'destroy'])->name('employees.accesses.destroy');
-    });
-
-    // The only JSON endpoint of the module: plain password, audited,
-    // `Cache-Control: no-store`, 10 per minute per user.
-    Route::post('/employees/{employee}/accesses/{access}/reveal', [EmployeeAccessController::class, 'reveal'])
-        ->middleware(['can:credentials.view', 'throttle:credentials-reveal'])
-        ->scopeBindings()
-        ->name('employees.accesses.reveal');
 
     Route::middleware('can:employees.manage')->group(function () {
         Route::get('/department-mappings', [DepartmentMappingController::class, 'index'])->name('department-mappings.index');

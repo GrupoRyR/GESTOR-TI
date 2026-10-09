@@ -17,6 +17,8 @@ class TelegramLinkTest extends TestCase
 
     private const SECRET = 'hook-secret-123';
 
+    private const PREFIX = 'https://t.me/GestorRyrBot?start=';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -30,19 +32,47 @@ class TelegramLinkTest extends TestCase
     }
 
     /**
-     * Generates a link token through the endpoint and returns the plain token.
+     * Opens `Profile/TelegramLink` (which issues a token when the session has
+     * none) and returns the plain token of its deep link.
      */
     private function generateToken(User $user): string
     {
-        $response = $this->actingAs($user)
-            ->from(route('profile.notifications.edit'))
-            ->post(route('profile.telegram.link'))
-            ->assertRedirect(route('profile.notifications.edit'));
+        $url = $this->linkPage($user)['link_url'];
+        $this->assertStringStartsWith(self::PREFIX, $url);
 
-        $url = $response->getSession()->get('telegram_link_url');
-        $this->assertStringStartsWith('https://t.me/GestorRyrBot?start=', $url);
+        return substr($url, strlen(self::PREFIX));
+    }
 
-        return substr($url, strlen('https://t.me/GestorRyrBot?start='));
+    /**
+     * @return array<string, mixed>
+     */
+    private function linkPage(User $user): array
+    {
+        $response = $this->actingAs($user)->get(route('profile.telegram.create'))->assertOk();
+
+        return $response->viewData('page')['props'];
+    }
+
+    /**
+     * Partial reload as `router.reload({ only: ['status'] })` sends it.
+     *
+     * @return array<string, mixed>
+     */
+    private function reloadStatus(): array
+    {
+        $version = $this->get(route('profile.telegram.create'))->viewData('page')['version'];
+
+        $props = $this->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => (string) $version,
+            'X-Inertia-Partial-Component' => 'Profile/TelegramLink',
+            'X-Inertia-Partial-Data' => 'status',
+        ])->get(route('profile.telegram.create'))->assertOk()->json('props');
+
+        // `withHeaders()` sticks to later requests of the test.
+        $this->flushHeaders();
+
+        return $props;
     }
 
     /**
@@ -65,14 +95,23 @@ class TelegramLinkTest extends TestCase
         return Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/sendMessage') && str_contains((string) $r['text'], $needle))->isNotEmpty();
     }
 
-    public function test_link_generates_a_hashed_single_use_token_valid_for_thirty_minutes(): void
+    public function test_the_link_page_issues_a_hashed_single_use_token_valid_for_thirty_minutes(): void
     {
         $this->freezeSecond();
         $user = User::factory()->create();
 
-        $token = $this->generateToken($user);
+        $this->actingAs($user)
+            ->get(route('profile.telegram.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Profile/TelegramLink', false)
+                ->where('link_url', fn (string $url) => str_starts_with($url, self::PREFIX))
+                ->where('expires_at', now()->addMinutes(30)->toIso8601String())
+                ->where('status', 'waiting')
+            );
 
-        $link = TelegramLink::query()->where('user_id', $user->id)->first();
+        $token = substr($this->linkPage($user)['link_url'], strlen(self::PREFIX));
+        $link = TelegramLink::query()->where('user_id', $user->id)->sole();
         $this->assertNotSame($token, $link->link_token);
         $this->assertSame(hash('sha256', $token), $link->link_token);
         $this->assertTrue($link->token_expires_at->equalTo(now()->addMinutes(30)));
@@ -80,17 +119,76 @@ class TelegramLinkTest extends TestCase
         $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{32,64}$/', $token);
     }
 
-    public function test_the_link_url_is_shared_on_the_notifications_page_after_generation(): void
+    public function test_revisiting_and_polling_keep_the_same_token(): void
+    {
+        $user = User::factory()->create();
+        $first = $this->linkPage($user);
+        $hash = TelegramLink::query()->where('user_id', $user->id)->value('link_token');
+
+        $this->assertSame($first['link_url'], $this->linkPage($user)['link_url']);
+
+        $partial = $this->reloadStatus();
+        $this->assertSame('waiting', $partial['status']);
+        $this->assertArrayNotHasKey('link_url', $partial);
+        $this->assertArrayNotHasKey('expires_at', $partial);
+
+        $this->assertSame($hash, TelegramLink::query()->where('user_id', $user->id)->value('link_token'));
+    }
+
+    public function test_status_goes_from_waiting_to_linked(): void
     {
         $user = User::factory()->create();
         $token = $this->generateToken($user);
 
+        $this->sendUpdate(['text' => '/start '.$token])->assertOk();
+
+        $this->actingAs($user);
+        $this->assertSame('linked', $this->reloadStatus()['status']);
+        $this->assertSame('linked', $this->linkPage($user)['status']);
+    }
+
+    public function test_status_expires_with_the_token_and_store_issues_a_new_one(): void
+    {
+        $user = User::factory()->create();
+        $first = $this->generateToken($user);
+
+        $this->travel(31)->minutes();
+        $this->assertSame('expired', $this->reloadStatus()['status']);
+        // An expired link is not replaced silently.
+        $this->assertSame(self::PREFIX.$first, $this->linkPage($user)['link_url']);
+
         $this->actingAs($user)
-            ->withSession(['telegram_link_url' => 'https://t.me/GestorRyrBot?start='.$token])
-            ->get(route('profile.notifications.edit'))
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('telegram.linked', false)
-                ->where('telegram.link_url', 'https://t.me/GestorRyrBot?start='.$token));
+            ->post(route('profile.telegram.store'))
+            ->assertRedirect(route('profile.telegram.create'));
+
+        $page = $this->linkPage($user);
+        $this->assertNotSame(self::PREFIX.$first, $page['link_url']);
+        $this->assertSame('waiting', $page['status']);
+        $this->assertSame(
+            hash('sha256', substr($page['link_url'], strlen(self::PREFIX))),
+            TelegramLink::query()->where('user_id', $user->id)->value('link_token'),
+        );
+    }
+
+    public function test_the_session_link_belongs_to_its_user(): void
+    {
+        $ana = User::factory()->create();
+        $luis = User::factory()->create();
+        $anaUrl = $this->linkPage($ana)['link_url'];
+
+        $this->assertNotSame($anaUrl, $this->linkPage($luis)['link_url']);
+    }
+
+    public function test_an_already_linked_user_goes_back_to_the_profile(): void
+    {
+        $user = User::factory()->create();
+        TelegramLink::create(['user_id' => $user->id, 'chat_id' => '4242', 'linked_at' => now()]);
+
+        $this->actingAs($user)
+            ->get(route('profile.telegram.create'))
+            ->assertRedirect(route('profile.edit'));
+
+        $this->assertSame('4242', TelegramLink::query()->where('user_id', $user->id)->value('chat_id'));
     }
 
     public function test_link_fails_when_the_bot_is_not_configured(): void
@@ -99,7 +197,12 @@ class TelegramLinkTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->post(route('profile.telegram.link'))
+            ->get(route('profile.telegram.create'))
+            ->assertRedirect(route('profile.edit'))
+            ->assertSessionHas('error', 'El bot de Telegram no está configurado.');
+
+        $this->post(route('profile.telegram.store'))
+            ->assertRedirect(route('profile.edit'))
             ->assertSessionHas('error', 'El bot de Telegram no está configurado.');
 
         $this->assertSame(0, TelegramLink::query()->count());
@@ -107,7 +210,9 @@ class TelegramLinkTest extends TestCase
 
     public function test_guests_cannot_generate_links(): void
     {
-        $this->post(route('profile.telegram.link'))->assertRedirect(route('login'));
+        $this->get(route('profile.telegram.create'))->assertRedirect(route('login'));
+        $this->post(route('profile.telegram.store'))->assertRedirect(route('login'));
+        $this->delete(route('profile.telegram.destroy'))->assertRedirect(route('login'));
     }
 
     public function test_webhook_with_a_wrong_or_missing_secret_returns_404(): void
@@ -207,15 +312,14 @@ class TelegramLinkTest extends TestCase
         $this->assertSame(0, TelegramLink::query()->count());
     }
 
-    public function test_unlink_removes_the_link(): void
+    public function test_destroy_unlinks_and_goes_back_to_the_profile(): void
     {
         $user = User::factory()->create();
         TelegramLink::create(['user_id' => $user->id, 'chat_id' => '4242', 'linked_at' => now()]);
 
         $this->actingAs($user)
-            ->from(route('profile.notifications.edit'))
-            ->delete(route('profile.telegram.unlink'))
-            ->assertRedirect(route('profile.notifications.edit'))
+            ->delete(route('profile.telegram.destroy'))
+            ->assertRedirect(route('profile.edit'))
             ->assertSessionHas('success', 'Telegram desvinculado.');
 
         $this->assertSame(0, TelegramLink::query()->count());

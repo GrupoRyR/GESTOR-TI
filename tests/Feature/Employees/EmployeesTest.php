@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Admin;
+namespace Tests\Feature\Employees;
 
 use App\Jobs\SyncCompanyEmployees;
 use App\Models\AccessSystem;
@@ -9,15 +9,18 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeAccess;
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
+use App\Support\EmployeeSyncStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
-class EmployeesAdminTest extends TestCase
+class EmployeesTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -41,7 +44,7 @@ class EmployeesAdminTest extends TestCase
     {
         parent::setUp();
 
-        foreach (['employees.view', 'employees.manage', 'credentials.view', 'companies.view_all'] as $permission) {
+        foreach (['employees.view', 'employees.manage', 'credentials.view', 'companies.view_all', 'ai.manage'] as $permission) {
             Permission::create(['name' => $permission]);
         }
 
@@ -89,77 +92,183 @@ class EmployeesAdminTest extends TestCase
         return $this->user(['employees.view', 'employees.manage']);
     }
 
-    // ---- index ------------------------------------------------------------
+    // ---- index (`Employees/Index`) -----------------------------------------
 
     public function test_index_requires_employees_view(): void
     {
         $this->actingAs($this->user([]))
-            ->get(route('admin.employees.index'))
+            ->get(route('employees.index'))
             ->assertForbidden();
+    }
+
+    public function test_index_lives_outside_admin(): void
+    {
+        $this->assertSame(url('/employees'), route('employees.index'));
+        $this->assertFalse(Route::has('admin.employees.index'));
+        $this->assertFalse(Route::has('admin.employees.sync'));
     }
 
     public function test_index_returns_exact_props_and_honours_company_scope(): void
     {
+        $boss = Employee::factory()->for($this->segurex)->create(['name' => 'Zoe Jefa', 'area_id' => $this->ventas->id]);
+        $this->ana->update(['manager_id' => $boss->id]);
+        $account = User::factory()->create(['company_id' => $this->segurex->id]);
+        Role::create(['name' => 'Usuario final']);
+        $account->assignRole('Usuario final');
+        $this->ana->update(['user_id' => $account->id]);
+
         $this->actingAs($this->viewer())
-            ->get(route('admin.employees.index'))
+            ->get(route('employees.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/Employees/Index', false)
+                ->component('Employees/Index', false)
                 ->has('employees', fn (Assert $employees) => $employees
                     ->has('data', 2)
-                    ->has('data.0', fn (Assert $employee) => $employee
-                        ->where('id', $this->ana->id)
-                        ->where('name', 'Ana Pérez')
-                        ->where('email', 'ana@segurex.com')
-                        ->where('area', ['id' => $this->ventas->id, 'name' => 'Ventas'])
-                        ->where('status', 'active')
-                        ->where('source', 'graph')
-                        ->where('user_id', null)
-                        ->hasAll(['job_title', 'department', 'last_synced_at'])
-                    )
+                    ->where('data.0', [
+                        'id' => $this->ana->id,
+                        'name' => 'Ana Pérez',
+                        'email' => 'ana@segurex.com',
+                        'job_title' => $this->ana->job_title,
+                        'area' => ['id' => $this->ventas->id, 'name' => 'Ventas'],
+                        'company_id' => $this->segurex->id,
+                        'manager_name' => 'Zoe Jefa',
+                        'user' => ['roles' => ['Usuario final']],
+                        // Only `credentials.view` sees the access count.
+                        'accesses_count' => 0,
+                    ])
+                    ->where('data.1.manager_name', null)
+                    ->where('data.1.user', null)
                     ->has('links')
-                    ->has('meta', fn (Assert $meta) => $meta
-                        ->where('current_page', 1)
-                        ->where('last_page', 1)
-                        ->where('per_page', 25)
-                        ->where('total', 2)
-                    )
+                    ->where('meta', ['current_page' => 1, 'last_page' => 1, 'per_page' => 25, 'total' => 2])
                 )
-                ->where('filters', ['search' => null, 'area_id' => null, 'status' => null])
-                ->where('areas', [['id' => $this->ventas->id, 'name' => 'Ventas']])
+                ->where('filters', ['q' => null, 'company_id' => null, 'area_id' => null, 'status' => 'active', 'without_area' => false])
+                ->where('areas', [['id' => $this->ventas->id, 'name' => 'Ventas', 'company_id' => $this->segurex->id]])
+                ->where('counts', ['without_area' => 0, 'total' => 2])
+                ->where('last_sync_at', null)
+                ->where('sync_error', null)
             );
     }
 
-    public function test_index_filters_by_search_area_and_status(): void
+    public function test_index_shows_the_access_count_to_credential_viewers(): void
     {
+        $this->actingAs($this->user(['employees.view', 'credentials.view']))
+            ->get(route('employees.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('employees.data.0.accesses_count', 1));
+    }
+
+    public function test_index_filters_by_q_area_status_and_without_area(): void
+    {
+        Employee::factory()->for($this->segurex)->create(['name' => 'Sin Área Activo']);
+
         $this->actingAs($this->viewer())
-            ->get(route('admin.employees.index', ['search' => 'luis']))
+            ->get(route('employees.index', ['q' => 'luis', 'status' => 'all']))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('employees.data', 1)
                 ->where('employees.data.0.name', 'Luis Inactivo')
-                ->where('filters.search', 'luis')
+                ->where('filters.q', 'luis')
+                ->where('filters.status', 'all')
             );
 
-        $this->get(route('admin.employees.index', ['area_id' => $this->ventas->id]))
+        $this->get(route('employees.index', ['q' => 'luis']))
+            ->assertInertia(fn (Assert $page) => $page->has('employees.data', 0));
+
+        $this->get(route('employees.index', ['area_id' => $this->ventas->id]))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('employees.data', 1)
                 ->where('employees.data.0.id', $this->ana->id)
                 ->where('filters.area_id', $this->ventas->id)
             );
 
-        $this->get(route('admin.employees.index', ['status' => 'inactive']))
+        $this->get(route('employees.index', ['status' => 'inactive']))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('employees.data', 1)
-                ->where('employees.data.0.status', 'inactive')
+                ->where('employees.data.0.name', 'Luis Inactivo')
                 ->where('filters.status', 'inactive')
+            );
+
+        $this->get(route('employees.index', ['status' => 'bogus']))
+            ->assertInertia(fn (Assert $page) => $page->where('filters.status', 'active'));
+
+        $this->get(route('employees.index', ['without_area' => 'true']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('employees.data', 1)
+                ->where('employees.data.0.name', 'Sin Área Activo')
+                ->where('filters.without_area', true)
+                // Counts describe the active directory, not the filtered page.
+                ->where('counts', ['without_area' => 1, 'total' => 2])
             );
     }
 
-    public function test_global_user_sees_every_company(): void
+    public function test_company_filter_only_applies_to_global_users(): void
     {
         $this->actingAs($this->user(['employees.view', 'companies.view_all']))
-            ->get(route('admin.employees.index'))
-            ->assertInertia(fn (Assert $page) => $page->has('employees.data', 3)->has('areas', 2));
+            ->get(route('employees.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('employees.data', 2)
+                ->has('areas', 2)
+                ->where('counts.total', 2)
+            );
+
+        $this->get(route('employees.index', ['company_id' => $this->derivados->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('employees.data', 1)
+                ->where('employees.data.0.name', 'Eva Derivados')
+                ->where('employees.data.0.company_id', $this->derivados->id)
+                ->where('filters.company_id', $this->derivados->id)
+                ->has('areas', 1)
+                ->where('counts.total', 1)
+            );
+
+        // A company-bound user cannot widen or switch the scope.
+        $this->actingAs($this->viewer())
+            ->get(route('employees.index', ['company_id' => $this->derivados->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('employees.data', 1)
+                ->where('employees.data.0.id', $this->ana->id)
+                ->where('filters.company_id', null)
+            );
+    }
+
+    public function test_index_reports_the_last_sync_of_the_current_company(): void
+    {
+        $this->freezeSecond();
+        $status = app(EmployeeSyncStatus::class);
+        $status->recordSuccess($this->segurex->id, ['created' => 1, 'updated' => 0, 'deactivated' => 0]);
+        $syncedAt = now()->toIso8601String();
+
+        $this->actingAs($this->viewer())
+            ->get(route('employees.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('last_sync_at', $syncedAt)
+                ->where('sync_error', null)
+            );
+
+        $this->travel(1)->day();
+        $status->recordFailure($this->segurex->id, 'Microsoft rechazó el acceso.');
+
+        $this->get(route('employees.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('last_sync_at', $syncedAt)
+                ->where('sync_error', 'Microsoft rechazó el acceso.')
+            );
+    }
+
+    public function test_all_context_reports_the_oldest_sync_and_every_error(): void
+    {
+        $this->freezeSecond();
+        $status = app(EmployeeSyncStatus::class);
+        $status->recordSuccess($this->segurex->id, ['created' => 0, 'updated' => 0, 'deactivated' => 0]);
+        $oldest = now()->toIso8601String();
+        $this->travel(1)->hour();
+        $status->recordSuccess($this->derivados->id, ['created' => 0, 'updated' => 0, 'deactivated' => 0]);
+        $status->recordFailure($this->derivados->id, 'Sin permiso User.Read.All.');
+
+        $this->actingAs($this->user(['employees.view', 'companies.view_all']))
+            ->get(route('employees.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('last_sync_at', $oldest)
+                ->where('sync_error', $this->derivados->short_name.': Sin permiso User.Read.All.')
+            );
     }
 
     public function test_index_and_show_never_expose_passwords(): void
@@ -167,7 +276,7 @@ class EmployeesAdminTest extends TestCase
         $raw = DB::table('employee_accesses')->value('password');
         $user = $this->user(['employees.view', 'employees.manage', 'credentials.view']);
 
-        foreach ([route('admin.employees.index'), route('admin.employees.show', $this->ana)] as $url) {
+        foreach ([route('employees.index'), route('employees.show', $this->ana)] as $url) {
             $content = $this->actingAs($user)->get($url)->assertOk()->getContent();
 
             $this->assertStringNotContainsString(self::SECRET, $content);
@@ -176,12 +285,24 @@ class EmployeesAdminTest extends TestCase
         }
     }
 
+    // ---- create (no design page yet) ---------------------------------------
+
+    public function test_create_redirects_to_the_list_with_a_notice(): void
+    {
+        $this->actingAs($this->user(['employees.view', 'ai.manage']))
+            ->get(route('employees.create'))
+            ->assertRedirect(route('employees.index'))
+            ->assertSessionHas('error', 'La creación manual de colaboradores llega pronto.');
+
+        $this->actingAs($this->viewer())->get(route('employees.create'))->assertForbidden();
+    }
+
     // ---- show -------------------------------------------------------------
 
     public function test_show_returns_exact_props(): void
     {
         $this->actingAs($this->viewer())
-            ->get(route('admin.employees.show', $this->ana))
+            ->get(route('employees.show', $this->ana))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Employees/Show', false)
@@ -205,14 +326,14 @@ class EmployeesAdminTest extends TestCase
     public function test_show_can_reveal_with_credentials_view(): void
     {
         $this->actingAs($this->user(['employees.view', 'credentials.view']))
-            ->get(route('admin.employees.show', $this->ana))
+            ->get(route('employees.show', $this->ana))
             ->assertInertia(fn (Assert $page) => $page->where('can_reveal', true));
     }
 
     public function test_show_of_another_company_is_not_found(): void
     {
         $this->actingAs($this->viewer())
-            ->get(route('admin.employees.show', $this->foreign))
+            ->get(route('employees.show', $this->foreign))
             ->assertNotFound();
     }
 
@@ -221,7 +342,7 @@ class EmployeesAdminTest extends TestCase
     public function test_update_requires_employees_manage(): void
     {
         $this->actingAs($this->viewer())
-            ->put(route('admin.employees.update', $this->ana), ['status' => 'inactive'])
+            ->put(route('employees.update', $this->ana), ['status' => 'inactive'])
             ->assertForbidden();
     }
 
@@ -230,7 +351,7 @@ class EmployeesAdminTest extends TestCase
         $tesoreria = Area::factory()->for($this->segurex)->create(['name' => 'Tesorería']);
 
         $this->actingAs($this->manager())
-            ->put(route('admin.employees.update', $this->ana), ['area_id' => $tesoreria->id, 'status' => 'inactive'])
+            ->put(route('employees.update', $this->ana), ['area_id' => $tesoreria->id, 'status' => 'inactive'])
             ->assertSessionHasNoErrors()
             ->assertRedirect()
             ->assertSessionHas('success', 'Colaborador actualizado.');
@@ -246,7 +367,7 @@ class EmployeesAdminTest extends TestCase
         $this->ana->assignArea($this->ventas->id);
 
         $this->actingAs($this->manager())
-            ->put(route('admin.employees.update', $this->ana), ['area_id' => null, 'status' => 'active'])
+            ->put(route('employees.update', $this->ana), ['area_id' => null, 'status' => 'active'])
             ->assertSessionHasNoErrors();
 
         $this->ana->refresh();
@@ -259,14 +380,14 @@ class EmployeesAdminTest extends TestCase
         $cartera = Area::withoutGlobalScopes()->where('company_id', $this->derivados->id)->firstOrFail();
 
         $this->actingAs($this->manager())
-            ->put(route('admin.employees.update', $this->ana), ['area_id' => $cartera->id, 'status' => 'retired'])
+            ->put(route('employees.update', $this->ana), ['area_id' => $cartera->id, 'status' => 'retired'])
             ->assertSessionHasErrors(['area_id', 'status']);
     }
 
     public function test_update_of_another_company_is_not_found(): void
     {
         $this->actingAs($this->manager())
-            ->put(route('admin.employees.update', $this->foreign), ['status' => 'inactive'])
+            ->put(route('employees.update', $this->foreign), ['status' => 'inactive'])
             ->assertNotFound();
     }
 
@@ -277,7 +398,7 @@ class EmployeesAdminTest extends TestCase
         $vpn = AccessSystem::factory()->create(['name' => 'VPN']);
 
         $this->actingAs($this->manager())
-            ->post(route('admin.employees.accesses.store', $this->ana), [
+            ->post(route('employees.accesses.store', $this->ana), [
                 'access_system_id' => $vpn->id,
                 'username' => 'aperez',
                 'password' => 'Vpn-Pass-1',
@@ -294,21 +415,21 @@ class EmployeesAdminTest extends TestCase
     public function test_store_access_validates_input_and_uniqueness(): void
     {
         $this->actingAs($this->manager())
-            ->post(route('admin.employees.accesses.store', $this->ana), [
+            ->post(route('employees.accesses.store', $this->ana), [
                 'access_system_id' => $this->office->id,
                 'username' => 'ana@segurex.com',
                 'password' => 'x',
             ])
             ->assertSessionHasErrors('username');
 
-        $this->post(route('admin.employees.accesses.store', $this->ana), ['access_system_id' => 999])
+        $this->post(route('employees.accesses.store', $this->ana), ['access_system_id' => 999])
             ->assertSessionHasErrors(['access_system_id', 'username', 'password']);
     }
 
     public function test_update_access_keeps_password_when_blank(): void
     {
         $this->actingAs($this->manager())
-            ->put(route('admin.employees.accesses.update', [$this->ana, $this->access]), [
+            ->put(route('employees.accesses.update', [$this->ana, $this->access]), [
                 'access_system_id' => $this->office->id,
                 'username' => 'ana.perez@segurex.com',
                 'password' => '',
@@ -321,7 +442,7 @@ class EmployeesAdminTest extends TestCase
         $this->assertSame('ana.perez@segurex.com', $this->access->username);
         $this->assertSame(self::SECRET, $this->access->password);
 
-        $this->put(route('admin.employees.accesses.update', [$this->ana, $this->access]), [
+        $this->put(route('employees.accesses.update', [$this->ana, $this->access]), [
             'access_system_id' => $this->office->id,
             'username' => 'ana.perez@segurex.com',
             'password' => 'Rotated-Value-9',
@@ -333,7 +454,7 @@ class EmployeesAdminTest extends TestCase
     public function test_destroy_access(): void
     {
         $this->actingAs($this->manager())
-            ->delete(route('admin.employees.accesses.destroy', [$this->ana, $this->access]))
+            ->delete(route('employees.accesses.destroy', [$this->ana, $this->access]))
             ->assertSessionHas('success', 'Acceso eliminado.');
 
         $this->assertModelMissing($this->access);
@@ -342,16 +463,16 @@ class EmployeesAdminTest extends TestCase
     public function test_access_routes_require_manage_and_matching_employee(): void
     {
         $this->actingAs($this->viewer())
-            ->delete(route('admin.employees.accesses.destroy', [$this->ana, $this->access]))
+            ->delete(route('employees.accesses.destroy', [$this->ana, $this->access]))
             ->assertForbidden();
 
         $other = Employee::factory()->for($this->segurex)->create();
 
         $this->actingAs($this->manager())
-            ->delete(route('admin.employees.accesses.destroy', [$other, $this->access]))
+            ->delete(route('employees.accesses.destroy', [$other, $this->access]))
             ->assertNotFound();
 
-        $this->post(route('admin.employees.accesses.store', $this->foreign), [
+        $this->post(route('employees.accesses.store', $this->foreign), [
             'access_system_id' => $this->office->id,
             'username' => 'eva',
             'password' => 'x',
@@ -363,7 +484,7 @@ class EmployeesAdminTest extends TestCase
     public function test_reveal_requires_credentials_view(): void
     {
         $this->actingAs($this->manager())
-            ->postJson(route('admin.employees.accesses.reveal', [$this->ana, $this->access]))
+            ->postJson(route('employees.accesses.reveal', [$this->ana, $this->access]))
             ->assertForbidden();
 
         $this->assertSame(0, Activity::where('event', 'credential_revealed')->count());
@@ -374,7 +495,7 @@ class EmployeesAdminTest extends TestCase
         $user = $this->user(['employees.view', 'credentials.view']);
 
         $response = $this->actingAs($user)
-            ->postJson(route('admin.employees.accesses.reveal', [$this->ana, $this->access]))
+            ->postJson(route('employees.accesses.reveal', [$this->ana, $this->access]))
             ->assertOk()
             ->assertExactJson(['value' => self::SECRET, 'expires_in' => 30]);
 
@@ -395,7 +516,7 @@ class EmployeesAdminTest extends TestCase
         ]);
 
         $this->actingAs($this->user(['employees.view', 'credentials.view']))
-            ->postJson(route('admin.employees.accesses.reveal', [$this->foreign, $foreignAccess]))
+            ->postJson(route('employees.accesses.reveal', [$this->foreign, $foreignAccess]))
             ->assertNotFound();
     }
 
@@ -404,10 +525,10 @@ class EmployeesAdminTest extends TestCase
         $this->actingAs($this->user(['employees.view', 'credentials.view']));
 
         for ($i = 0; $i < 10; $i++) {
-            $this->postJson(route('admin.employees.accesses.reveal', [$this->ana, $this->access]))->assertOk();
+            $this->postJson(route('employees.accesses.reveal', [$this->ana, $this->access]))->assertOk();
         }
 
-        $this->postJson(route('admin.employees.accesses.reveal', [$this->ana, $this->access]))->assertStatus(429);
+        $this->postJson(route('employees.accesses.reveal', [$this->ana, $this->access]))->assertStatus(429);
         $this->assertSame(10, Activity::where('event', 'credential_revealed')->count());
     }
 
@@ -418,12 +539,23 @@ class EmployeesAdminTest extends TestCase
         Queue::fake();
 
         $this->actingAs($this->manager())
-            ->post(route('admin.employees.sync'))
+            ->post(route('employees.sync'))
             ->assertRedirect()
             ->assertSessionHas('success', 'Sincronización de colaboradores en cola.');
 
         Queue::assertPushed(SyncCompanyEmployees::class, 1);
         Queue::assertPushed(SyncCompanyEmployees::class, fn ($job) => $job->companyId === $this->segurex->id);
+    }
+
+    public function test_sync_is_allowed_with_ai_manage(): void
+    {
+        Queue::fake();
+
+        $this->actingAs($this->user(['employees.view', 'ai.manage']))
+            ->post(route('employees.sync'))
+            ->assertSessionHas('success');
+
+        Queue::assertPushed(SyncCompanyEmployees::class, 1);
     }
 
     public function test_sync_in_all_context_dispatches_every_active_company_with_tenant(): void
@@ -433,7 +565,7 @@ class EmployeesAdminTest extends TestCase
         Company::factory()->create(['tenant_id' => null]);
 
         $this->actingAs($this->user(['employees.manage', 'companies.view_all']))
-            ->post(route('admin.employees.sync'))
+            ->post(route('employees.sync'))
             ->assertSessionHas('success');
 
         Queue::assertPushed(SyncCompanyEmployees::class, 2);
@@ -445,17 +577,17 @@ class EmployeesAdminTest extends TestCase
         $this->segurex->update(['tenant_id' => null]);
 
         $this->actingAs($this->manager())
-            ->post(route('admin.employees.sync'))
+            ->post(route('employees.sync'))
             ->assertSessionHas('error', 'La empresa no tiene un inquilino de Microsoft configurado.');
 
         Queue::assertNothingPushed();
     }
 
-    public function test_sync_requires_employees_manage(): void
+    public function test_sync_requires_employees_manage_or_ai_manage(): void
     {
         Queue::fake();
 
-        $this->actingAs($this->viewer())->post(route('admin.employees.sync'))->assertForbidden();
+        $this->actingAs($this->viewer())->post(route('employees.sync'))->assertForbidden();
 
         Queue::assertNothingPushed();
     }

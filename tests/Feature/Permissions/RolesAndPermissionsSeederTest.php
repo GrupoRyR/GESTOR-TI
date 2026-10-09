@@ -153,6 +153,10 @@ class RolesAndPermissionsSeederTest extends TestCase
         $this->assertContains('ai.manage', $leader);
         $this->assertContains('assistant.knowledge.manage', $leader);
         $this->assertContains('companies.view_all', $leader);
+        // Colaboradores (`employees.index`); create/sync come with `ai.manage`.
+        $this->assertContains('employees.view', $leader);
+        $this->assertNotContains('employees.manage', $leader);
+        $this->assertNotContains('credentials.view', $leader);
         $this->assertNotContains('ai.vault.access', $leader);
         $this->assertNotContains('ai.projects.approve', $leader);
         $this->assertNotContains('assistant.credentials', $leader);
