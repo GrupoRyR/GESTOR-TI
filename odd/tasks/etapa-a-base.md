@@ -196,4 +196,4 @@ Each task: feature tests green (`php artisan test`), Pint clean, commit on the b
 - Open questions: adopt manual employees on Graph sync by email (today not adopted); company logo upload (paths only today).
 
 ## Next step
-Open stacked PRs; then Stage B.
+Stacked PRs opened 2026-10-09 on GrupoRyR/GESTOR-TI: #1 stage-a/01-base-wiring → #2 02-companies-areas → #3 03-roles-permissions → #4 04-auth → #5 05-employees → #6 06-notifications-alerts → #7 07-audit-deploy (merge in order). Then reconcile page props with the design branch contract and start Stage B.
