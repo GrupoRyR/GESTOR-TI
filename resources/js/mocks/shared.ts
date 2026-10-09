@@ -97,7 +97,7 @@ const ALL_PERMISSIONS: Permission[] = [
 
 const without = (...excluded: Permission[]) => ALL_PERMISSIONS.filter((permission) => !excluded.includes(permission));
 
-export type MockUserKey = 'jhon' | 'leonardo' | 'andres';
+export type MockUserKey = 'jhon' | 'leonardo' | 'edward' | 'andres' | 'paola' | 'contabilidad';
 
 export const USERS: Record<MockUserKey, AuthUser> = {
     /** Líder IA + Súper Admin + Aprobador de proyectos: the only one with the vault. */
@@ -120,6 +120,16 @@ export const USERS: Record<MockUserKey, AuthUser> = {
         roles: ['Súper Admin'],
         permissions: without('ai.vault.access', 'ai.projects.approve'),
     },
+    /** Aprobador de proyectos (Gerencia): approves from Telegram, sees costs, no IT tabs. */
+    edward: {
+        id: 3,
+        name: 'Edward Ramanan',
+        email: 'edward.ramanan@segurex.com',
+        avatar_url: null,
+        company_id: SEGUREX.id,
+        roles: ['Aprobador de proyectos'],
+        permissions: ['ai.requests.create', 'ai.projects.approve', 'ai.costs.view', 'companies.view_all'],
+    },
     /** Usuario final of Derivados: can only create requests. */
     andres: {
         id: 7,
@@ -127,6 +137,26 @@ export const USERS: Record<MockUserKey, AuthUser> = {
         email: 'andres.mendez@derivadoscol.com',
         avatar_url: null,
         company_id: DERIVADOS.id,
+        roles: ['Usuario final'],
+        permissions: ['ai.requests.create'],
+    },
+    /** Usuario final of Segurex (Ventas): asks, votes, validates and rates. */
+    paola: {
+        id: 4,
+        name: 'Paola Ríos',
+        email: 'paola.rios@segurex.com',
+        avatar_url: null,
+        company_id: SEGUREX.id,
+        roles: ['Usuario final'],
+        permissions: ['ai.requests.create'],
+    },
+    /** Usuario final of Segurex (Contabilidad): answers IT requirements (name still unknown). */
+    contabilidad: {
+        id: 14,
+        name: '[RESPONSABLE CONTABILIDAD]',
+        email: '[CORREO CONTABILIDAD]',
+        avatar_url: null,
+        company_id: SEGUREX.id,
         roles: ['Usuario final'],
         permissions: ['ai.requests.create'],
     },
@@ -146,6 +176,8 @@ export interface SharedOptions {
 export function sharedFor(userKey: MockUserKey, options: SharedOptions = {}): SharedProps {
     const user = USERS[userKey];
     const viewsAll = user.permissions.includes('companies.view_all');
+    /** Without `ai.manage` (Andrés, Paola, Edward, Contabilidad) only the requester modules show. */
+    const requester = !user.permissions.includes('ai.manage');
     const companies =
         options.companies ?? (viewsAll ? COMPANIES : COMPANIES.filter((company) => company.id === user.company_id));
 
@@ -154,8 +186,8 @@ export function sharedFor(userKey: MockUserKey, options: SharedOptions = {}): Sh
         companies,
         current_company_id: options.currentCompanyId !== undefined ? options.currentCompanyId : viewsAll ? null : user.company_id,
         flash: options.flash ?? {},
-        notifications_unread: options.notificationsUnread ?? (userKey === 'andres' ? 1 : 4),
-        modules: userKey === 'andres' ? REQUESTER_MODULES : MODULES,
+        notifications_unread: options.notificationsUnread ?? (requester ? 1 : 4),
+        modules: requester ? REQUESTER_MODULES : MODULES,
     };
 }
 

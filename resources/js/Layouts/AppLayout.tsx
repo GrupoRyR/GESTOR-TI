@@ -6,7 +6,7 @@ import { Button } from '@/Components/ui/Button';
 import { CompanyLogo } from '@/Components/ui/CompanyLogo';
 import { CompanyMark } from '@/Components/ui/CompanyMark';
 import { FlashMessages } from '@/Components/ui/FlashMessages';
-import { Icon } from '@/Components/ui/Icon';
+import { Icon, type IconName } from '@/Components/ui/Icon';
 import { IconButton } from '@/Components/ui/IconButton';
 import { SegmentedControl } from '@/Components/ui/SegmentedControl';
 import { cx } from '@/Components/ui/utils';
@@ -26,7 +26,28 @@ export interface AppLayoutProps {
     headerActions?: ReactNode;
     /** Full-width bar under the top bar (e.g. AdminLayout tabs). */
     subnav?: ReactNode;
+    /**
+     * Phone bottom bar override (< 768 px): exactly these items, no "Más"
+     * sheet. Gestor IA requesters get Inicio · Solicitudes · Hoja de ruta ·
+     * Perfil. Omitted, the bar is built from `modules` as usual.
+     */
+    bottomNav?: BottomNavOverride;
     children: ReactNode;
+}
+
+export interface BottomNavItem {
+    key: string;
+    label: string;
+    icon: IconName;
+    href: string;
+}
+
+export interface BottomNavOverride {
+    items: BottomNavItem[];
+    /** Key of the current item (none highlighted when omitted). */
+    active?: string;
+    /** Accessible name of the bar; defaults to "Navegación". */
+    label?: string;
 }
 
 const ALL = 'all';
@@ -272,6 +293,35 @@ function BottomBar({ modules, active, badges, shared }: BottomBarProps) {
     );
 }
 
+/** Fixed phone bar with the given items only (see `AppLayoutProps.bottomNav`). */
+function FixedBottomBar({ items, active, label = 'Navegación' }: BottomNavOverride) {
+    return (
+        <nav
+            aria-label={label}
+            className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-surface pb-[max(6px,env(safe-area-inset-bottom))] md:hidden"
+            style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        >
+            {items.map((item) => {
+                const current = item.key === active;
+                return (
+                    <Link
+                        key={item.key}
+                        href={item.href}
+                        aria-current={current ? 'page' : undefined}
+                        className={cx(
+                            'relative flex min-h-[65px] flex-col items-center justify-center gap-[3px] text-[11px] focus-visible:-outline-offset-2',
+                            current ? 'font-bold text-brand-ink' : 'font-semibold text-fg-soft',
+                        )}
+                    >
+                        <Icon name={item.icon} size={22} />
+                        <span className="max-w-full truncate px-1">{item.label}</span>
+                    </Link>
+                );
+            })}
+        </nav>
+    );
+}
+
 // ---- top bar --------------------------------------------------------------
 
 function SearchField() {
@@ -406,7 +456,7 @@ function TopBar({
  * bar with "Más" below 768 px. The brand of the selected company (or the
  * user's own in "Todas") is applied for light and dark.
  */
-export function AppLayout({ shared, title, active, badges, headerActions, subnav, children }: AppLayoutProps) {
+export function AppLayout({ shared, title, active, badges, headerActions, subnav, bottomNav, children }: AppLayoutProps) {
     const company = brandCompany(shared);
     const modules = shared.modules.filter((module) => module.active);
 
@@ -435,7 +485,11 @@ export function AppLayout({ shared, title, active, badges, headerActions, subnav
                 </main>
             </div>
 
-            <BottomBar modules={modules} active={active} badges={badges} shared={shared} />
+            {bottomNav ? (
+                <FixedBottomBar {...bottomNav} />
+            ) : (
+                <BottomBar modules={modules} active={active} badges={badges} shared={shared} />
+            )}
         </div>
     );
 }
