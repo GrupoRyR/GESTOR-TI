@@ -21,7 +21,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 
 ## Tasks
 - [x] B1 · Requests domain: `ai_requests` (key GIA-n, type, product/version, requester, company, area + benefited areas, status machine, guided fields, impact/effort/urgency, suggested priority), votes (+1), comments (public/internal), attachments (private disk), acceptance criteria, approvals (area + project), first-response deadline alert, duplicate search service. Seeders for statuses/config.
-- [ ] B2 · Products: `ai_products` (slug, owner, areas, repo, stack, AI model/provider, monthly cost, status, current version), `ai_product_versions` ↔ requests, link with `monitored_apps`; seed the 5 current apps.
+- [x] B2 · Products: `ai_products` (slug, owner, areas, repo, stack, AI model/provider, monthly cost, status, current version), `ai_product_versions` ↔ requests, link with `monitored_apps`; seed the 5 current apps.
 - [ ] B3 · Wire requester pages (ai-requester.ts): wizard + duplicates, submitted, mine, show (requester view), validate acceptance, ratings + hours saved, roadmap. Replace Stage B placeholder routes.
 - [ ] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
 - [ ] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
@@ -57,5 +57,36 @@ Decisions:
 Open for B3/B4: whether any requester may open the detail of another person's roadmap item (today: requester, voters, area viewers, approvers, `ai.manage`);
 `SendToApproval` (estimate + approver rows + notification) belongs to B4; `product_id` foreign key in B2.
 
+### B2 · Products — done (commit `3dacf33` `feat(ai): add products and versions`)
+- Route: delegated (writer trigger: 15 new files across migrations, models, policy, resolver, seeder, factories, tests).
+- Test-first: 31 new tests written first and observed RED (0/31 passing, classes missing), then GREEN.
+- Checks: `php artisan test` 540/540 passed; `vendor/bin/pint` fixed 1 file (unused import), `vendor/bin/pint --test` passed;
+  `migrate:fresh --seed` on a temp SQLite file OK (5 products, 5 linked monitored apps, 6 area links), seeder re-run idempotent,
+  rollback + re-migrate of the 2 new migrations OK (file deleted).
+- Size: ~690 authored code lines + ~520 test lines, above the ~400 heuristic: schema, models, policy and seeder are one unit B3/B9 consume together.
+
+Decisions:
+- `ai_products` (slug unique even when soft-deleted, owner_user_id + owner_name fallback, url, repository "owner/repo", stack, hosting,
+  ai_provider, ai_model, monthly_cost decimal + `monthly_cost_currency` default COP, status, current_version, notion_url, soft deletes);
+  pivots `ai_product_company` and `ai_product_area` (both with `is_primary`); `ai_product_versions` (version, released_at, summary, notes markdown,
+  source manual|github_release, release_url; unique per product) + `ai_product_version_request`.
+- Enum `App\Enums\Ai\ProductStatus` mirrors the design `ProductState` values; the column is `status` (design field `state`), hosting column is `hosting` (design `host`).
+  The design `Product` has one `company_id`: serialize `primaryCompany()` (pivot `is_primary`).
+- Not company-scoped: `AiProduct::visibleTo($user)` filters by the CurrentCompany context through the pivot ("Todas" = all, no company = none);
+  `requests()` and version requests skip `CompanyScope` (multi-company product).
+- FKs `ai_requests.product_id` and `monitored_apps.ai_product_id` → `ai_products` null on delete, in a separate migration (works on SQLite).
+- `health()` is the placeholder "Salud: monitoreo aún no activo" unless the product has a monitored app and `modules.monitoring.active` is on.
+- `openRequestsCount()` excludes in_production, rejected and closed; `averageRating()`/`hoursSaved()` return null until B7;
+  `monthlyAiSpend()` sums `ai_interactions.cost` with `source` = the product in the current calendar month (interactions currency, USD), not COP.
+- `AiProductPolicy`: viewAny module users (`ai.requests.create`) or `ai.manage`; view `ai.manage`, owner, or module users of a product company;
+  create/update/delete/manageVersions `ai.manage`; viewCosts = `costVisibleTo()` = `ai.costs.view`.
+- `ProductResolver` (`fromSlug`, `forUser`, `byIdForUser`, `version`): `CreateRequest` takes `product` (slug) or `product_id`; it must serve the
+  requester's company (else validation error on `product`); the version defaults to `current_version`.
+- `AiProductSeeder` (in DatabaseSeeder) is create-only by slug (soft-deleted included): the 5 apps of §1, all `production`, slugs/descriptions/areas
+  from the design fixtures, hosting "Equipo local" for robotcamara; it creates or links a `monitored_apps` row per product (web, local for robotcamara).
+  Fixture statuses (pilot/development), versions, costs and ratings were not copied: they are mock data.
+
+Pending from Jhon: product owners, URLs, repositories, current versions, monthly costs, AI provider/model per product, areas of Cámaras.
+
 ## Next step
-B2 · Products.
+B3 · Wire requester pages (ai-requester.ts); the `?producto={slug}` entry uses `ProductResolver::forUser`.
