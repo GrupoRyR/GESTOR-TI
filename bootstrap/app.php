@@ -3,11 +3,13 @@
 use App\Http\Middleware\EnsureModuleIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireRecentMicrosoftAuth;
+use App\Support\ErrorPage;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -37,4 +39,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Design error page (`Errors/Error`, types/pages/errors.ts) for web
+        // requests; JSON/API responses (including the credential reveal
+        // endpoint) keep Laravel's JSON.
+        $exceptions->respond(fn (Response $response, Throwable $e, Request $request) => ErrorPage::render($response, $request));
     })->create();

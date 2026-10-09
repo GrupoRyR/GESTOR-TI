@@ -65,8 +65,8 @@ class RolesMatrixTest extends TestCase
                     ->firstWhere('name', 'ai.vault.access')['exclusive'] === true)
                 ->has('modules', count(config('modules')))
                 ->has('modules.0', fn (Assert $module) => $module
-                    ->where('key', 'ai')
-                    ->where('name', 'Gestor IA')
+                    ->where('key', 'home')
+                    ->where('name', 'Inicio')
                 )
             );
     }

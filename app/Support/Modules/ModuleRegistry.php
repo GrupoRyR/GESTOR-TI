@@ -21,11 +21,13 @@ class ModuleRegistry
     }
 
     /**
-     * Active modules the given user may see, in configuration order.
-     * Guests see none.
+     * Modules shared with the given user, in configuration order: the active
+     * modules they may see (`active: true`) plus every inactive module
+     * (`active: false`, never linked by the menu). Guests see none.
      *
      * The `route` value is a route name (not a URL): the frontend resolves it
-     * with Ziggy's `route()`, exposed through the `@routes` Blade directive.
+     * with Ziggy's `route()`, exposed through the `@routes` Blade directive,
+     * and only for active modules.
      *
      * @return list<array{key: string, name: string, icon: string, route: string, active: bool}>
      */
@@ -38,13 +40,10 @@ class ModuleRegistry
         $visible = [];
 
         foreach ($this->all() as $key => $module) {
-            if (! ($module['active'] ?? false)) {
-                continue;
-            }
-
+            $active = (bool) ($module['active'] ?? false);
             $permission = $module['permission'] ?? null;
 
-            if ($permission !== null && ! $user->can($permission)) {
+            if ($active && $permission !== null && ! $user->can($permission)) {
                 continue;
             }
 
@@ -53,7 +52,7 @@ class ModuleRegistry
                 'name' => $module['name'],
                 'icon' => $module['icon'],
                 'route' => $module['route'],
-                'active' => true,
+                'active' => $active,
             ];
         }
 

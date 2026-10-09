@@ -45,7 +45,7 @@ class SharedCompaniesPropsTest extends TestCase
         $user->givePermissionTo('companies.view_all');
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('companies', 3)
                 ->where('current_company_id', null)
@@ -67,12 +67,29 @@ class SharedCompaniesPropsTest extends TestCase
             );
     }
 
+    public function test_missing_brand_colors_fall_back_to_the_configured_defaults(): void
+    {
+        config(['gestor.brand.default_colors' => ['primary' => '#111111', 'accent' => '#222222', 'dark' => '#333333']]);
+        $this->first->update(['colors' => ['primary' => '#FF671F']]);
+        $this->second->update(['colors' => null]);
+
+        $user = User::factory()->create(['company_id' => $this->first->id]);
+        $user->givePermissionTo('companies.view_all');
+
+        $this->actingAs($user)
+            ->get(route('home'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('companies.0.colors', ['primary' => '#FF671F', 'accent' => '#222222', 'dark' => '#333333'])
+                ->where('companies.1.colors', ['primary' => '#111111', 'accent' => '#222222', 'dark' => '#333333'])
+            );
+    }
+
     public function test_regular_user_only_receives_own_company(): void
     {
         $user = User::factory()->create(['company_id' => $this->third->id]);
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('companies', 1)
                 ->where('companies.0.id', $this->third->id)
@@ -87,7 +104,7 @@ class SharedCompaniesPropsTest extends TestCase
         $user = User::factory()->create(['company_id' => $this->third->id]);
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page->where('companies', []));
     }
 
@@ -99,7 +116,7 @@ class SharedCompaniesPropsTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('auth.user.avatar_url', 'https://example.test/avatar.png')
                 ->where('auth.user.company_id', $this->first->id)

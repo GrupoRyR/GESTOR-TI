@@ -54,7 +54,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $user ? $this->authUser($user) : null,
             ],
-            'companies' => fn () => $user ? $this->companies($user) : [],
+            'companies' => fn () => $this->companies($user),
             'current_company_id' => fn () => $user ? $this->currentCompany->forUser($user) : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
@@ -82,16 +82,17 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Active companies the user may see: all of them with
-     * `companies.view_all`, otherwise only the user's own company.
+     * Active companies: every one for guests (`GuestSharedProps`, logos and
+     * copy of the sign-in pages) and for users with `companies.view_all`,
+     * otherwise only the user's own company.
      *
-     * @return list<array{id: int, slug: string, name: string, short_name: string, logo_url: ?string, logo_dark_url: ?string, colors: array{primary: ?string, accent: ?string, dark: ?string}}>
+     * @return list<array{id: int, slug: string, name: string, short_name: string, logo_url: ?string, logo_dark_url: ?string, colors: array{primary: string, accent: string, dark: string}}>
      */
-    protected function companies(User $user): array
+    protected function companies(?User $user): array
     {
         $query = Company::query()->active()->orderBy('name');
 
-        if (! $this->currentCompany->canViewAll($user)) {
+        if ($user !== null && ! $this->currentCompany->canViewAll($user)) {
             if ($user->company_id === null) {
                 return [];
             }

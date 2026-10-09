@@ -42,12 +42,12 @@ class LoginPageTest extends TestCase
     {
         $this->actingAs(User::factory()->create())
             ->get(route('login'))
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('home'));
     }
 
-    public function test_guest_hitting_dashboard_goes_to_login(): void
+    public function test_guest_hitting_home_goes_to_login(): void
     {
-        $this->get(route('dashboard'))->assertRedirect(route('login'));
+        $this->get(route('home'))->assertRedirect(route('login'));
     }
 
     public function test_logout_logs_out_and_redirects_to_login(): void

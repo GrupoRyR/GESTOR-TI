@@ -70,12 +70,12 @@ class MicrosoftCallbackTest extends TestCase
         $this->assertArrayNotHasKey('prompt', $query);
     }
 
-    public function test_callback_logs_in_and_redirects_to_dashboard(): void
+    public function test_callback_logs_in_and_redirects_to_home(): void
     {
         $this->fakeMicrosoft();
 
         $this->get(route('auth.microsoft.callback'))
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('home'));
 
         $user = User::where('azure_id', 'azure-ana')->firstOrFail();
         $this->assertAuthenticatedAs($user);

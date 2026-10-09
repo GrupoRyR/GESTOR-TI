@@ -16,16 +16,23 @@
 |   - exclusive: never granted through a role. It can only be granted directly
 |                to a user (`App\Actions\Users\GrantVaultAccess`). Models and
 |                the matrix endpoint reject attaching it to a role.
+|   - explicit:  granted through roles, but never by the '*' wildcard: a role
+|                gets it only by listing it (`ai.projects.approve`).
 |
 | Every permission referenced by config/modules.php or by a route `can:`
 | middleware must be listed here (covered by RolesAndPermissionsSeederTest).
 |
 | roles: Spanish role name => list of permissions, or '*' for every
-| non-exclusive permission. Choices (PROMPT_GESTOR_IA_APP.md §3 and §6.4.10):
-|   - Súper Admin: everything except the vault (`ai.vault.access`).
-|   - Líder IA: the whole Gestor IA and Asistente TI (except the vault and
-|     `assistant.credentials`) plus `companies.view_all` (global scope). No
-|     `admin.access`: administration stays with Súper Admin.
+| non-exclusive, non-explicit permission. Choices (PROMPT_GESTOR_IA_APP.md §3
+| and §6.4.10, user decision 2026-10-09):
+|   - Súper Admin: everything except the vault (`ai.vault.access`) and
+|     project approval (`ai.projects.approve`).
+|   - Líder IA: the whole Gestor IA and Asistente TI (except the vault,
+|     `ai.projects.approve` and `assistant.credentials`) plus
+|     `companies.view_all` (global scope). No `admin.access`: administration
+|     stays with Súper Admin.
+|   - `ai.projects.approve` belongs only to Aprobador de proyectos (holders
+|     come from GESTOR_PROJECT_APPROVER_EMAILS).
 |   - `credentials.view` and `assistant.credentials` (asking for and viewing
 |     passwords) are only in Súper Admin (Jhon and Leonardo).
 |   - Aprobador de área: company/area scope, no `companies.view_all`.
@@ -58,7 +65,7 @@ return [
         'ai.manage' => ['label' => 'Administrar el Gestor IA', 'module' => 'ai'],
         'ai.requests.create' => ['label' => 'Crear y seguir solicitudes', 'module' => 'ai'],
         'ai.requests.approve_area' => ['label' => 'Aprobar solicitudes del área', 'module' => 'ai'],
-        'ai.projects.approve' => ['label' => 'Aprobar proyectos', 'module' => 'ai'],
+        'ai.projects.approve' => ['label' => 'Aprobar proyectos', 'module' => 'ai', 'explicit' => true],
         'ai.costs.view' => ['label' => 'Ver costos', 'module' => 'ai'],
         'ai.costs.manage' => ['label' => 'Administrar costos', 'module' => 'ai'],
         'ai.area.view' => ['label' => 'Ver lo del área', 'module' => 'ai'],
@@ -76,7 +83,7 @@ return [
         'monitoring.view' => ['label' => 'Ver monitoreo', 'module' => 'monitoring'],
         'tickets.view' => ['label' => 'Ver tickets', 'module' => 'tickets'],
         'inventory.view' => ['label' => 'Ver inventario', 'module' => 'inventory'],
-        'automations.view' => ['label' => 'Ver operación', 'module' => 'automations'],
+        'operations.view' => ['label' => 'Ver operación', 'module' => 'operations'],
 
     ],
 
@@ -89,7 +96,6 @@ return [
             'ai.manage',
             'ai.requests.create',
             'ai.requests.approve_area',
-            'ai.projects.approve',
             'ai.costs.view',
             'ai.costs.manage',
             'ai.area.view',

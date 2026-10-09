@@ -45,7 +45,7 @@ class EmergencyLoginTest extends TestCase
     public function test_configured_email_logs_in(): void
     {
         $this->attempt('EMERGENCIA@example.com', 'correct-horse-battery-staple')
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('home'));
 
         $this->assertAuthenticatedAs($this->admin);
         $this->assertNotNull($this->admin->fresh()->last_login_at);
@@ -96,7 +96,7 @@ class EmergencyLoginTest extends TestCase
 
         $this->travel(61)->seconds();
         $this->attempt('emergencia@example.com', 'correct-horse-battery-staple')
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('home'));
         $this->assertAuthenticatedAs($this->admin);
 
         $fresh = $this->admin->fresh();

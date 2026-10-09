@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
@@ -15,13 +16,23 @@ class SharedPropsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_receives_empty_shared_props(): void
+    public function test_guest_receives_guest_shared_props(): void
     {
+        $alfa = Company::factory()->create(['name' => 'Alfa S.A.S.']);
+        $beta = Company::factory()->create(['name' => 'Beta S.A.S.']);
+        Company::factory()->inactive()->create(['name' => 'Inactiva S.A.S.']);
+
+        // GuestSharedProps: enabled companies for logos and copy, no modules.
         $this->get(route('login'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('auth.user', null)
-                ->where('companies', [])
+                ->has('companies', 2)
+                ->where('companies.0.id', $alfa->id)
+                ->where('companies.1.id', $beta->id)
+                ->has('companies.0', fn (Assert $company) => $company
+                    ->hasAll(['id', 'slug', 'name', 'short_name', 'logo_url', 'logo_dark_url', 'colors'])
+                )
                 ->where('current_company_id', null)
                 ->where('notifications_unread', 0)
                 ->where('modules', [])
@@ -43,7 +54,7 @@ class SharedPropsTest extends TestCase
         // `has` with a scoped closure fails on any unexpected key, so this
         // pins the exact contract of section 7.1.
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('auth.user', fn (Assert $authUser) => $authUser
                     ->where('id', $user->id)
@@ -73,7 +84,7 @@ class SharedPropsTest extends TestCase
         }
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page->where('notifications_unread', 2));
     }
 }

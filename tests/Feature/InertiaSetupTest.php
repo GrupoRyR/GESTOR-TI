@@ -2,18 +2,22 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
  * Inertia wiring checked on the login page (the only Inertia page a guest
- * can reach since A5 protected `dashboard` with `auth`).
+ * can reach since A5 protected the home page with `auth`).
  */
 class InertiaSetupTest extends TestCase
 {
-    public function test_root_redirects_to_dashboard(): void
+    use RefreshDatabase;
+
+    public function test_root_is_the_home_page_and_requires_login(): void
     {
-        $this->get('/')->assertRedirect(route('dashboard'));
+        $this->assertSame(url('/'), route('home'));
+        $this->get('/')->assertRedirect(route('login'));
     }
 
     public function test_login_renders_inertia_page_with_flash_prop(): void

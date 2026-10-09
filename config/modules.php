@@ -6,39 +6,69 @@
 |--------------------------------------------------------------------------
 |
 | Ordered list of modules, keyed by module key. The order here is the menu
-| order shared with the frontend through the `modules` Inertia prop.
+| order shared with the frontend through the `modules` Inertia prop
+| (`ModuleItem` in resources/js/types/shared.ts).
 |
 | - name:       visible label (Spanish).
-| - icon:       icon token resolved by the frontend (lucide icon name).
+| - icon:       icon token resolved by the frontend (`Components/ui/Icon`);
+|               by convention it equals the module key.
 | - route:      route name of the module entry page (resolved with Ziggy).
-| - active:     whether the module is enabled. Inactive modules are hidden
-|               from the menu and their routes answer 404 (`module:` middleware).
-| - permission: permission required to see the module, or null for any
-|               authenticated user.
+|               Must exist for every active module (ModulesTest).
+| - active:     whether the module is enabled. Inactive modules are shared
+|               with `active: false` (the menu hides them) and their routes
+|               answer 404 (`module:` middleware).
+| - permission: permission required to see an active module, or null for
+|               any authenticated user.
 |
 */
 
 return [
 
+    'home' => [
+        'name' => 'Inicio',
+        'icon' => 'home',
+        'route' => 'home',
+        'active' => true,
+        'permission' => null,
+    ],
+
     'ai' => [
         'name' => 'Gestor IA',
-        'icon' => 'sparkles',
+        'icon' => 'ai',
         'route' => 'ai.index',
         'active' => (bool) env('MODULE_AI_ENABLED', true),
         'permission' => 'ai.requests.create',
     ],
 
     'assistant' => [
-        'name' => 'Asistente TI',
-        'icon' => 'bot',
+        'name' => 'Asistente',
+        'icon' => 'assistant',
         'route' => 'assistant.index',
         'active' => (bool) env('MODULE_ASSISTANT_ENABLED', true),
         'permission' => 'assistant.use',
     ],
 
+    'employees' => [
+        'name' => 'Colaboradores',
+        'icon' => 'employees',
+        'route' => 'employees.index',
+        'active' => (bool) env('MODULE_EMPLOYEES_ENABLED', true),
+        'permission' => 'employees.view',
+    ],
+
+    'admin' => [
+        'name' => 'Administración',
+        'icon' => 'admin',
+        'route' => 'admin.companies.index',
+        'active' => (bool) env('MODULE_ADMIN_ENABLED', true),
+        'permission' => 'admin.access',
+    ],
+
+    // Reserved modules (open doors, no routes yet).
+
     'monitoring' => [
         'name' => 'Monitoreo',
-        'icon' => 'activity',
+        'icon' => 'monitoring',
         'route' => 'monitoring.index',
         'active' => (bool) env('MODULE_MONITORING_ENABLED', false),
         'permission' => 'monitoring.view',
@@ -46,7 +76,7 @@ return [
 
     'tickets' => [
         'name' => 'Tickets',
-        'icon' => 'ticket',
+        'icon' => 'tickets',
         'route' => 'tickets.index',
         'active' => (bool) env('MODULE_TICKETS_ENABLED', false),
         'permission' => 'tickets.view',
@@ -54,26 +84,18 @@ return [
 
     'inventory' => [
         'name' => 'Inventario',
-        'icon' => 'package',
+        'icon' => 'inventory',
         'route' => 'inventory.index',
         'active' => (bool) env('MODULE_INVENTORY_ENABLED', false),
         'permission' => 'inventory.view',
     ],
 
-    'automations' => [
+    'operations' => [
         'name' => 'Operación',
-        'icon' => 'workflow',
-        'route' => 'automations.index',
-        'active' => (bool) env('MODULE_AUTOMATIONS_ENABLED', false),
-        'permission' => 'automations.view',
-    ],
-
-    'admin' => [
-        'name' => 'Administración',
-        'icon' => 'settings',
-        'route' => 'admin.index',
-        'active' => (bool) env('MODULE_ADMIN_ENABLED', true),
-        'permission' => 'admin.access',
+        'icon' => 'operations',
+        'route' => 'operations.index',
+        'active' => (bool) env('MODULE_OPERATIONS_ENABLED', false),
+        'permission' => 'operations.view',
     ],
 
 ];

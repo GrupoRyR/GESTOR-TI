@@ -30,12 +30,14 @@ class RolesAndPermissionsSeeder extends Seeder
         // DatabaseSeeder's WithoutModelEvents: reload explicitly.
         $registrar->forgetCachedPermissions();
 
-        $grantable = array_values(array_diff(array_keys($catalog), Permission::exclusiveNames()));
+        // '*' = every permission except the exclusive (vault) and the
+        // explicit ones (`ai.projects.approve`), which a role must list.
+        $wildcard = Permission::wildcardNames();
 
         foreach (config('permissions.roles', []) as $roleName => $permissions) {
             /** @var Role $role */
             $role = Role::findOrCreate($roleName, 'web');
-            $role->syncPermissions($permissions === '*' ? $grantable : $permissions);
+            $role->syncPermissions($permissions === '*' ? $wildcard : $permissions);
         }
 
         $registrar->forgetCachedPermissions();

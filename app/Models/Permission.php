@@ -49,6 +49,35 @@ class Permission extends SpatiePermission
         return array_values(array_unique([...$configured, self::VAULT]));
     }
 
+    /**
+     * Permissions flagged `explicit` in config/permissions.php: grantable
+     * through roles, but excluded from the '*' role wildcard.
+     *
+     * @return list<string>
+     */
+    public static function explicitNames(): array
+    {
+        return array_keys(array_filter(
+            config('permissions.permissions', []),
+            fn (array $definition) => (bool) ($definition['explicit'] ?? false),
+        ));
+    }
+
+    /**
+     * Permissions the '*' role wildcard expands to: every catalog permission
+     * except the exclusive and the explicit ones.
+     *
+     * @return list<string>
+     */
+    public static function wildcardNames(): array
+    {
+        return array_values(array_diff(
+            array_keys(self::catalog()),
+            self::exclusiveNames(),
+            self::explicitNames(),
+        ));
+    }
+
     public static function isExclusive(string $name): bool
     {
         return in_array($name, self::exclusiveNames(), true);

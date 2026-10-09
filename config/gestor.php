@@ -23,7 +23,8 @@ return [
         // Súper Admin + `is_global`.
         'super_admins' => $emails(env('GESTOR_SUPER_ADMIN_EMAILS')),
 
-        // Aprobador de proyectos.
+        // Aprobador de proyectos: the only role with `ai.projects.approve`
+        // (e.g. jhon.castro@segurex.com,edward.ramanan@segurex.com).
         'project_approvers' => $emails(env('GESTOR_PROJECT_APPROVER_EMAILS')),
 
         // Receives `ai.vault.access` directly (never through a role).
@@ -47,6 +48,20 @@ return [
         'ai.monthly_cost_cap_usd' => 0.0,
         'ai.cost_warning_percent' => 80,
     ],
+
+    'brand' => [
+        // Shared `companies[].colors` never carry null (design contract):
+        // each missing key of a company falls back to these neutral colors.
+        'default_colors' => [
+            'primary' => '#334155',
+            'accent' => '#64748B',
+            'dark' => '#0F172A',
+        ],
+    ],
+
+    // Render the `Errors/Error` Inertia page for 403/404/419/500/503
+    // (bootstrap/app.php). Null = whenever APP_DEBUG is off.
+    'error_pages' => env('GESTOR_ERROR_PAGES') === null ? null : (bool) env('GESTOR_ERROR_PAGES'),
 
     'alerts' => [
         // Default recipients of AlertService: users holding this permission

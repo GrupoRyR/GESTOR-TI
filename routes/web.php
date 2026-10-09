@@ -8,18 +8,23 @@ use App\Http\Controllers\Admin\EmployeeAccessController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserRoleController;
+use App\Http\Controllers\AI\StageBPlaceholderController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CompanySwitchController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Profile\NotificationPreferenceController;
 use App\Http\Controllers\Profile\TelegramLinkController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+// Inicio (`Home`): IT board or requester home.
+Route::get('/', HomeController::class)->middleware('auth')->name('home');
 
-Route::inertia('/dashboard', 'Dashboard')->middleware('auth')->name('dashboard');
+// Top-bar search. Stage A: Colaboradores only (see SearchController).
+Route::get('/search', SearchController::class)->middleware('auth')->name('search');
 
 // Authentication (A5). `throttle:login` = per-IP limit (AppServiceProvider);
 // the emergency login adds its own 5-failure lockout.
@@ -55,6 +60,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read_all');
 
+    // TEMPORARY (until C4 ships `Profile/Edit`): the layout links `profile.edit`.
+    Route::get('/profile', [NotificationPreferenceController::class, 'edit'])->name('profile.edit');
     Route::get('/profile/notifications', [NotificationPreferenceController::class, 'edit'])->name('profile.notifications.edit');
     Route::put('/profile/notifications', [NotificationPreferenceController::class, 'update'])->name('profile.notifications.update');
     Route::post('/profile/telegram', [TelegramLinkController::class, 'store'])->name('profile.telegram.link');
@@ -67,6 +74,23 @@ Route::middleware('auth')->group(function () {
 // and the administration tasks of stage A (admin).
 Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(function () {
     Route::inertia('/', 'AI/Index')->name('index');
+
+    // TEMPORARY (Stage B): routes the Stage A design links to (types/pages/home.ts).
+    // They redirect to Inicio with a notice until Stage B replaces them.
+    Route::get('/requests', StageBPlaceholderController::class)->name('requests.index');
+    Route::get('/requests/create', StageBPlaceholderController::class)->name('requests.create');
+    Route::get('/requests/{request}', StageBPlaceholderController::class)->name('requests.show');
+    Route::get('/requests/{request}/tasks/{task}', StageBPlaceholderController::class)->name('tasks.show');
+    Route::get('/requests/{request}/rating', StageBPlaceholderController::class)->name('ratings.create');
+    Route::get('/requirements/{requirement}', StageBPlaceholderController::class)->name('requirements.show');
+    Route::get('/approvals/{request}', StageBPlaceholderController::class)->name('approvals.show');
+    Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
+});
+
+// Colaboradores (design route names). TEMPORARY: C4 moves the employee
+// pages here; `admin.employees.*` keeps working until then.
+Route::middleware(['module:employees', 'auth', 'can:employees.view'])->group(function () {
+    Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
 });
 
 Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assistant.')->group(function () {

@@ -71,18 +71,40 @@ class RolesAndPermissionsSeederTest extends TestCase
         }
     }
 
-    public function test_super_admin_has_everything_except_the_vault(): void
+    public function test_super_admin_has_everything_except_the_vault_and_project_approval(): void
     {
         $this->seed(RolesAndPermissionsSeeder::class);
 
         $expected = collect(array_keys(config('permissions.permissions')))
-            ->reject(fn (string $name) => $name === 'ai.vault.access')
+            ->reject(fn (string $name) => in_array($name, ['ai.vault.access', 'ai.projects.approve'], true))
             ->sort()->values()->all();
 
         $actual = Role::findByName('Súper Admin')->permissions->pluck('name')->sort()->values()->all();
 
         $this->assertSame($expected, $actual);
         $this->assertNotContains('ai.vault.access', $actual);
+        $this->assertNotContains('ai.projects.approve', $actual);
+    }
+
+    public function test_project_approval_is_only_in_the_project_approver_role(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->assertSame(
+            ['Aprobador de proyectos'],
+            Permission::findByName('ai.projects.approve')->roles->pluck('name')->all(),
+        );
+        $this->assertSame(['ai.projects.approve'], Permission::explicitNames());
+    }
+
+    public function test_reserved_operations_module_replaces_automations(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->assertArrayHasKey('operations.view', config('permissions.permissions'));
+        $this->assertArrayNotHasKey('automations.view', config('permissions.permissions'));
+        $this->assertSame('operations', config('permissions.permissions')['operations.view']['module']);
+        $this->assertContains('operations.view', Role::findByName('Súper Admin')->permissions->pluck('name'));
     }
 
     public function test_no_role_holds_the_vault_permission(): void
@@ -132,6 +154,7 @@ class RolesAndPermissionsSeederTest extends TestCase
         $this->assertContains('assistant.knowledge.manage', $leader);
         $this->assertContains('companies.view_all', $leader);
         $this->assertNotContains('ai.vault.access', $leader);
+        $this->assertNotContains('ai.projects.approve', $leader);
         $this->assertNotContains('assistant.credentials', $leader);
         $this->assertNotContains('admin.access', $leader);
     }

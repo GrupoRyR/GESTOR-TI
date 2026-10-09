@@ -55,12 +55,12 @@ class CompanySwitchTest extends TestCase
     public function test_switch_to_a_company_stores_it_and_shares_it(): void
     {
         $this->actingAs($this->globalUser())
-            ->from(route('dashboard'))
+            ->from(route('home'))
             ->post(route('company.switch'), ['company_id' => $this->derivados->id])
-            ->assertRedirect(route('dashboard'))
+            ->assertRedirect(route('home'))
             ->assertSessionHas('current_company_id', $this->derivados->id);
 
-        $this->get(route('dashboard'))
+        $this->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page->where('current_company_id', $this->derivados->id));
     }
 
@@ -73,7 +73,7 @@ class CompanySwitchTest extends TestCase
 
         $this->assertNull(session('current_company_id'));
 
-        $this->get(route('dashboard'))
+        $this->get(route('home'))
             ->assertInertia(fn (Assert $page) => $page->where('current_company_id', null));
     }
 

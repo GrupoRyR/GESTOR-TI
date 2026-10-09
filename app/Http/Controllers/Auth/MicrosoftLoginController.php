@@ -72,7 +72,7 @@ class MicrosoftLoginController extends Controller
             Log::warning('Microsoft callback failed', ['error' => $e->getMessage()]);
 
             return $reauthenticating
-                ? redirect()->route('dashboard')->with('error', self::PROVIDER_ERROR)
+                ? redirect()->route('home')->with('error', self::PROVIDER_ERROR)
                 : redirect()->route('login')->with('error', self::PROVIDER_ERROR);
         }
 
@@ -95,7 +95,7 @@ class MicrosoftLoginController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('home', absolute: false));
     }
 
     private function completeReauth(Request $request, MicrosoftIdentity $identity, string $expected): RedirectResponse
@@ -109,12 +109,12 @@ class MicrosoftLoginController extends Controller
                 'tenant_id' => $identity->tenantId,
             ]);
 
-            return redirect()->route('dashboard')->with('error', self::REAUTH_MISMATCH);
+            return redirect()->route('home')->with('error', self::REAUTH_MISMATCH);
         }
 
         $request->session()->put(RequireRecentMicrosoftAuth::SESSION_KEY, now()->getTimestamp());
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('home', absolute: false));
     }
 
     /**

@@ -135,9 +135,27 @@ class Company extends Model
     }
 
     /**
-     * Shape shared with every page (`companies[]`, PROMPT §7.1).
+     * Brand colors for the shared props: every key is a string, falling back
+     * to `gestor.brand.default_colors` when the company has none configured.
      *
-     * @return array{id: int, slug: string, name: string, short_name: string, logo_url: ?string, logo_dark_url: ?string, colors: array{primary: ?string, accent: ?string, dark: ?string}}
+     * @return array{primary: string, accent: string, dark: string}
+     */
+    public function sharedBrandColors(): array
+    {
+        $defaults = config('gestor.brand.default_colors');
+        $colors = $this->brandColors();
+
+        return [
+            'primary' => $colors['primary'] ?? $defaults['primary'],
+            'accent' => $colors['accent'] ?? $defaults['accent'],
+            'dark' => $colors['dark'] ?? $defaults['dark'],
+        ];
+    }
+
+    /**
+     * Shape shared with every page (`Company` in resources/js/types/shared.ts).
+     *
+     * @return array{id: int, slug: string, name: string, short_name: string, logo_url: ?string, logo_dark_url: ?string, colors: array{primary: string, accent: string, dark: string}}
      */
     public function toSharedArray(): array
     {
@@ -148,7 +166,7 @@ class Company extends Model
             'short_name' => $this->short_name,
             'logo_url' => $this->logo_url,
             'logo_dark_url' => $this->logo_dark_url,
-            'colors' => $this->brandColors(),
+            'colors' => $this->sharedBrandColors(),
         ];
     }
 

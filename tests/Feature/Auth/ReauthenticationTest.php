@@ -133,7 +133,7 @@ class ReauthenticationTest extends TestCase
         $this->actingAs($this->user)
             ->withSession(['auth.reauth_azure_id' => 'azure-jefe', 'url.intended' => 'http://localhost/_test/vault'])
             ->get(route('auth.microsoft.callback'))
-            ->assertRedirect(route('dashboard'))
+            ->assertRedirect(route('home'))
             ->assertSessionHas('error', 'La verificación no corresponde a tu cuenta de Microsoft.')
             ->assertSessionMissing('auth.reauthenticated_at');
 
