@@ -44,8 +44,8 @@ Route::middleware('throttle:login')->group(function () {
 
     // Emergency local login: 404 while EMERGENCY_ADMIN_EMAIL is not set.
     Route::middleware('guest')->group(function () {
-        Route::get('/emergency-login', [EmergencyLoginController::class, 'create'])->name('emergency.login');
-        Route::post('/emergency-login', [EmergencyLoginController::class, 'store'])->name('emergency.login.store');
+        Route::get('/emergency-login', [EmergencyLoginController::class, 'create'])->name('login.emergency');
+        Route::post('/emergency-login', [EmergencyLoginController::class, 'store'])->name('login.emergency.store');
     });
 });
 

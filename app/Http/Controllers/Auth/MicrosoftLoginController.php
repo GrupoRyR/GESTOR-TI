@@ -34,13 +34,27 @@ class MicrosoftLoginController extends Controller
 
     private const SCOPES = ['openid', 'profile', 'email', 'User.Read'];
 
+    /** `prompt` values the sign-in redirect forwards to Microsoft. */
+    private const ALLOWED_PROMPTS = ['select_account', 'login'];
+
     private const PROVIDER_ERROR = 'No se pudo iniciar sesión con Microsoft. Intenta de nuevo.';
 
     private const REAUTH_MISMATCH = 'La verificación no corresponde a tu cuenta de Microsoft.';
 
-    public function redirect(): SymfonyRedirect
+    /**
+     * `?prompt=` is passed to Microsoft only when allow-listed
+     * (`Auth/CompanyNotEnabled` sends `select_account`).
+     */
+    public function redirect(Request $request): SymfonyRedirect
     {
-        return Socialite::driver('microsoft')->scopes(self::SCOPES)->redirect();
+        $driver = Socialite::driver('microsoft')->scopes(self::SCOPES);
+        $prompt = $request->query('prompt');
+
+        if (is_string($prompt) && in_array($prompt, self::ALLOWED_PROMPTS, true)) {
+            $driver->with(['prompt' => $prompt]);
+        }
+
+        return $driver->redirect();
     }
 
     /**
@@ -73,7 +87,7 @@ class MicrosoftLoginController extends Controller
 
             return $reauthenticating
                 ? redirect()->route('home')->with('error', self::PROVIDER_ERROR)
-                : redirect()->route('login')->with('error', self::PROVIDER_ERROR);
+                : redirect()->route('login')->with(SessionController::LOGIN_ERROR, 'microsoft_failed');
         }
 
         if ($reauthenticating) {
@@ -89,13 +103,33 @@ class MicrosoftLoginController extends Controller
                 'email' => $identity->email,
             ]);
 
-            return redirect()->route('login')->with('error', $e->getMessage());
+            return $this->rejected($e, $identity);
         }
 
         Auth::login($user);
         $request->session()->regenerate();
 
         return redirect()->intended(route('home', absolute: false));
+    }
+
+    /**
+     * Maps a rejection to the design pages:
+     * - tenant or domain not enabled (with a Microsoft email) →
+     *   `Auth/CompanyNotEnabled` with that email;
+     * - guest (#EXT#) account or email already linked to another Microsoft
+     *   account → `Auth/Login` error `tenant_not_allowed`;
+     * - no usable identity → `Auth/Login` error `microsoft_failed`.
+     */
+    private function rejected(MicrosoftLoginRejected $e, MicrosoftIdentity $identity): RedirectResponse
+    {
+        $email = strtolower(trim($identity->email));
+        $login = redirect()->route('login');
+
+        return match (true) {
+            in_array($e->reason, ['tenant_not_allowed', 'domain_not_allowed'], true) && $email !== '' => $login->with(SessionController::COMPANY_NOT_ENABLED, $email),
+            $e->reason === 'missing_identity' => $login->with(SessionController::LOGIN_ERROR, 'microsoft_failed'),
+            default => $login->with(SessionController::LOGIN_ERROR, 'tenant_not_allowed'),
+        };
     }
 
     private function completeReauth(Request $request, MicrosoftIdentity $identity, string $expected): RedirectResponse

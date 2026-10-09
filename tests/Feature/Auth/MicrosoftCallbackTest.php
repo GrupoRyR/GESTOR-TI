@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Http\Controllers\Auth\SessionController;
 use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -91,21 +92,56 @@ class MicrosoftCallbackTest extends TestCase
             ->assertRedirect('http://localhost/ai');
     }
 
-    public function test_callback_rejects_unknown_tenant_with_flash_error(): void
+    /**
+     * @return array<string, string>
+     */
+    private function redirectQuery(string $uri): array
+    {
+        $location = (string) $this->get($uri)->headers->get('Location');
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+        return $query;
+    }
+
+    public function test_redirect_passes_allowed_prompt_values(): void
+    {
+        $this->assertSame('select_account', $this->redirectQuery(route('auth.microsoft.redirect', ['prompt' => 'select_account']))['prompt'] ?? null);
+        $this->assertSame('login', $this->redirectQuery(route('auth.microsoft.redirect', ['prompt' => 'login']))['prompt'] ?? null);
+    }
+
+    public function test_redirect_ignores_unknown_prompt_values(): void
+    {
+        $this->assertArrayNotHasKey('prompt', $this->redirectQuery(route('auth.microsoft.redirect', ['prompt' => 'consent'])));
+        $this->assertArrayNotHasKey('prompt', $this->redirectQuery(route('auth.microsoft.redirect', ['prompt' => ['select_account']])));
+    }
+
+    public function test_unknown_tenant_shows_company_not_enabled_with_the_microsoft_email(): void
     {
         Log::spy();
-        $this->fakeMicrosoft(tid: '99999999-9999-9999-9999-999999999999');
+        $this->fakeMicrosoft(['mail' => 'Laura@ProveedorX.com'], tid: '99999999-9999-9999-9999-999999999999');
 
         $this->get(route('auth.microsoft.callback'))
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error', 'Tu organización no tiene acceso al Gestor TI.');
+            ->assertSessionHas(SessionController::COMPANY_NOT_ENABLED, 'laura@proveedorx.com')
+            ->assertSessionMissing('error');
 
         $this->assertGuest();
         $this->assertSame(0, User::count());
         Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => str_contains($message, 'Microsoft login rejected'));
     }
 
-    public function test_callback_rejects_guest_accounts(): void
+    public function test_domain_outside_the_company_shows_company_not_enabled(): void
+    {
+        $this->fakeMicrosoft(['mail' => 'ana@otro.com', 'userPrincipalName' => 'ana@otro.com']);
+
+        $this->get(route('auth.microsoft.callback'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHas(SessionController::COMPANY_NOT_ENABLED, 'ana@otro.com');
+
+        $this->assertGuest();
+    }
+
+    public function test_guest_accounts_get_tenant_not_allowed(): void
     {
         $this->fakeMicrosoft([
             'userPrincipalName' => 'ana_gmail.com#EXT#@segurex.onmicrosoft.com',
@@ -114,12 +150,24 @@ class MicrosoftCallbackTest extends TestCase
 
         $this->get(route('auth.microsoft.callback'))
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error');
+            ->assertSessionHas(SessionController::LOGIN_ERROR, 'tenant_not_allowed')
+            ->assertSessionMissing(SessionController::COMPANY_NOT_ENABLED);
 
         $this->assertGuest();
     }
 
-    public function test_callback_handles_provider_errors(): void
+    public function test_missing_identity_gets_microsoft_failed(): void
+    {
+        $this->fakeMicrosoft(['id' => '']);
+
+        $this->get(route('auth.microsoft.callback'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHas(SessionController::LOGIN_ERROR, 'microsoft_failed');
+
+        $this->assertGuest();
+    }
+
+    public function test_provider_errors_get_microsoft_failed(): void
     {
         $provider = Mockery::mock(Provider::class);
         $provider->shouldReceive('user')->andThrow(new InvalidStateException);
@@ -127,7 +175,8 @@ class MicrosoftCallbackTest extends TestCase
 
         $this->get(route('auth.microsoft.callback'))
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error', 'No se pudo iniciar sesión con Microsoft. Intenta de nuevo.');
+            ->assertSessionHas(SessionController::LOGIN_ERROR, 'microsoft_failed')
+            ->assertSessionMissing('error');
 
         $this->assertGuest();
     }

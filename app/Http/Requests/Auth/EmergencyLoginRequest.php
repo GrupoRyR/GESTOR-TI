@@ -23,7 +23,7 @@ class EmergencyLoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:255'],
+            'username' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string', 'max:255'],
         ];
     }
@@ -34,7 +34,7 @@ class EmergencyLoginRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'email' => 'correo',
+            'username' => 'usuario',
             'password' => 'contraseña',
         ];
     }

@@ -31,6 +31,9 @@ return [
         'vault_owner' => $emails(env('GESTOR_VAULT_OWNER_EMAIL'))[0] ?? null,
     ],
 
+    // IT contact shown on `Auth/CompanyNotEnabled` (null hides the link).
+    'support_email' => env('GESTOR_SUPPORT_EMAIL') ?: null,
+
     /*
     | Defaults of `App\Support\Settings` (table `settings` stores only the
     | overrides made later from Administración). Keep the PHP type of each

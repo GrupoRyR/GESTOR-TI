@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
  * `services.emergency.admin_email` may sign in with a password.
  *
  * Two independent lockouts, both after 5 failures for 15 minutes:
- * - RateLimiter keyed by email + IP (applies to ANY email, so its message
+ * - RateLimiter keyed by username (email) + IP (applies to ANY email, so its message
  *   reveals nothing about which account exists);
  * - persistent counter on the user (`failed_login_attempts`, `locked_until`),
  *   which survives cache clears and IP changes. While it is active the user
@@ -29,6 +29,35 @@ class AttemptEmergencyLogin
     public const LOCK_MINUTES = 15;
 
     public const GENERIC_ERROR = 'Las credenciales no son válidas.';
+
+    /** Form field that carries the credential errors (`Auth/Emergency`). */
+    public const ERROR_FIELD = 'password';
+
+    /**
+     * What `Auth/Emergency` may show after a failed attempt. It comes ONLY
+     * from the per-username+IP RateLimiter, which counts every username the
+     * same way, so it never tells whether the typed username is the
+     * emergency account (the persistent per-user lock stays silent).
+     *
+     * @return array{lockout: array{locked_until: string}|null, attempts_left: int}
+     */
+    public static function throttleState(string $username, string $ip): array
+    {
+        $key = self::throttleKey($username, $ip);
+        $locked = RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS);
+
+        return [
+            'lockout' => $locked
+                ? ['locked_until' => now()->addSeconds(RateLimiter::availableIn($key))->toIso8601String()]
+                : null,
+            'attempts_left' => max(0, self::MAX_ATTEMPTS - RateLimiter::attempts($key)),
+        ];
+    }
+
+    public static function throttleKey(string $username, string $ip): string
+    {
+        return 'emergency-login:'.sha1(strtolower(trim($username)).'|'.$ip);
+    }
 
     public static function enabled(): bool
     {
@@ -48,14 +77,14 @@ class AttemptEmergencyLogin
     public function handle(string $email, string $password, string $ip): User
     {
         $email = strtolower(trim($email));
-        $key = 'emergency-login:'.sha1($email.'|'.$ip);
+        $key = self::throttleKey($email, $ip);
 
         if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
             $this->log('emergency_login_throttled', $email, $ip);
             $minutes = max(1, (int) ceil(RateLimiter::availableIn($key) / 60));
 
             throw ValidationException::withMessages([
-                'email' => "Demasiados intentos fallidos. Intenta de nuevo en {$minutes} minutos.",
+                self::ERROR_FIELD => "Demasiados intentos fallidos. Intenta de nuevo en {$minutes} minutos.",
             ]);
         }
 
@@ -113,7 +142,7 @@ class AttemptEmergencyLogin
 
     private function genericFailure(): ValidationException
     {
-        return ValidationException::withMessages(['email' => self::GENERIC_ERROR]);
+        return ValidationException::withMessages([self::ERROR_FIELD => self::GENERIC_ERROR]);
     }
 
     private function log(string $event, string $email, string $ip, ?User $user = null): void

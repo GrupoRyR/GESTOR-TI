@@ -3,13 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Actions\Auth\AttemptEmergencyLogin;
+use App\Actions\Auth\GenerateEmergencyPassword;
 use App\Actions\Users\AssignInitialRoles;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Creates or updates the emergency local administrator and prints a new
@@ -22,7 +23,7 @@ class EmergencyAdminCommand extends Command
 
     protected $description = 'Crea o actualiza la cuenta de emergencia (Súper Admin) y muestra una contraseña nueva una sola vez';
 
-    public function handle(): int
+    public function handle(GenerateEmergencyPassword $generatePassword): int
     {
         $email = strtolower(trim((string) $this->argument('email')));
 
@@ -38,7 +39,7 @@ class EmergencyAdminCommand extends Command
             return self::FAILURE;
         }
 
-        $password = Str::password(32);
+        $password = $generatePassword();
 
         $user = DB::transaction(function () use ($email, $password): User {
             $user = User::firstOrNew(['email' => $email]);
@@ -64,7 +65,9 @@ class EmergencyAdminCommand extends Command
         });
 
         $this->info("Cuenta de emergencia lista: {$user->email}");
-        $this->line("Contraseña: {$password}");
+        // Raw output: the password may contain `<…>` or `\` that the console
+        // formatter would read as style tags or escapes.
+        $this->output->writeln('Contraseña: '.$password, OutputInterface::OUTPUT_RAW);
         $this->warn('Guárdala ahora en un lugar seguro: no se volverá a mostrar.');
 
         if (AttemptEmergencyLogin::configuredEmail() !== $email) {
