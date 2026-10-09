@@ -13,7 +13,7 @@ use Illuminate\Support\Carbon;
  * through the reserved `/api/local-apps/v1` (routes/api.php).
  *
  * Not company-scoped: `company_id` is optional (group-wide apps).
- * `ai_product_id` points to `ai_products` (Stage B, no foreign key yet).
+ * `ai_product_id` points to `ai_products` (foreign key, null on delete).
  *
  * @property int $id
  * @property ?int $company_id
@@ -59,5 +59,13 @@ class MonitoredApp extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * @return BelongsTo<AiProduct, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(AiProduct::class, 'ai_product_id')->withTrashed();
     }
 }

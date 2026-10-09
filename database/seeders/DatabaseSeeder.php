@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             AreaSeeder::class,
             RolesAndPermissionsSeeder::class,
             AccessSystemSeeder::class,
+            AiProductSeeder::class,
         ]);
 
         // Roles of existing users from GESTOR_* emails (see config/gestor.php).

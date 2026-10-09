@@ -3,12 +3,14 @@
 namespace App\Actions\Ai;
 
 use App\Domain\Ai\FirstResponse;
+use App\Domain\Ai\ProductResolver;
 use App\Domain\Ai\RequestAttachments;
 use App\Enums\Ai\ApprovalKind;
 use App\Enums\Ai\AreaApprovalStatus;
 use App\Enums\Ai\RequestStatus;
 use App\Enums\Ai\RequestType;
 use App\Enums\Ai\Urgency;
+use App\Models\AiProduct;
 use App\Models\AiRequest;
 use App\Models\Area;
 use App\Models\User;
@@ -39,9 +41,12 @@ use Throwable;
  *   (`area_approval_status = pending`) and they are notified;
  * - `criteria` (list of texts) become acceptance criteria;
  * - attachments are validated first (nothing is created on a bad file) and
- *   stored on the private disk.
+ *   stored on the private disk;
+ * - product: `product` (slug, the `?producto={slug}` entry point) or
+ *   `product_id`; it must serve the requester's company. The version
+ *   defaults to the product's current one.
  *
- * Data keys: type, product_id, product_version, title, problem, who_suffers,
+ * Data keys: type, product (slug), product_id, product_version, title, problem, who_suffers,
  * current_process, hours_per_week, people, expected_result, success_criteria,
  * systems, systems_notes, urgency, deadline, deadline_reason, area_id,
  * benefited_area_ids, criteria.
@@ -54,6 +59,7 @@ class CreateRequest
         private readonly FirstResponse $firstResponse,
         private readonly RequestAttachments $attachments,
         private readonly AreaApproval $areaApproval,
+        private readonly ProductResolver $products,
     ) {}
 
     /**
@@ -76,11 +82,12 @@ class CreateRequest
 
         $this->attachments->validate($files);
         $area = $this->area($requester, $data['area_id'] ?? null);
+        $product = $this->product($requester, $data);
         $approver = $this->areaApprover($area);
         $stored = [];
 
         try {
-            $request = DB::transaction(function () use ($actor, $requester, $data, $files, $area, $approver, &$stored): AiRequest {
+            $request = DB::transaction(function () use ($actor, $requester, $data, $files, $area, $approver, $product, &$stored): AiRequest {
                 $request = AiRequest::create([
                     'company_id' => $requester->company_id,
                     'area_id' => $area->id,
@@ -88,8 +95,10 @@ class CreateRequest
                     'created_by_id' => $actor->id,
                     'type' => RequestType::from((string) $data['type']),
                     'title' => $this->title($data),
-                    'product_id' => $data['product_id'] ?? null,
-                    'product_version' => $data['product_version'] ?? null,
+                    'product_id' => $product?->id,
+                    'product_version' => $product !== null
+                        ? $this->products->version($product, $data['product_version'] ?? null)
+                        : $this->text($data, 'product_version'),
                     'problem' => trim((string) $data['problem']),
                     'who_suffers' => $this->text($data, 'who_suffers'),
                     'current_process' => $this->text($data, 'current_process'),
@@ -162,6 +171,29 @@ class CreateRequest
         }
 
         return $area;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function product(User $requester, array $data): ?AiProduct
+    {
+        $slug = trim((string) ($data['product'] ?? ''));
+        $id = $data['product_id'] ?? null;
+
+        if ($slug === '' && blank($id)) {
+            return null;
+        }
+
+        $product = $slug !== ''
+            ? $this->products->forUser($slug, $requester)
+            : $this->products->byIdForUser((int) $id, $requester);
+
+        if ($product === null) {
+            throw ValidationException::withMessages(['product' => 'Escoge una aplicación de tu empresa.']);
+        }
+
+        return $product;
     }
 
     private function areaApprover(Area $area): ?User

@@ -192,6 +192,26 @@ class AiRequest extends Model
     }
 
     /**
+     * Product the request is about (soft-deleted products still resolve).
+     *
+     * @return BelongsTo<AiProduct, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(AiProduct::class, 'product_id')->withTrashed();
+    }
+
+    /**
+     * Product versions that delivered this request.
+     *
+     * @return BelongsToMany<AiProductVersion, $this>
+     */
+    public function productVersions(): BelongsToMany
+    {
+        return $this->belongsToMany(AiProductVersion::class, 'ai_product_version_request')->withTimestamps();
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function requester(): BelongsTo
