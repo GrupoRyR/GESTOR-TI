@@ -1,0 +1,27 @@
+/* Gallery shell only (the frame never loads this). */
+.gallery-stage {
+    background-color: var(--color-ground);
+    background-image: radial-gradient(circle at 1px 1px, var(--color-line-strong) 1px, transparent 0);
+    background-size: 20px 20px;
+}
+
+@keyframes gallery-toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.gallery-toast {
+    animation: gallery-toast-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gallery-toast {
+        animation: none;
+    }
+}
