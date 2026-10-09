@@ -97,7 +97,7 @@ const ALL_PERMISSIONS: Permission[] = [
 
 const without = (...excluded: Permission[]) => ALL_PERMISSIONS.filter((permission) => !excluded.includes(permission));
 
-export type MockUserKey = 'jhon' | 'leonardo' | 'edward' | 'andres' | 'paola';
+export type MockUserKey = 'jhon' | 'leonardo' | 'edward' | 'andres' | 'paola' | 'contabilidad';
 
 export const USERS: Record<MockUserKey, AuthUser> = {
     /** Líder IA + Súper Admin + Aprobador de proyectos: the only one with the vault. */
@@ -150,6 +150,16 @@ export const USERS: Record<MockUserKey, AuthUser> = {
         roles: ['Usuario final'],
         permissions: ['ai.requests.create'],
     },
+    /** Usuario final of Segurex (Contabilidad): answers IT requirements (name still unknown). */
+    contabilidad: {
+        id: 14,
+        name: '[RESPONSABLE CONTABILIDAD]',
+        email: '[CORREO CONTABILIDAD]',
+        avatar_url: null,
+        company_id: SEGUREX.id,
+        roles: ['Usuario final'],
+        permissions: ['ai.requests.create'],
+    },
 };
 
 // ---- builders -------------------------------------------------------------
@@ -166,7 +176,7 @@ export interface SharedOptions {
 export function sharedFor(userKey: MockUserKey, options: SharedOptions = {}): SharedProps {
     const user = USERS[userKey];
     const viewsAll = user.permissions.includes('companies.view_all');
-    /** Without `ai.manage` (Andrés, Paola, Edward) only the requester modules show. */
+    /** Without `ai.manage` (Andrés, Paola, Edward, Contabilidad) only the requester modules show. */
     const requester = !user.permissions.includes('ai.manage');
     const companies =
         options.companies ?? (viewsAll ? COMPANIES : COMPANIES.filter((company) => company.id === user.company_id));

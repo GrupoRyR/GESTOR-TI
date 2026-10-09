@@ -35,6 +35,8 @@ export interface LineChartProps {
     yMin?: number;
     /** Label the last point of the first series (default true). */
     endLabel?: boolean;
+    /** Horizontal reference lines on the same axis, e.g. the 80 % and 100 % of the approved hours. */
+    references?: { y: number; label: string }[];
     className?: string;
 }
 
@@ -102,6 +104,7 @@ export function LineChart({
     height = 240,
     yMin = 0,
     endLabel = true,
+    references = [],
     className,
 }: LineChartProps) {
     const { ref, width } = useWidth<HTMLDivElement>(640);
@@ -113,7 +116,7 @@ export function LineChart({
         () => [...new Set(series.flatMap((line) => line.points.map((point) => point.x)))].sort((a, b) => a - b),
         [series],
     );
-    const yMax = Math.max(yMin, ...series.flatMap((line) => line.points.map((point) => point.y)));
+    const yMax = Math.max(yMin, ...series.flatMap((line) => line.points.map((point) => point.y)), ...references.map((reference) => reference.y));
     const ticks = niceTicks(yMin, yMax, 5);
     const xMin = Math.min(...xs, ...xTicks.map((tick) => tick.x));
     const xMax = Math.max(...xs, ...xTicks.map((tick) => tick.x));
@@ -222,6 +225,23 @@ export function LineChart({
                         >
                             {tick.label}
                         </text>
+                    ))}
+
+                    {references.map((reference) => (
+                        <g key={reference.label} aria-hidden="true">
+                            <line
+                                x1={MARGIN.left}
+                                x2={MARGIN.left + plotWidth}
+                                y1={y(reference.y)}
+                                y2={y(reference.y)}
+                                strokeWidth={1}
+                                strokeDasharray="2 4"
+                                className="stroke-fg-muted"
+                            />
+                            <text x={MARGIN.left + plotWidth} y={y(reference.y) - 6} textAnchor="end" className="tabular fill-fg-muted text-xs font-semibold">
+                                {reference.label}
+                            </text>
+                        </g>
                     ))}
 
                     {series.map((line) => {
