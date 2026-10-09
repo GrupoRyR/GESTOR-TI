@@ -26,7 +26,7 @@ Worktree: `C:\Users\Claude\Documents\PROYECTOS_CLAUDE\PAGINAS_WEB\GESTOR_TI\.cla
   - `resources/js/Pages/Ai/Products/Show.tsx`
   - `resources/js/Pages/Ai/Inbox/Index.tsx`
   - `resources/js/Pages/Ai/Requests/Create.tsx` (stepper)
-  - `resources/js/types/pages/ai-knowledge.ts`, `resources/js/mocks/ai-products.ts` (or the closest Stage B mock)
+  - `resources/js/types/pages/ai-knowledge.ts`, `resources/js/mocks/ai-knowledge.ts`
 - Approved mockups (READ ONLY): `C:\Users\Claude\AppData\Local\Temp\claude\C--Users-Claude-Documents-PROYECTOS-CLAUDE-PAGINAS-WEB-GESTOR-TI--claude-worktrees-diseno-gestor-ia-a5a314\56383c3b-3b7e-452d-b8fe-3de6089fbd86\scratchpad\canvas\project\C-*.dc.html`. Reproduce them faithfully and responsively at 390 / 834 / 1440, in light and dark.
 
 ## Contract rules (the app agent wires these)
