@@ -22,7 +22,7 @@ Mapping report from 2026-10-09 (summarised in tasks below): shared props/modules
 
 ## Tasks
 - [x] C1 · Merge design branch; resolve build conflicts (package.json union, Inertia v3, design fonts/app.css/tsconfig, app.tsx css import + titles, .gitignore union, lockfile regenerated); build + typecheck + vitest green.
-- [ ] C2 · Shared props & shell: modules (`home`, `ai`, `assistant`, `employees`, `admin`; inactive `monitoring`, `tickets`, `inventory`, `operations`; icon = key; inactive included with `active:false`), guest `companies`, role fix, `home` route + `Home` page (Stage A data), Stage B placeholder routes, `search` route, `Errors/Error` renderer.
+- [x] C2 · Shared props & shell: modules (`home`, `ai`, `assistant`, `employees`, `admin`; inactive `monitoring`, `tickets`, `inventory`, `operations`; icon = key; inactive included with `active:false`), guest `companies`, role fix, `home` route + `Home` page (Stage A data), Stage B placeholder routes, `search` route, `Errors/Error` renderer.
 - [ ] C3 · Auth pages: `Auth/Login` (companies, error codes, `prompt`), `Auth/Emergency` (routes `login.emergency*`, `username`, lockout props), `Auth/CompanyNotEnabled`, redirects to `home`.
 - [ ] C4 · `Employees/Index` (routes `employees.*` outside admin, filters, counts, last sync), `Profile/Edit`, `Profile/TelegramLink` (+ toggle update, routes `profile.telegram.*`).
 - [ ] C5 · `Admin/Companies/Index|Create` (`admin_companies`, edit/create routes, logo upload, `active`), `Admin/Areas/Index` (area approver model, departments, mappings bulk update, area approval setting).
@@ -41,5 +41,21 @@ Mapping report from 2026-10-09 (summarised in tasks below): shared props/modules
 - Checks: `npm install` ok (0 vulnerabilities); `npm run build` ok; `npm run typecheck` ok; `npm test` 14 files / 124 tests passed; `npm run build:preview` ok; `php artisan test` 296 passed; `vendor/bin/pint --test` passed.
 - `config/inertia.php` `testing.ensure_pages_exist` stays false until C2+ wires pages.
 
+### C2 · done (2026-10-09)
+- Route: delegated (writer trigger: 2+ non-trivial files — config, registry, middleware, routes, controllers, bootstrap, tests).
+- Commit: `37dd639` feat(frontend): wire shared props, modules, home and error pages.
+- Test-first: new/updated tests failed first (14 failures, `Route [home] not defined`, module list, role fix), then green.
+- Modules: `home`, `ai`, `assistant` ("Asistente"), `employees` (`employees.view`), `admin` (route `admin.companies.index`), inactive `monitoring`, `tickets`, `inventory`, `operations`; icon = key. Active modules filtered by permission; inactive ones always shared with `active: false` (also an active module toggled off by env). Guests get `[]`. `automations` renamed to `operations` (`operations.view`, `MODULE_OPERATIONS_ENABLED`).
+- Shared props: guests receive every active company; `companies[].colors` never null (missing keys fall back to `gestor.brand.default_colors`).
+- Role fix: new permission flag `explicit` (not granted by the `'*'` wildcard, `Permission::wildcardNames()`); `ai.projects.approve` is explicit and removed from Líder IA, so only Aprobador de proyectos holds it.
+- Home: `GET /` (`home`, auth) → `HomeController`; `it` for `ai.manage`, else `requester`; Stage B lists empty; `monitoring.apps` from `monitored_apps` (`kind` = `type`). `dashboard` route removed; every login/reauth redirect and test uses `home`.
+- TEMPORARY routes: Stage B `ai.requests.{index,create,show}`, `ai.tasks.show {request, task}`, `ai.requirements.show {requirement}`, `ai.vault.index`, `ai.ratings.create {request}`, `ai.approvals.show {request}` → redirect to `home` with flash error "Disponible en la etapa B." (not `ai.index`: `AI/Index` has no component); `employees.index` (GET /employees, existing controller) and `profile.edit` (GET /profile, notification preferences) until C4.
+- `search` (GET /search): users with `employees.view` go to `employees.index` with `q`; others go back with "La búsqueda llega en la etapa B.".
+- Errors: `App\Support\ErrorPage` via `withExceptions()->respond()` renders `Errors/Error {status}` for 403/404/419/500/503 when `gestor.error_pages` (env `GESTOR_ERROR_PAGES`, null = `! app.debug`); JSON/API requests keep JSON. 419 renders the design page (design has a 419 variant).
+- `config/inertia.php` `testing.ensure_pages_exist` stays false: tests still asserting missing components — `ModulesTest` (`AI/Index`), `EmployeesAdminTest` (`Admin/Employees/Index|Show`), `DepartmentMappingsAdminTest` (`Admin/DepartmentMappings/Index`), `NotificationPreferencesTest` (`Profile/Notifications`), `NotificationsInboxTest` (`Notifications/Index`); controllers also render `Admin/Index`, `Assistant/Index`, `Auth/EmergencyLogin`.
+- Checks: `php artisan test` 319 passed; `vendor/bin/pint --test` passed; `npm run build` ok; `npm run typecheck` ok.
+- Notes for design: `auth.user.company_id` is nullable on the backend (users without company, e.g. emergency admin) while `AuthUser.company_id` is `number`; guest pages also receive `current_company_id: null`, `notifications_unread: 0`, `modules: []` (extra keys); `flash.success/error` arrive as `null`, not absent; menu modules `ai.index`/`assistant.index` still render components without a design page (`AI/Index`, `Assistant/Index`).
+- Notes for C4: `employees.index` reads `search`, design sends `q`.
+
 ## Next step
-C2 · shared props & shell.
+C3 · auth pages.
