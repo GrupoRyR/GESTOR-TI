@@ -22,7 +22,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 ## Tasks
 - [x] B1 · Requests domain: `ai_requests` (key GIA-n, type, product/version, requester, company, area + benefited areas, status machine, guided fields, impact/effort/urgency, suggested priority), votes (+1), comments (public/internal), attachments (private disk), acceptance criteria, approvals (area + project), first-response deadline alert, duplicate search service. Seeders for statuses/config.
 - [x] B2 · Products: `ai_products` (slug, owner, areas, repo, stack, AI model/provider, monthly cost, status, current version), `ai_product_versions` ↔ requests, link with `monitored_apps`; seed the 5 current apps.
-- [ ] B3 · Wire requester pages (ai-requester.ts): wizard + duplicates, submitted, mine, show (requester view), validate acceptance, ratings + hours saved, roadmap. Replace Stage B placeholder routes.
+- [x] B3 · Wire requester pages (ai-requester.ts): wizard + duplicates, submitted, mine, show (requester view), validate acceptance, ratings + hours saved, roadmap. Replace Stage B placeholder routes.
 - [ ] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
 - [ ] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
 - [ ] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
@@ -88,5 +88,41 @@ Decisions:
 
 Pending from Jhon: product owners, URLs, repositories, current versions, monthly costs, AI provider/model per product, areas of Cámaras.
 
+### B3 · Requester pages — done (commit `b10e492` `feat(ai): wire requester pages`)
+- Route: delegated (writer trigger: 25 new files across migration, models, domain, presenters, controllers, form requests, routes, tests).
+- Test-first: 7 new/updated test files (41 new tests + policy/shell-route updates) written first and observed RED (37 of 52 failing: routes, `Roadmap` and policy abilities missing), then GREEN.
+- Checks: `php artisan test` 576/576 passed; `vendor/bin/pint` fixed 4 files, `vendor/bin/pint --test` passed; `npm run typecheck` passed;
+  `php artisan route:list --path=ai` shows 35 routes (requester routes real, IT ones TEMPORARY); new migration up/rollback/up on a temp SQLite file OK (file deleted).
+- Size: ~2160 authored code lines + ~1150 test lines, above the ~400 heuristic: eight pages share presenters, copy and the roadmap rule, so they ship as one unit.
+
+Decisions:
+- Routes exactly as `ai-requester.ts`: `ai.requests.create` (+ `?producto=` and partial reload `similar` with `q`, 20+ chars, own company only, 5 max), `ai.requests.draft.update` PUT,
+  `ai.requests.store`, `ai.requests.submitted`, `ai.requests.mine` (`filter` active|done|all; done = rejected/closed), `ai.requests.show`, `ai.requests.vote` POST/DELETE,
+  `ai.requests.follow` POST/DELETE, `ai.requests.comments.store`, `ai.requests.validation.update` PUT, `ai.ratings.create|store`, `ai.ratings.hours.store`, `ai.roadmap.index`.
+  Added (not in the contract): `ai.requests.validation.edit` GET and `ai.ratings.hours.create` GET (pages need a URL; notifications/B7 link to them),
+  `ai.requests.attachments.show` (signed 30-min links for `FileRef.url`, re-authorized; internal-note files need `viewInternal`), DELETE twins named `*.destroy`.
+- Controllers live in the existing `App\Http\Controllers\AI` namespace (folder `AI`, case-insensitive on Windows; a second `Ai` folder would break PSR-4 on Linux).
+  Presenters: `App\Support\Ai\Presenters\{RequestPresenter,RequesterDetailPresenter}`; copy: `App\Support\Ai\RequesterCopy`; rank rule: `App\Domain\Ai\Roadmap`.
+- Visibility: `AiRequestPolicy::view` = takes part (requester, voters, followers, approvers, area viewers, `ai.manage`) OR `ai.requests.create` with access to the company.
+  Commenting still needs taking part (a colleague can follow, which makes them take part). `viewOwn` guards Submitted. `ai.manage` holders opening `ai.requests.show` are redirected with the Stage B notice until B4 ships the IT view.
+- Requester props never read costs: estimate = `{due_date, hours_total}` from the latest project-approval snapshot (`estimate` JSON), approval without costs, public comments only, wizard files only.
+- Roadmap: now = in_development/in_testing, next = approved/planned, later = pending_approval/backlog. Rank only for `later`, per area: final priority desc (null last), votes desc, oldest, id.
+  The design fixtures rank pending approval (GIA-146) and not approved, so "approved/backlog" from the brief became "pending_approval/backlog". `later` shows 20 cards, `later_total` counts all;
+  `wip_limit` = Settings `ai.wip_limit` (default 3, not in config defaults yet); `planned_start` null until B5; areas get " · {short_name}" when several companies appear.
+- Followers (`ai_request_followers`): requester (CreateRequest) and voters (VoteRequest) follow automatically; unvote keeps following.
+- Drafts (`ai_request_drafts`, one per user, wizard fields only); deleted on store; `initial_step` = first step with missing required answers.
+- Store: each non-empty line of "Cómo sabría que quedó bien" becomes an acceptance criterion; `product_slug` is validated with `ProductResolver::forUser`.
+- Validation: any criterion ending "fail" moves En pruebas → En desarrollo (TransitionRequest, public note); all pass keeps En pruebas for TI.
+- Ratings: `ai_ratings` (solved_need, ease_of_use 1–5, comment, rated_at) and `ai_hours_saved_reports` (hours_per_week 0–60 step 0.5), unique per request+user.
+  `rate` = requester, in_production, not rated; `reportHoursSaved` = requester, in_production or closed, not reported. Body keys are the design ones (`need_score`, `ease_score`).
+  `AiProduct::averageRating()` (avg solved_need, 1 decimal), `ratingsCount()`, `hoursSaved()` (sum hours/week × 52/12, 1 decimal).
+- Home requester: up to 10 open requests (not rejected/closed), latest activity first, with next step, `can_rate` and "Puesto N en la hoja de ruta de {Área}".
+- Placeholders kept (TEMPORARY): `ai.requests.index`, `ai.tasks.show`, `ai.requirements.show`, `ai.approvals.show`, `ai.vault.index`, plus every GestorLayout tab (`ai.inbox|backlog|areas|projects|products|docs|week|value.index`).
+
+Notes for design:
+- No link to the Validate page or the HoursSaved page in the requester pages; backend names: `ai.requests.validation.edit`, `ai.ratings.hours.create`.
+- `RatedRequest.product_name` is required but requests of type "new" have no product: the server sends the request title.
+- `RoadmapItem.planned_start`, `RequestSummary.project_key` and `similar_to` are always null until B4/B5.
+
 ## Next step
-B3 · Wire requester pages (ai-requester.ts); the `?producto={slug}` entry uses `ProductResolver::forUser`.
+B4 · Wire IT triage pages (ai-triage.ts): replace the IT placeholders and the `ai.manage` redirect on `ai.requests.show` with the IT view.
