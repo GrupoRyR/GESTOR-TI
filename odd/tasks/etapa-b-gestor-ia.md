@@ -28,7 +28,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 - [ ] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
 - [ ] B7 · Documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard.
 - [ ] B8 · Vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
-- [ ] B9 · Wire design T4/T5 pages (projects, products, docs, value, vault, admin costs) when delivered.
+- [x] B9 · Design delivered (PR #10, `docs/design/stage-b-contract.md`); merged into the chain as `2a804cb` (package.json: Inertia v3 kept + `markdown-it`; lock regenerated; typecheck, 300 vitest, build and 637 PHP tests green). B5–B8 now wire the pages together with their domain: B5 `ai-projects.ts` (projects, board, tasks, requirements, report), B6 `Ai/Projects/Costs`, `Ai/TimeEntries/Create`, `admin-costs.ts`, B7 `ai-knowledge.ts` + ratings lifecycle, B8 `ai-value-vault.ts`. Not designed (keep out): product create/edit, incident create, vault item edit.
 
 ## Progress / evidence
 
