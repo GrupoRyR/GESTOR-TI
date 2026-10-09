@@ -23,7 +23,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 - [x] B1 · Requests domain: `ai_requests` (key GIA-n, type, product/version, requester, company, area + benefited areas, status machine, guided fields, impact/effort/urgency, suggested priority), votes (+1), comments (public/internal), attachments (private disk), acceptance criteria, approvals (area + project), first-response deadline alert, duplicate search service. Seeders for statuses/config.
 - [x] B2 · Products: `ai_products` (slug, owner, areas, repo, stack, AI model/provider, monthly cost, status, current version), `ai_product_versions` ↔ requests, link with `monitored_apps`; seed the 5 current apps.
 - [x] B3 · Wire requester pages (ai-requester.ts): wizard + duplicates, submitted, mine, show (requester view), validate acceptance, ratings + hours saved, roadmap. Replace Stage B placeholder routes.
-- [ ] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
+- [x] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
 - [ ] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
 - [ ] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
 - [ ] B7 · Documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard.
@@ -124,5 +124,63 @@ Notes for design:
 - `RatedRequest.product_name` is required but requests of type "new" have no product: the server sends the request title.
 - `RoadmapItem.planned_start`, `RequestSummary.project_key` and `similar_to` are always null until B4/B5.
 
+### B4 · IT triage pages and project approvals — done (commit `398736f` `feat(ai): wire IT triage pages and project approvals`)
+- Route: delegated (writer trigger: 47 code files across migration, models, domain, actions, presenters, controllers, Telegram, routes; 11 test files).
+- Test-first: 10 new test files + 2 updated (77 tests in the run) written first and observed RED (61 of 77 failing: routes, models and classes missing), then GREEN.
+- Checks: `php artisan test` 637/637 passed; `vendor/bin/pint` fixed 5 files, `vendor/bin/pint --test` passed; `npm run typecheck` passed;
+  `php artisan route:list --path=ai` shows 58 routes; new migration up/rollback/up on a temp SQLite file OK (file deleted).
+- Size: ~3800 authored code lines + ~1530 test lines, above the ~400 heuristic: seven pages share the triage domain (inbox, rounds, estimates, timeline) and the approval flow spans web and Telegram.
+
+Decisions:
+- Routes exactly as `ai-triage.ts` (`ai.inbox.index`, `ai.requests.evaluation.update|notes.store|reject|ask|merge|approval.store`, `ai.requests.bulk.ask|bulk.assign`,
+  `ai.approvals.index|show|approve|reject|remind`, `ai.backlog.index|reorder|manual`, `ai.areas.index`, `ai.week.index`, `ai.requests.remind`).
+  IT pages/actions: `can:ai.manage` + policy `evaluate`/`transition` (company access). Approve/reject: `can:ai.projects.approve` + `approveProject`.
+  Added (not in the contract): `ai.requests.backlog` POST `{ note? }` ("Mover al backlog"), `requester_id` on `ai.requests.store` (create on behalf, `ai.manage`).
+  `ai.requests.index` (Inicio "Ver todas") redirects to the inbox chip (`unanswered`, `pending_approval`) or Mi semana (tasks/requirements).
+- Placeholders kept (TEMPORARY; pages → Inicio, actions → back, with the notice): `ai.tasks.show`, `ai.requirements.show|remind`, `ai.requests.convert`, `ai.timer.start|stop`,
+  `ai.reviews.store`, `ai.projects.index|show`, `ai.products.index|show`, `ai.docs.index`, `ai.value.index`, `ai.vault.index`.
+- Inbox = Recibida, En evaluación, Necesita información, Pendiente de aprobación (company scope); `unanswered` = no first response; order: unanswered by due date, then newest.
+  Counts honour the area/company filters; `company_id` only in "Todas"; `merge_candidates` is an optional prop (exact key first, then DuplicateFinder, 8 max) on the inbox and the IT show.
+  `RequestSummary.similar_to` is filled on the IT detail (first duplicate); inbox rows keep null (no per-row duplicate search).
+- IT show: same component, `view: 'it'`; `RequestDetail` + internal notes, IT timeline (status changes + new `ai_request_events`: evaluation, sent to approval, notices, merges,
+  reminders; ids status×2 / event×2+1), full estimate (latest `ai_estimates`); `duplicates` = 3 DuplicateFinder hits (none when finished);
+  `evaluation.priority_final` null until evaluated; money impact = hours/week × people × 52/12 × area hour value ("$ 1.170.000 al mes", `ai.costs.view` only).
+- Estimates (6.4.11): `ai_estimates` (request, `ai_project_id` reserved for B5, hours_total, external_costs, total_cost, due_date, created_by) + `ai_estimate_lines`
+  (user or role, hours, hourly_rate snapshot). Rates: new `ai_cost_rates` (user, rate COP, effective_from) read by `App\Domain\Ai\CostRates`; B6 adds its admin page.
+  `total_cost` is null while a person has no rate (mirrors `estimateTotals` of the design). Area hour value: new `areas.hour_value` (COP, null = unset).
+- SendToApproval: evaluated requests only (size set); hours only for the IT team (`ai.manage` holders = `TriageActionData.team`); approvers only holders of `ai.projects.approve`;
+  one pending row per approver with the same `requested_at` (= the round) and the JSON snapshot (`estimate_id`, hours_by_person with rate, totals, due date);
+  earlier pending rows are removed; `is_reapproval` = an earlier round was approved. Setting `ai.approval.require_other_if_evaluator`: the evaluator cannot be the only
+  approver nor be asked with `require_all` (validation), and cannot approve (policy).
+- Approvals: list = pending requests the viewer may decide and has not decided in the current round, newest round first. The index without the permission renders empty
+  (the page shows NoPermission, no data leaves); the show without it answers 403. `decision` = the viewer's decision in the round, else the round result once it left approval.
+  Reaching "Aprobada" dispatches `App\Events\RequestApproved` (after commit): the B5 hook to create the project.
+- Telegram: `AiApprovalRequested::forApproval()` adds ✅ Aprobar / ❌ Rechazar (`ai-approval:{approval_id}:{a|r}:{hmac}`, ≤ 64 bytes, HMAC with the app key) + "Ver detalle"
+  (`?desde=telegram`); the summary line has hours and due date, never costs. Handler `App\Telegram\Handlers\ApprovalCallbackHandler` (config `gestor.telegram.callbacks`):
+  only the row's approver; already decided = idempotent (message edited with the result); ✅ records channel `telegram` and edits the message; ❌ asks for the reason and the
+  next plain-text message of that chat within 15 min is the reason (UpdateHandler hook, `/cancelar` drops it), so rejections keep their mandatory comment.
+- Backlog: status "En backlog"; suggested order = roadmap order; manual order = `ai_requests.backlog_position` (one global order: a reorder clears the others) + Settings
+  `ai.backlog.manual_order` (by, at, moved_key/above_key = first key that changed place, note null). WIP: Settings `ai.wip_limit` (default 3, now in config defaults),
+  counted globally on requests "En desarrollo" until projects exist (B5).
+- Por área: active areas of the company in name order; the switch offers the active companies the viewer reaches. Counters: products in production/pilot of the area,
+  projects 0 (B5), backlog, hours saved/month from production/closed requests (hours/week × people × 52/12). Semáforo: late = unanswered past due; attention = unanswered
+  not yet due, needs info ("espera la respuesta de {nombre}") or pending approval; ok = first backlog item as reason. Owner = area approver or "[RESPONSABLE]".
+- Mi semana: due = first responses due by Sunday (Bogotá, overdue included), person = assignee or "TI"; waiting = questions (title + open question), validations
+  ("faltan X de Y criterios") and approvals (pending approvers); `blocked`, `running_timer` and `review` stay empty/null until B5/B6.
+- Ask: the question goes to the public conversation and the request moves to Necesita información (first response, requester notified); asking again while waiting adds
+  the question and sends `AiRequestReminder`. Merge: the duplicate's requester and voters become +1 voters/followers of the one that stays; the duplicate is rejected
+  ("Está duplicada", public note, `merged_into_id`). Bulk assign stores `ai_requests.assignee_id` (IT team only). Reminders reuse the requester's
+  `ai.request.status_changed` event (no new catalog entry).
+- Home `it`: unanswered requests late or due within 24 h (10 max, "GIA-148 · vencida hace 1 día" / "vence hoy"); `pending_approvals` for approvers
+  (`cost_cop` = total cost, 0 when unknown or without `ai.costs.view`); tasks/requirements (B5) and credentials (B8) stay empty.
+
+Notes for design:
+- No button yet for "Mover al backlog" (`ai.requests.backlog` POST `{ note? }`) or "Crear a nombre de otra persona" (`requester_id` on `ai.requests.store`).
+- `ApprovalItem.cost_cop` is a required number: the server sends 0 when the cost is unknown or the viewer lacks `ai.costs.view`; consider `number | null`.
+- `ApprovalDetail.evaluation.size` is required: sending to approval now requires a size, so it is always set.
+- The backlog reorder has no note field: `ManualOrder.note` is always null.
+- `TeamMember.hourly_rate` and estimate costs stay null until rates are loaded (`ai_cost_rates`, admin page in B6).
+
 ## Next step
-B4 · Wire IT triage pages (ai-triage.ts): replace the IT placeholders and the `ai.manage` redirect on `ai.requests.show` with the IT view.
+B5 · Projects: create the project from `RequestApproved` (approved requests, `ai_estimates.ai_project_id`), boards, tasks, requirements, WIP from projects;
+replace the B5 placeholders (`ai.projects.*`, `ai.tasks.show`, `ai.requirements.*`, `ai.requests.convert`, `ai.reviews.store`) and fill Mi semana tasks/blocked/review and Home tasks/requirements.
