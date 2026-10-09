@@ -4,6 +4,7 @@ namespace Tests\Feature\Telegram;
 
 use App\Models\TelegramLink;
 use App\Models\User;
+use App\Telegram\UpdateHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -324,5 +325,13 @@ class TelegramLinkTest extends TestCase
 
         $this->assertSame(0, TelegramLink::query()->count());
         $this->assertNull($user->fresh()->routeNotificationFor('telegram'));
+    }
+
+    public function test_bot_texts_point_to_the_profile_page(): void
+    {
+        foreach ([UpdateHandler::HELP_TEXT, UpdateHandler::LINKED_TEXT, UpdateHandler::INVALID_TOKEN_TEXT] as $text) {
+            $this->assertStringContainsString('«Perfil y notificaciones»', $text);
+            $this->assertStringNotContainsString('Perfil › Notificaciones', $text);
+        }
     }
 }

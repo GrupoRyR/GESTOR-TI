@@ -34,6 +34,8 @@ class AttemptEmergencyLogin
 
     public const GENERIC_ERROR = 'Las credenciales no son válidas.';
 
+    public const INACTIVE_ERROR = 'La cuenta de emergencia está desactivada.';
+
     /** Form field that carries the credential errors (`Auth/Emergency`). */
     public const ERROR_FIELD = 'password';
 
@@ -131,6 +133,14 @@ class AttemptEmergencyLogin
             throw $this->genericFailure();
         }
 
+        // Deactivated in Administración › Usuarios. Only told after a valid
+        // password, so it reveals nothing to someone guessing.
+        if (! $user->isActive()) {
+            $this->log('emergency_login_inactive', $email, $ip, $user);
+
+            throw ValidationException::withMessages([self::ERROR_FIELD => self::INACTIVE_ERROR]);
+        }
+
         RateLimiter::clear($key);
 
         $user->forceFill([
@@ -212,6 +222,7 @@ class AttemptEmergencyLogin
             'emergency_login_succeeded' => 'Ingreso de emergencia exitoso',
             'emergency_login_locked' => 'Ingreso de emergencia rechazado: cuenta bloqueada',
             'emergency_login_throttled' => 'Ingreso de emergencia rechazado: demasiados intentos',
+            'emergency_login_inactive' => 'Ingreso de emergencia rechazado: cuenta desactivada',
             default => 'Ingreso de emergencia fallido',
         });
     }

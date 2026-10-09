@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureModuleIsActive;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireRecentMicrosoftAuth;
 use App\Support\ErrorPage;
@@ -19,8 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // EnsureUserIsActive runs inside Inertia's middleware so its redirect
+        // gets the 303 conversion for PUT/PATCH/DELETE visits.
         $middleware->web(append: [
             HandleInertiaRequests::class,
+            EnsureUserIsActive::class,
         ]);
 
         $middleware->alias([

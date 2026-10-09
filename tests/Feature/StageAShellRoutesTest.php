@@ -115,7 +115,7 @@ class StageAShellRoutesTest extends TestCase
         $admin = tap(User::factory()->create())->assignRole('Súper Admin');
         $user = tap(User::factory()->create())->assignRole('Usuario final');
 
-        foreach (['admin.users.index', 'admin.integrations.index'] as $name) {
+        foreach (['admin.integrations.index'] as $name) {
             $this->actingAs($admin)
                 ->get(route($name))
                 ->assertRedirect(route('admin.companies.index'))

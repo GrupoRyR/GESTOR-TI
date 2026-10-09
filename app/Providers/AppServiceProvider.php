@@ -5,9 +5,11 @@ namespace App\Providers;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Notifications\Channels\TelegramChannel;
+use App\Support\Audit\AuditOrigin;
 use App\Support\Tenancy\CurrentCompany;
 use App\Telegram\CallbackRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Event;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Microsoft\MicrosoftExtendSocialite;
+use Spatie\Activitylog\ActivitylogServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -45,6 +48,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(SocialiteWasCalled::class, [MicrosoftExtendSocialite::class, 'handle']);
+
+        // Every activity log entry records where it came from (web, api,
+        // telegram, system) and the request IP (Administración › Auditoría).
+        $activityModel = ActivitylogServiceProvider::determineActivityModel();
+        $activityModel::creating(fn (Model $activity) => AuditOrigin::stamp($activity));
 
         // Login routes (PROMPT §8): per-IP limit on the Microsoft redirect,
         // callback and reauth, and on the emergency login.

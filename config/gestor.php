@@ -83,6 +83,38 @@ return [
         'recipient_permission' => env('GESTOR_ALERTS_RECIPIENT_PERMISSION', 'ai.manage'),
     ],
 
+    /*
+    | Administración › Auditoría (`App\Support\Audit\AuditEntries`).
+    |   - modules: filter value => label and the activity log names it covers
+    |     (`default` holds role/vault events logged before log names existed).
+    |   - sensitive_events / sensitive_log_names: credential reveals, vault,
+    |     role and permission changes, emergency login events. Tenant changes
+    |     (a `companies` entry touching `tenant_id`) are sensitive too.
+    |   - alert_events: failures and lockouts that need attention.
+    |   - export_limit: max rows of the CSV export (newest first).
+    */
+    'audit' => [
+        'modules' => [
+            'companies' => ['label' => 'Empresas', 'log_names' => ['companies']],
+            'areas' => ['label' => 'Áreas', 'log_names' => ['areas']],
+            'employees' => ['label' => 'Colaboradores', 'log_names' => ['employees']],
+            'users' => ['label' => 'Usuarios y roles', 'log_names' => ['users', 'default']],
+            'credentials' => ['label' => 'Contraseñas', 'log_names' => ['credentials', 'employee_accesses', 'access_systems']],
+            'auth' => ['label' => 'Inicio de sesión', 'log_names' => ['auth']],
+            'ai' => ['label' => 'Gestor IA', 'log_names' => ['ai']],
+            'integrations' => ['label' => 'Integraciones', 'log_names' => ['integrations', 'settings']],
+        ],
+        'sensitive_events' => [
+            'credential_revealed', 'vault_access_granted', 'role_permissions_updated', 'role_created',
+            'user_roles_updated',
+        ],
+        'sensitive_log_names' => ['auth', 'credentials'],
+        'alert_events' => [
+            'emergency_login_failed', 'emergency_login_locked', 'emergency_login_throttled', 'emergency_login_inactive',
+        ],
+        'export_limit' => 10000,
+    ],
+
     'telegram' => [
         // How webhook updates are processed: `after_response` (default; runs
         // in the same PHP process right after answering 200 to Telegram) or

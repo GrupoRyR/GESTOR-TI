@@ -233,6 +233,33 @@ class CompaniesAdminTest extends TestCase
         ]))->assertSessionHasErrors(['slug', 'domains.0', 'colors.primary', 'sender_email']);
     }
 
+    public function test_sender_email_must_belong_to_a_company_domain(): void
+    {
+        $message = 'El correo emisor debe ser de uno de los dominios de la empresa.';
+
+        $this->sendUpdate($this->manager(), $this->payload([
+            'domains' => ['segurex.com', 'segurex.co'],
+            'sender_email' => 'info@gmail.com',
+        ]))->assertSessionHasErrors(['sender_email' => $message]);
+
+        $this->sendUpdate($this->manager(), $this->payload([
+            'domains' => ['segurex.com', 'segurex.co'],
+            'sender_email' => 'Info@Segurex.CO',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertSame('info@segurex.co', $this->company->fresh()->sender_email);
+
+        $this->actingAs($this->manager(tenant: true))
+            ->post(route('admin.companies.store'), $this->payload([
+                'slug' => 'nueva',
+                'tenant_id' => '22222222-2222-2222-2222-222222222222',
+                'domains' => ['nueva.com'],
+                'sender_email' => 'info@segurex.com',
+                'logo' => $this->svg(),
+            ]))
+            ->assertSessionHasErrors(['sender_email' => $message]);
+    }
+
     public function test_update_without_tenant_permission_cannot_change_tenant_id(): void
     {
         $this->sendUpdate($this->manager(), $this->payload([

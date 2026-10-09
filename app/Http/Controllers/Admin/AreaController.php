@@ -52,6 +52,7 @@ class AreaController extends Controller
             'area_approval_enabled' => $this->areaApproval->enabled($company->id),
             'approver_options' => User::query()
                 ->where('company_id', $company->id)
+                ->where('active', true)
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name])

@@ -127,4 +127,77 @@ return [
 
     ],
 
+    /*
+    | Metadata of the built-in roles above (Administración › Roles y permisos
+    | and › Usuarios). RolesAndPermissionsSeeder writes it to the `roles`
+    | table with `is_system = true`; custom roles created from the page keep
+    | theirs there too (`is_system = false`).
+    |   - scope: global | company | company_area (labels in `scopes`). It
+    |     describes the role; data scoping itself comes from the permissions
+    |     (`companies.view_all`, `ai.area.view`).
+    |   - requires_area: the Usuarios page asks for the area the person
+    |     approves (`areas.approver_user_id`).
+    */
+    'role_metadata' => [
+        'Súper Admin' => ['label' => 'Súper Admin', 'scope' => 'global', 'description' => 'Administra empresas, usuarios e integraciones'],
+        'Líder IA' => ['label' => 'Líder IA', 'scope' => 'global', 'description' => 'Evalúa, planea y entrega los desarrollos'],
+        'Aprobador de área' => ['label' => 'Aprobador de área', 'scope' => 'company_area', 'description' => 'Da el visto bueno a las solicitudes de su área', 'requires_area' => true],
+        'Aprobador de proyectos' => ['label' => 'Aprobador de proyectos', 'scope' => 'global', 'description' => 'Ve costos y aprueba qué se vuelve proyecto'],
+        'Usuario final' => ['label' => 'Usuario final', 'scope' => 'company', 'description' => 'Pide desarrollos y ve los suyos'],
+    ],
+
+    // Scope key => visible label (`AdminRole.scope`, "Agregar rol" options).
+    'scopes' => [
+        'global' => 'Global',
+        'company' => 'Empresa',
+        'company_area' => 'Empresa y área',
+    ],
+
+    /*
+    | Role × permission matrix of Administración › Roles y permisos: groups,
+    | labels and hints exactly as the design. Only these permissions can be
+    | changed from the page; every other permission (admin.access,
+    | companies.manage, areas.manage, users.manage, roles.manage, audit.view,
+    | settings.manage, companies.manage_tenant, employees.*, the reserved
+    | modules) stays managed by this file and RolesAndPermissionsSeeder, and
+    | a matrix save never touches it. `ai.vault.access` is never a role
+    | permission and is never listed. `ai.projects.approve` may only be
+    | checked for `project_approval_role`.
+    */
+    'matrix' => [
+        'ai' => [
+            'label' => 'Gestor IA',
+            'permissions' => [
+                'ai.manage' => 'Gestionar todo el Gestor IA',
+                'ai.requests.create' => 'Crear solicitudes',
+                'ai.requests.approve_area' => 'Dar visto bueno del área',
+                'ai.projects.approve' => 'Aprobar proyectos',
+                'ai.costs.view' => 'Ver costos',
+                'ai.costs.manage' => 'Gestionar costos y tarifas',
+                'ai.area.view' => 'Ver lo de su área',
+                'ai.docs.edit' => 'Editar documentación',
+                'ai.github.manage' => 'Conectar GitHub',
+                'ai.mcp.use' => 'Usar el conector de Claude',
+            ],
+        ],
+        'assistant' => [
+            'label' => 'Asistente TI',
+            'permissions' => [
+                'assistant.use' => 'Usar el Asistente',
+                'assistant.knowledge.manage' => 'Administrar la base de conocimiento',
+                'assistant.credentials' => 'Pedir contraseñas al Asistente',
+            ],
+        ],
+        'base' => [
+            'label' => 'Base',
+            'permissions' => [
+                'companies.view_all' => 'Ver todas las empresas',
+                'credentials.view' => 'Ver contraseñas de colaboradores',
+            ],
+        ],
+    ],
+
+    // The only role that may hold `ai.projects.approve` (user decision 2026-10-09).
+    'project_approval_role' => 'Aprobador de proyectos',
+
 ];

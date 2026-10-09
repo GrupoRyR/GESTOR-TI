@@ -3,189 +3,80 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Support\Audit\ActivityPropertiesSanitizer;
-use App\Support\Tenancy\CurrentCompany;
-use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\Audit\AuditEntries;
+use App\Support\Paginated;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Activitylog\Models\Activity;
-use Throwable;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Administración › Auditoría: who changed what and when, with filters.
- *
- * Company scope (kept simple on purpose): users without
- * `companies.view_all` — and global users who picked one company in the top
- * bar selector — only see activities caused by users of that company.
- * Activities without a causer (jobs, console) are only visible in "Todas".
- * Properties are sanitized again before leaving the server
- * (`ActivityPropertiesSanitizer`).
+ * Administración › Auditoría (`Admin/Audit/Index`): who did what, when and
+ * from where, with filters `{causer_id, module, sensitive_only, range}`,
+ * and the same listing as a CSV download. Company scope, rendering and
+ * sanitizing live in App\Support\Audit\AuditEntries.
  */
 class AuditController extends Controller
 {
     public const PER_PAGE = 25;
 
-    public function __construct(private readonly CurrentCompany $currentCompany) {}
+    public function __construct(private readonly AuditEntries $entries) {}
 
     public function index(Request $request): Response
     {
-        $options = $this->options();
+        $filters = $this->entries->filters($request);
 
-        $search = $request->string('search')->squish()->value() ?: null;
-        $causerId = $request->integer('causer_id') ?: null;
-        $logName = in_array($request->query('log_name'), $options['log_names'], true) ? $request->query('log_name') : null;
-        $subjectType = in_array($request->query('subject_type'), $options['subject_types'], true) ? $request->query('subject_type') : null;
-        $from = $this->date($request->query('from'));
-        $to = $this->date($request->query('to'));
-
-        $paginator = $this->scoped()
-            ->with('causer')
-            ->when($search, fn (Builder $query) => $query->where(fn (Builder $q) => $q
-                ->where('description', 'like', '%'.$search.'%')
-                ->orWhere('event', 'like', '%'.$search.'%')))
-            ->when($causerId, fn (Builder $query) => $query
-                ->where('causer_type', (new User)->getMorphClass())
-                ->where('causer_id', $causerId))
-            ->when($logName, fn (Builder $query) => $query->where('log_name', $logName))
-            ->when($subjectType, fn (Builder $query) => $query->whereIn('subject_type', $this->subjectClasses($subjectType)))
-            ->when($from, fn (Builder $query) => $query->where('created_at', '>=', $from->startOfDay()))
-            ->when($to, fn (Builder $query) => $query->where('created_at', '<=', $to->endOfDay()))
-            ->latest('id')
+        $paginator = $this->entries->query($filters)
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
         return Inertia::render('Admin/Audit/Index', [
-            'activities' => [
-                'data' => collect($paginator->items())->map(fn (Activity $activity) => $this->toListArray($activity))->all(),
-                'links' => $paginator->linkCollection()->all(),
-                'meta' => [
-                    'current_page' => $paginator->currentPage(),
-                    'last_page' => $paginator->lastPage(),
-                    'per_page' => $paginator->perPage(),
-                    'total' => $paginator->total(),
-                ],
-            ],
-            'filters' => [
-                'search' => $search,
-                'causer_id' => $causerId,
-                'subject_type' => $subjectType,
-                'log_name' => $logName,
-                'from' => $from?->toDateString(),
-                'to' => $to?->toDateString(),
-            ],
-            'options' => $options,
+            'entries' => Paginated::from($paginator, fn (Activity $activity) => $this->entries->present($activity)),
+            'filters' => $filters,
+            'causer_options' => $this->entries->causerOptions(),
+            'module_options' => $this->entries->moduleOptions(),
         ]);
     }
 
     /**
-     * Activities visible in the current company context.
-     *
-     * @return Builder<Activity>
+     * CSV (`;`-separated, UTF-8 with BOM for Excel in es-CO), newest first,
+     * at most `gestor.audit.export_limit` rows. Cells that a spreadsheet
+     * would run as a formula are prefixed with `'`.
      */
-    private function scoped(): Builder
+    public function export(Request $request): StreamedResponse
     {
-        $query = Activity::query();
+        $filters = $this->entries->filters($request);
+        $limit = (int) config('gestor.audit.export_limit', 10000);
+        $filename = 'auditoria-'.now()->setTimezone('America/Bogota')->format('Ymd-Hi').'.csv';
 
-        if ($this->currentCompany->isAll()) {
-            return $query;
-        }
+        return response()->streamDownload(function () use ($filters, $limit) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\u{FEFF}");
+            fputcsv($out, AuditEntries::csvHeaders(), ';', '"', '');
 
-        $companyId = $this->currentCompany->id();
+            $ids = $this->entries->query($filters)->limit($limit)->pluck('id')->all();
 
-        if ($companyId === null) {
-            return $query->whereRaw('1 = 0');
-        }
+            foreach (array_chunk($ids, 500) as $chunk) {
+                Activity::query()
+                    ->with(['causer', 'subject'])
+                    ->whereIn('id', $chunk)
+                    ->orderByDesc('id')
+                    ->get()
+                    ->each(function (Activity $activity) use ($out) {
+                        fputcsv($out, array_map($this->safeCell(...), $this->entries->csvRow($activity)), ';', '"', '');
+                    });
+            }
 
-        return $query
-            ->where('causer_type', (new User)->getMorphClass())
-            ->whereIn('causer_id', User::query()->select('id')->where('company_id', $companyId));
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store',
+        ]);
     }
 
-    /**
-     * @return array{log_names: list<string>, subject_types: list<string>, causers: list<array{id: int, name: string}>}
-     */
-    private function options(): array
+    private function safeCell(string $value): string
     {
-        $logNames = $this->scoped()->whereNotNull('log_name')->distinct()->orderBy('log_name')->pluck('log_name');
-
-        $subjectTypes = $this->fullSubjectTypes()
-            ->map(fn (string $type) => class_basename($type))
-            ->unique()
-            ->sort()
-            ->values();
-
-        $causers = User::query()
-            ->whereIn('id', $this->scoped()
-                ->where('causer_type', (new User)->getMorphClass())
-                ->select('causer_id'))
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name]);
-
-        return [
-            'log_names' => $logNames->values()->all(),
-            'subject_types' => $subjectTypes->all(),
-            'causers' => $causers->values()->all(),
-        ];
-    }
-
-    /**
-     * @return Collection<int, string>
-     */
-    private function fullSubjectTypes(): Collection
-    {
-        return $this->scoped()->whereNotNull('subject_type')->distinct()->pluck('subject_type');
-    }
-
-    /**
-     * Stored subject types (class names) whose short name matches.
-     *
-     * @return list<string>
-     */
-    private function subjectClasses(string $shortName): array
-    {
-        return $this->fullSubjectTypes()
-            ->filter(fn (string $type) => class_basename($type) === $shortName)
-            ->values()
-            ->all();
-    }
-
-    private function date(mixed $value): ?CarbonImmutable
-    {
-        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
-            return null;
-        }
-
-        try {
-            $date = CarbonImmutable::createFromFormat('!Y-m-d', $value);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function toListArray(Activity $activity): array
-    {
-        $causer = $activity->causer;
-
-        return [
-            'id' => $activity->id,
-            'log_name' => $activity->log_name,
-            'description' => $activity->description,
-            'event' => $activity->event,
-            'subject_type' => $activity->subject_type === null ? null : class_basename($activity->subject_type),
-            'subject_id' => $activity->subject_id,
-            'causer' => $causer === null ? null : ['id' => $causer->getKey(), 'name' => (string) ($causer->name ?? '')],
-            'properties' => ActivityPropertiesSanitizer::sanitize($activity->properties?->toArray() ?? []),
-            'created_at' => $activity->created_at?->toIso8601String(),
-        ];
+        return preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
     }
 }

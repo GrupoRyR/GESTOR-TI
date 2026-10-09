@@ -4,8 +4,10 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Company;
 use App\Support\CompanyLogos;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -74,9 +76,30 @@ abstract class CompanyRequest extends FormRequest
             'colors.primary' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'colors.accent' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'colors.dark' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'sender_email' => ['required', 'email', 'max:255'],
+            'sender_email' => ['required', 'email', 'max:255', $this->senderDomainRule()],
             'active' => ['required', 'boolean'],
         ];
+    }
+
+    /**
+     * The sender mailbox must belong to one of the company's domains (the
+     * wizard checks it client-side too; the server is the authority).
+     */
+    private function senderDomainRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $domains = $this->input('domains');
+
+            if (! is_string($value) || ! is_array($domains)) {
+                return;
+            }
+
+            $domain = Str::after($value, '@');
+
+            if (! in_array($domain, array_filter($domains, 'is_string'), true)) {
+                $fail('El correo emisor debe ser de uno de los dominios de la empresa.');
+            }
+        };
     }
 
     /**

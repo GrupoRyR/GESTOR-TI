@@ -21,10 +21,11 @@ use Spatie\Permission\Traits\HasRoles;
  * company context exists); `company_id` is their home company.
  *
  * Identity, privilege and lockout columns (company_id, azure_id, tenant_id,
- * is_global, last_login_at, failed_login_attempts, locked_until) are
+ * is_global, active, last_login_at, failed_login_attempts, locked_until) are
  * deliberately not fillable: set them with `forceFill()`.
  *
  * @property ?int $company_id
+ * @property ?bool $active
  * @property ?string $avatar_url
  * @property ?string $azure_id
  * @property ?string $tenant_id
@@ -89,6 +90,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_global' => 'boolean',
+            'active' => 'boolean',
             'failed_login_attempts' => 'integer',
             'locked_until' => 'datetime',
         ];
@@ -139,8 +141,37 @@ class User extends Authenticatable
      */
     public function routeNotificationForTelegram(): ?string
     {
+        if (! $this->isActive()) {
+            return null;
+        }
+
         $link = $this->telegramLink;
 
         return $link !== null && $link->isLinked() ? $link->chat_id : null;
+    }
+
+    /**
+     * Deactivated users receive no mail (the bell keeps its history).
+     */
+    public function routeNotificationForMail(): ?string
+    {
+        return $this->isActive() ? $this->email : null;
+    }
+
+    /**
+     * `users.active` (Administración › Usuarios › Desactivar). A model not
+     * yet refreshed from the database counts as active (column default).
+     */
+    public function isActive(): bool
+    {
+        return $this->active ?? true;
+    }
+
+    /**
+     * Local account (the emergency login): no Microsoft identity.
+     */
+    public function isLocal(): bool
+    {
+        return $this->azure_id === null;
     }
 }

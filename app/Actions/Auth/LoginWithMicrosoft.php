@@ -54,6 +54,11 @@ class LoginWithMicrosoft
                 throw new MicrosoftLoginRejected('email_linked_to_other_account');
             }
 
+            // Deactivated in Administración › Usuarios: nothing is refreshed.
+            if ($user !== null && ! $user->isActive()) {
+                throw new MicrosoftLoginRejected(MicrosoftLoginRejected::ACCOUNT_INACTIVE);
+            }
+
             $user ??= new User([
                 'email' => $email,
                 // Unusable: Microsoft users never sign in with a password, and

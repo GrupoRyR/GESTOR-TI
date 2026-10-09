@@ -12,6 +12,9 @@ class MicrosoftLoginRejected extends RuntimeException
 {
     public const MESSAGE = 'Tu organización no tiene acceso al Gestor TI.';
 
+    /** The local user was deactivated in Administración › Usuarios. */
+    public const ACCOUNT_INACTIVE = 'account_inactive';
+
     public function __construct(public readonly string $reason)
     {
         parent::__construct(self::MESSAGE);

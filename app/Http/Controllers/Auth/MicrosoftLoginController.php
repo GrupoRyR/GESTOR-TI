@@ -6,6 +6,7 @@ use App\Actions\Auth\LoginWithMicrosoft;
 use App\Actions\Auth\MicrosoftIdentity;
 use App\Actions\Auth\MicrosoftLoginRejected;
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RequireRecentMicrosoftAuth;
 use App\Models\User;
 use GuzzleHttp\Exception\GuzzleException;
@@ -114,6 +115,8 @@ class MicrosoftLoginController extends Controller
 
     /**
      * Maps a rejection to the design pages:
+     * - deactivated user → `Auth/Login` with the flash `error` notice
+     *   (the page type has no error code for it);
      * - tenant or domain not enabled (with a Microsoft email) →
      *   `Auth/CompanyNotEnabled` with that email;
      * - guest (#EXT#) account or email already linked to another Microsoft
@@ -126,6 +129,7 @@ class MicrosoftLoginController extends Controller
         $login = redirect()->route('login');
 
         return match (true) {
+            $e->reason === MicrosoftLoginRejected::ACCOUNT_INACTIVE => $login->with('error', EnsureUserIsActive::MESSAGE),
             in_array($e->reason, ['tenant_not_allowed', 'domain_not_allowed'], true) && $email !== '' => $login->with(SessionController::COMPANY_NOT_ENABLED, $email),
             $e->reason === 'missing_identity' => $login->with(SessionController::LOGIN_ERROR, 'microsoft_failed'),
             default => $login->with(SessionController::LOGIN_ERROR, 'tenant_not_allowed'),

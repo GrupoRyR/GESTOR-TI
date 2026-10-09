@@ -10,8 +10,9 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Seeds permissions and roles from config/permissions.php. Idempotent:
  * permissions are created when missing and each role is synced to its
- * definition (this resets changes made through the matrix). Permissions
- * removed from the config are not deleted.
+ * definition and metadata (`role_metadata`, `is_system = true`; this resets
+ * changes made through the matrix). Custom roles created from the page and
+ * permissions removed from the config are not deleted.
  */
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -38,6 +39,15 @@ class RolesAndPermissionsSeeder extends Seeder
             /** @var Role $role */
             $role = Role::findOrCreate($roleName, 'web');
             $role->syncPermissions($permissions === '*' ? $wildcard : $permissions);
+
+            $metadata = config("permissions.role_metadata.{$roleName}", []);
+            $role->forceFill([
+                'label' => $metadata['label'] ?? $roleName,
+                'scope' => $metadata['scope'] ?? Role::SCOPE_COMPANY,
+                'description' => $metadata['description'] ?? null,
+                'requires_area' => (bool) ($metadata['requires_area'] ?? false),
+                'is_system' => true,
+            ])->save();
         }
 
         $registrar->forgetCachedPermissions();

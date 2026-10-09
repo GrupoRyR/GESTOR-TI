@@ -4,6 +4,7 @@ namespace App\Telegram;
 
 use App\Models\TelegramLink;
 use App\Services\Telegram\TelegramClient;
+use App\Support\Audit\AuditOrigin;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -29,12 +30,12 @@ class UpdateHandler implements ShouldQueue
     public int $tries = 1;
 
     public const HELP_TEXT = "Hola, soy el bot del Gestor TI RYR.\n\n"
-        .'Para recibir avisos aquí, entra al Gestor TI, abre Perfil › Notificaciones y pulsa «Vincular Telegram». '
+        .'Para recibir avisos aquí, entra al Gestor TI, abre «Perfil y notificaciones» (en el menú de tu nombre) y pulsa «Vincular Telegram». '
         .'El enlace que se genera abre este chat y deja tu cuenta vinculada.';
 
-    public const LINKED_TEXT = 'Listo, tu cuenta del Gestor TI quedó vinculada. Desde ahora recibirás aquí los avisos que elijas en Perfil › Notificaciones.';
+    public const LINKED_TEXT = 'Listo, tu cuenta del Gestor TI quedó vinculada. Desde ahora recibirás aquí los avisos que elijas en «Perfil y notificaciones».';
 
-    public const INVALID_TOKEN_TEXT = 'El enlace no es válido o ya venció. Genera uno nuevo desde Perfil › Notificaciones en el Gestor TI.';
+    public const INVALID_TOKEN_TEXT = 'El enlace no es válido o ya venció. Genera uno nuevo desde «Perfil y notificaciones» en el Gestor TI.';
 
     public const CHAT_TAKEN_TEXT = 'Este chat ya está vinculado a otra cuenta del Gestor TI. Desvincúlala primero desde esa cuenta.';
 
@@ -44,6 +45,12 @@ class UpdateHandler implements ShouldQueue
     public function __construct(public array $update) {}
 
     public function handle(TelegramClient $client, CallbackRegistry $callbacks): void
+    {
+        // Activities logged while handling the update are audited as `telegram`.
+        AuditOrigin::runAs(AuditOrigin::TELEGRAM, fn () => $this->process($client, $callbacks));
+    }
+
+    private function process(TelegramClient $client, CallbackRegistry $callbacks): void
     {
         // Telegram redelivers an update when it did not get a 200 in time:
         // handle each update_id once.

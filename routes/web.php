@@ -5,7 +5,7 @@ use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\RoleController;
-use App\Http\Controllers\Admin\UserRoleController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
@@ -147,25 +147,33 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
         Route::put('/areas/{area}', [AreaController::class, 'update'])->whereNumber('area')->name('areas.update');
     });
 
-    // TEMPORARY: AdminLayout tabs not wired yet (C6 Usuarios, C7
-    // Integraciones); they redirect to Empresas with a notice.
-    Route::get('/users', AdminTabPlaceholderController::class)->middleware('can:users.manage')->name('users.index');
+    // TEMPORARY: AdminLayout tab not wired yet (C7 Integraciones); it
+    // redirects to Empresas with a notice.
     Route::get('/integrations', AdminTabPlaceholderController::class)->middleware('can:companies.manage')->name('integrations.index');
 
-    // Role × permission matrix. Exclusive permissions (`ai.vault.access`)
-    // are rejected by the form request and by the Role model.
-    Route::middleware('can:roles.manage')->group(function () {
-        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
-        Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    // Usuarios (`Admin/Users/Index`). Users outside the admin's company
+    // scope answer 404 (UserDirectory).
+    Route::middleware('can:users.manage')->group(function () {
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/{user}', [UserController::class, 'show'])->whereNumber('user')->name('users.show');
+        Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->whereNumber('user')->name('users.roles.update');
+        Route::patch('/users/{user}/deactivate', [UserController::class, 'deactivate'])->whereNumber('user')->name('users.deactivate');
     });
 
-    Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])
-        ->middleware('can:users.manage')
-        ->name('users.roles.update');
+    // Roles y permisos (`Admin/Roles/Index`): matrix saved in one PUT and
+    // custom roles. `ai.vault.access` is rejected by the form request and
+    // by the Role model.
+    Route::middleware('can:roles.manage')->group(function () {
+        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::put('/roles', [RoleController::class, 'update'])->name('roles.update');
+        Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+    });
 
-    // Activity log (A8): restricted users only see activities caused by
-    // users of their company; properties are sanitized again.
-    Route::get('/audit', [AuditController::class, 'index'])
-        ->middleware('can:audit.view')
-        ->name('audit.index');
+    // Auditoría (`Admin/Audit/Index`) and its CSV export: restricted users
+    // only see activities caused by users of their company; properties are
+    // sanitized again (App\Support\Audit\AuditEntries).
+    Route::middleware('can:audit.view')->group(function () {
+        Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
+        Route::get('/audit/export', [AuditController::class, 'export'])->name('audit.export');
+    });
 });

@@ -74,7 +74,7 @@ abstract class AreaRequest extends FormRequest
             'approver_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where('company_id', $this->companyId() ?? 0),
+                Rule::exists('users', 'id')->where('company_id', $this->companyId() ?? 0)->where('active', true),
             ],
             'active' => ['required', 'boolean'],
         ];
@@ -101,7 +101,7 @@ abstract class AreaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'approver_id.exists' => 'El aprobador debe ser un usuario de la empresa.',
+            'approver_id.exists' => 'El aprobador debe ser un usuario activo de la empresa.',
         ];
     }
 

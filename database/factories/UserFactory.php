@@ -30,7 +30,28 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'active' => true,
         ];
+    }
+
+    /**
+     * Deactivated from Administración › Usuarios.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'active' => false,
+        ]);
+    }
+
+    /**
+     * Microsoft account (has an `azure_id`); without it a user is local.
+     */
+    public function microsoft(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'azure_id' => (string) Str::uuid(),
+        ]);
     }
 
     /**
