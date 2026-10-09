@@ -78,6 +78,11 @@ class AuditEntries
         'access_system_id' => 'Sistema',
         'label' => 'Nombre',
         'scope' => 'Alcance',
+        'approver_areas' => 'Áreas que aprueba',
+        'provider' => 'Proveedor de IA',
+        'model' => 'Modelo',
+        'monthly_cap_usd' => 'Tope mensual (US$)',
+        'organization' => 'Organización de GitHub',
     ];
 
     private const ORIGIN_LABELS = [

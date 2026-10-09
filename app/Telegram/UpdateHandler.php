@@ -5,6 +5,8 @@ namespace App\Telegram;
 use App\Models\TelegramLink;
 use App\Services\Telegram\TelegramClient;
 use App\Support\Audit\AuditOrigin;
+use App\Support\Integrations\IntegrationsOverview;
+use App\Support\Settings;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +23,9 @@ use Illuminate\Support\Facades\Log;
  *   (The Asistente TI takes over plain text in Stage C.)
  * - `callback_query`: routed through `CallbackRegistry` for linked chats.
  *
- * Nothing about unlinked chats is stored (only logs).
+ * Nothing about unlinked chats is stored (only logs). The time of the last
+ * handled message/callback is kept in the setting `telegram.last_update_at`
+ * (Integraciones › Telegram).
  */
 class UpdateHandler implements ShouldQueue
 {
@@ -62,6 +66,11 @@ class UpdateHandler implements ShouldQueue
 
         $message = $this->update['message'] ?? null;
         $callbackQuery = $this->update['callback_query'] ?? null;
+
+        if (is_array($message) || is_array($callbackQuery)) {
+            // Integraciones › Telegram "Último mensaje".
+            app(Settings::class)->set(IntegrationsOverview::TELEGRAM_LAST_UPDATE_KEY, now()->toIso8601String());
+        }
 
         if (is_array($callbackQuery)) {
             $this->handleCallback($callbackQuery, $client, $callbacks);

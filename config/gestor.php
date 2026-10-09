@@ -50,6 +50,60 @@ return [
         // from Jhon) and warning threshold in percent of the cap.
         'ai.monthly_cost_cap_usd' => 0.0,
         'ai.cost_warning_percent' => 80,
+
+        // AI provider and model (keys of `ai.providers` below), changed from
+        // Administración › Integraciones.
+        'ai.provider' => 'deepseek',
+        'ai.model' => 'deepseek-chat',
+
+        // GitHub organization of the Gestor (Stage D uses it).
+        'github.organization' => null,
+    ],
+
+    /*
+    | AI providers offered in Administración › Integraciones (PROMPT §6.8.3),
+    | in display order. `credential` is the config key that must be filled
+    | for the provider to be "on" (never sent to the frontend); `models` is a
+    | small curated list for the selector — the saved model may be any id.
+    */
+    'ai' => [
+        'providers' => [
+            'deepseek' => [
+                'label' => 'DeepSeek',
+                'credential' => 'services.deepseek.api_key',
+                'models' => ['deepseek-chat', 'deepseek-reasoner'],
+            ],
+            'openai' => [
+                'label' => 'OpenAI',
+                'credential' => 'services.openai.api_key',
+                'models' => ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o-mini'],
+            ],
+            'anthropic' => [
+                'label' => 'Anthropic',
+                'credential' => 'services.anthropic.api_key',
+                'models' => ['claude-sonnet-4-5', 'claude-haiku-4-5'],
+            ],
+            'gemini' => [
+                'label' => 'Google Gemini',
+                'credential' => 'services.gemini.api_key',
+                'models' => ['gemini-2.5-pro', 'gemini-2.5-flash'],
+            ],
+            'mistral' => [
+                'label' => 'Mistral',
+                'credential' => 'services.mistral.api_key',
+                'models' => ['mistral-large-latest', 'mistral-small-latest'],
+            ],
+            'openrouter' => [
+                'label' => 'OpenRouter',
+                'credential' => 'services.openrouter.api_key',
+                'models' => ['deepseek/deepseek-chat', 'anthropic/claude-sonnet-4.5', 'openai/gpt-4.1-mini'],
+            ],
+            'ollama' => [
+                'label' => 'Ollama (local)',
+                'credential' => 'services.ollama.base_url',
+                'models' => ['llama3.1', 'qwen2.5'],
+            ],
+        ],
     ],
 
     'microsoft' => [
@@ -106,7 +160,7 @@ return [
         ],
         'sensitive_events' => [
             'credential_revealed', 'vault_access_granted', 'role_permissions_updated', 'role_created',
-            'user_roles_updated',
+            'user_roles_updated', 'ai_settings_updated',
         ],
         'sensitive_log_names' => ['auth', 'credentials'],
         'alert_events' => [

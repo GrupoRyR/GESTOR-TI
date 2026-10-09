@@ -56,11 +56,40 @@ return [
         'require_secret_header' => (bool) env('TELEGRAM_REQUIRE_SECRET_HEADER', false),
     ],
 
+    // AI providers (Administración › Integraciones › Proveedor de IA, catalog
+    // in config/gestor.php `ai.providers`). A provider is "on" only when its
+    // key (Ollama: base URL) is set here; values never reach the frontend.
     'deepseek' => [
         'api_key' => env('DEEPSEEK_API_KEY'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+    ],
+
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+    ],
+
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+    ],
+
+    'mistral' => [
+        'api_key' => env('MISTRAL_API_KEY'),
+    ],
+
+    'openrouter' => [
+        'api_key' => env('OPENROUTER_API_KEY'),
+    ],
+
+    'ollama' => [
+        'base_url' => env('OLLAMA_BASE_URL'),
+    ],
+
     'github' => [
+        // Public install page of the GitHub App (Integraciones › GitHub).
+        'install_url' => env('GITHUB_APP_INSTALL_URL'),
         'app_id' => env('GITHUB_APP_ID'),
         'private_key_path' => env('GITHUB_PRIVATE_KEY_PATH'),
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),

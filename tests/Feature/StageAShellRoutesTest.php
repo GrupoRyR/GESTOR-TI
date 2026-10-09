@@ -110,16 +110,13 @@ class StageAShellRoutesTest extends TestCase
         $this->assertFalse(Route::has('admin.department-mappings.index'));
     }
 
-    public function test_admin_tabs_not_wired_yet_redirect_to_companies_with_a_notice(): void
+    public function test_every_admin_tab_renders_its_page(): void
     {
         $admin = tap(User::factory()->create())->assignRole('Súper Admin');
         $user = tap(User::factory()->create())->assignRole('Usuario final');
 
         foreach (['admin.integrations.index'] as $name) {
-            $this->actingAs($admin)
-                ->get(route($name))
-                ->assertRedirect(route('admin.companies.index'))
-                ->assertSessionHas('error', 'Disponible pronto.');
+            $this->actingAs($admin)->get(route($name))->assertOk();
 
             $this->actingAs($user)->get(route($name))->assertForbidden();
         }

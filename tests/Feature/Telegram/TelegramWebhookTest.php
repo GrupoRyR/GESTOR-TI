@@ -5,6 +5,7 @@ namespace Tests\Feature\Telegram;
 use App\Models\TelegramLink;
 use App\Models\User;
 use App\Services\Telegram\TelegramClient;
+use App\Support\Settings;
 use App\Telegram\CallbackRegistry;
 use App\Telegram\Contracts\CallbackHandler;
 use App\Telegram\UpdateHandler;
@@ -152,6 +153,16 @@ class TelegramWebhookTest extends TestCase
         (new UpdateHandler($update))->handle(app(TelegramClient::class), app(CallbackRegistry::class));
 
         Http::assertSentCount(1);
+    }
+
+    public function test_the_time_of_the_last_handled_update_is_recorded(): void
+    {
+        $this->travelTo('2026-10-20 09:41:00');
+        $update = ['update_id' => 950, 'message' => ['message_id' => 1, 'text' => '/ayuda', 'chat' => ['id' => 1, 'type' => 'private']]];
+
+        (new UpdateHandler($update))->handle(app(TelegramClient::class), app(CallbackRegistry::class));
+
+        $this->assertSame('2026-10-20T09:41:00-05:00', app(Settings::class)->get('telegram.last_update_at'));
     }
 
     public function test_messages_from_group_chats_are_ignored(): void

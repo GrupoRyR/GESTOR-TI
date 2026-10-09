@@ -47,12 +47,21 @@ class GraphClient
     ) {}
 
     /**
-     * App-only access token of the tenant.
+     * The app registration (client id and secret) is set in the environment.
+     */
+    public static function isConfigured(): bool
+    {
+        return filled(config('services.microsoft.client_id')) && filled(config('services.microsoft.client_secret'));
+    }
+
+    /**
+     * App-only access token of the tenant. `$fresh` skips the cached token
+     * (Integraciones › "Probar conexión").
      *
      * @throws RuntimeException when the app credentials are not configured
      * @throws RequestException when Microsoft rejects the request
      */
-    public function token(string $tenantId): string
+    public function token(string $tenantId, bool $fresh = false): string
     {
         $tenantId = strtolower(trim($tenantId));
 
@@ -61,7 +70,7 @@ class GraphClient
         }
 
         $cacheKey = 'microsoft-graph:token:'.$tenantId;
-        $cached = $this->cache->get($cacheKey);
+        $cached = $fresh ? null : $this->cache->get($cacheKey);
 
         if (is_string($cached)) {
             try {
@@ -74,7 +83,7 @@ class GraphClient
         $clientId = (string) config('services.microsoft.client_id');
         $clientSecret = (string) config('services.microsoft.client_secret');
 
-        if ($clientId === '' || $clientSecret === '') {
+        if (! self::isConfigured()) {
             throw new RuntimeException('Microsoft app credentials (MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET) are not configured.');
         }
 

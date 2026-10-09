@@ -90,6 +90,16 @@ class AlertServiceTest extends TestCase
         Notification::assertNotSentTo([$this->derivadosManager, $this->plain], AlertRaised::class);
     }
 
+    public function test_default_recipients_skip_inactive_users(): void
+    {
+        $this->segurexManager->forceFill(['active' => false])->save();
+
+        $this->alerts()->raise(Alert::LEVEL_INFO, 'vault', 'Bóveda consultada');
+
+        Notification::assertSentTo([$this->globalManager, $this->derivadosManager], AlertRaised::class);
+        Notification::assertNotSentTo($this->segurexManager, AlertRaised::class);
+    }
+
     public function test_global_alerts_notify_every_manager(): void
     {
         $this->alerts()->raise(Alert::LEVEL_INFO, 'vault', 'Bóveda consultada');

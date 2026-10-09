@@ -348,6 +348,24 @@ class UsersAdminTest extends TestCase
         $this->assertSame(['active' => false], $activity->properties['attributes']);
     }
 
+    public function test_deactivate_clears_the_user_area_approvals_and_logs_them(): void
+    {
+        $paola = $this->member($this->segurex, ['name' => 'Paola Ríos']);
+        $ventas = Area::factory()->for($this->segurex)->create(['name' => 'Ventas', 'approver_user_id' => $paola->id]);
+        $compras = Area::factory()->for($this->segurex)->create(['name' => 'Compras', 'approver_user_id' => $paola->id]);
+        $ti = Area::factory()->for($this->segurex)->create(['name' => 'TI', 'approver_user_id' => $this->admin->id]);
+
+        $this->actingAs($this->admin)->patch(route('admin.users.deactivate', $paola))->assertSessionHasNoErrors();
+
+        $this->assertNull($ventas->fresh()->approver_user_id);
+        $this->assertNull($compras->fresh()->approver_user_id);
+        $this->assertSame($this->admin->id, $ti->fresh()->approver_user_id);
+
+        $activity = Activity::query()->where('event', 'user_deactivated')->sole();
+        $this->assertSame(['active' => true, 'approver_areas' => ['Compras', 'Ventas']], $activity->properties['old']);
+        $this->assertSame(['active' => false, 'approver_areas' => []], $activity->properties['attributes']);
+    }
+
     public function test_admins_cannot_deactivate_themselves(): void
     {
         $this->actingAs($this->admin)->patch(route('admin.users.deactivate', $this->admin))->assertForbidden();

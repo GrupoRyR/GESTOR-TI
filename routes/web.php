@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Admin\AdminTabPlaceholderController;
 use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
@@ -147,9 +147,18 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
         Route::put('/areas/{area}', [AreaController::class, 'update'])->whereNumber('area')->name('areas.update');
     });
 
-    // TEMPORARY: AdminLayout tab not wired yet (C7 Integraciones); it
-    // redirects to Empresas with a notice.
-    Route::get('/integrations', AdminTabPlaceholderController::class)->middleware('can:companies.manage')->name('integrations.index');
+    // Integraciones (`Admin/Integrations/Index`): Súper Admin (`settings.manage`).
+    // Test buttons: 5 per minute per user (shared bucket).
+    Route::middleware('can:settings.manage')->prefix('integrations')->name('integrations.')->group(function () {
+        Route::get('/', [IntegrationController::class, 'index'])->name('index');
+        Route::middleware('throttle:5,1,integrations-test')->group(function () {
+            Route::post('/microsoft/test', [IntegrationController::class, 'testMicrosoft'])->name('microsoft.test');
+            Route::post('/mail/test', [IntegrationController::class, 'testMail'])->name('mail.test');
+            Route::post('/telegram/test', [IntegrationController::class, 'testTelegram'])->name('telegram.test');
+        });
+        Route::put('/github', [IntegrationController::class, 'updateGithub'])->name('github.update');
+        Route::put('/ai', [IntegrationController::class, 'updateAi'])->name('ai.update');
+    });
 
     // Usuarios (`Admin/Users/Index`). Users outside the admin's company
     // scope answer 404 (UserDirectory).

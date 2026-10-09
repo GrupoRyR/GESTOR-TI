@@ -29,7 +29,8 @@ use Spatie\Permission\Exceptions\PermissionDoesNotExist;
  * - Recipients: given explicitly, else users with the permission
  *   `gestor.alerts.recipient_permission` (default `ai.manage`) of the alert's
  *   company plus global users (`is_global` or `companies.view_all`);
- *   group-wide alerts (no company) go to every holder.
+ *   group-wide alerts (no company) go to every holder. Deactivated users
+ *   (`users.active = false`) are skipped.
  */
 class AlertService
 {
@@ -147,7 +148,8 @@ class AlertService
         $permission = (string) config('gestor.alerts.recipient_permission', 'ai.manage');
 
         try {
-            $holders = User::permission($permission)->get();
+            // Deactivated users never receive alerts.
+            $holders = User::permission($permission)->where('active', true)->get();
         } catch (PermissionDoesNotExist) {
             return new Collection;
         }

@@ -114,9 +114,11 @@ class EmployeeSyncStatus
     }
 
     /**
+     * Stored state of the company (empty when it never synced).
+     *
      * @return array<string, mixed>
      */
-    private function get(int $companyId): array
+    public function get(int $companyId): array
     {
         return (array) $this->settings->get(self::KEY_PREFIX.$companyId, []);
     }

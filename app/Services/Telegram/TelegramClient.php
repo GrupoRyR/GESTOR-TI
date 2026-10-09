@@ -95,6 +95,20 @@ class TelegramClient
     }
 
     /**
+     * Current webhook state (WebhookInfo: url, pending_update_count,
+     * last_error_date, …), null when the bot is not configured or the call
+     * failed.
+     *
+     * @return ?array<string, mixed>
+     */
+    public function getWebhookInfo(): ?array
+    {
+        $result = $this->call('getWebhookInfo', []);
+
+        return is_array($result) ? $result : null;
+    }
+
+    /**
      * Sends a message that deletes itself after `$seconds` (credential
      * delivery, PROMPT §6.8.2). The deletion is a delayed job on the
      * database queue, run by the cron-driven worker: it happens on the first
