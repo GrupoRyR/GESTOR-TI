@@ -27,7 +27,7 @@ Out of scope: PHP, routes, controllers; Stage C (Asistente), D (GitHub actions, 
 - [x] T2 Requester pages (B1–B4): request wizard, submitted, my requests (+ empty), request detail requester view, acceptance validation, rating, hours saved, roadmap. Route: delegated.
 - [x] T3 IT triage (B5–B10): inbox, request detail IT view + action dialogs, approvals (phone + desktop + done), backlog, by area, my week. Route: delegated.
 - [x] T4 Projects (B11–B17): project index, summary, board + task drawer, task phone, requirements + respond, time and costs + time entry, report, admin costs and approvers. Route: delegated.
-- [ ] T5 Products, docs, value, vault (B18–B22): products, product detail, docs editor/templates/history/repo, search, value dashboard, vault locked/open/denied, states. Route: delegated.
+- [x] T5 Products, docs, value, vault (B18–B22): products, product detail, docs editor/templates/history/repo, search, value dashboard, vault locked/open/denied, states. Route: delegated.
 - [ ] T6 Handoff: `docs/design/stage-b-contract.md`, gallery check of every new page, PR. Route: inline.
 
 ## Acceptance criteria

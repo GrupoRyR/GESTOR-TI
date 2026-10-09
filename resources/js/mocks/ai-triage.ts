@@ -519,6 +519,18 @@ export const variants: Record<
     // Request detail (IT)
     'show-it': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI (GIA-148, duplicada)', props: showGia148 },
     'show-it-hour-value': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI con valor de hora (GIA-151, Leonardo)', props: showGia151 },
+    'show-it-save-error': {
+        page: 'Ai/Requests/Show',
+        label: 'Solicitud · error al guardar la evaluación (GIA-148)',
+        props: {
+            ...showGia148,
+            ...sharedFor('jhon', {
+                flash: {
+                    error: 'No se guardó la evaluación de GIA-148: el servidor no respondió a tiempo. Tus respuestas siguen en el formulario; no cierres la pestaña y vuelve a intentar. Si falla otra vez, copia la evaluación y avísale a Leonardo Herrera.',
+                },
+            }),
+        },
+    },
 
     // Approvals
     approvals: { page: 'Ai/Approvals/Index', label: 'Aprobaciones · escritorio (Jhon)', props: approvalsJhon },

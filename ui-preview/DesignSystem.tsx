@@ -8,7 +8,7 @@ import logoDerivadosDark from '../resources/brand/logo-derivados-dark.svg';
 import logoDerivados from '../resources/brand/logo-derivados.svg';
 import logoSegurexDark from '../resources/brand/logo-segurex-dark.svg';
 import logoSegurex from '../resources/brand/logo-segurex.svg';
-import { KANBAN_COLUMNS, KanbanCard, KanbanColumn, TimerButton, VaultZone } from '@/Components/ai';
+import { KANBAN_COLUMNS, KanbanCard, KanbanColumn, SkeletonBoard, TimerButton, VaultZone } from '@/Components/ai';
 import {
     Alert,
     Avatar,
@@ -535,6 +535,13 @@ export function DesignSystem() {
                         title="Esta sección es solo para Administración"
                         description="Tu rol es Usuario final. Si necesitas entrar, pídeselo a Jhon Castro o a Leonardo Herrera."
                     />
+                    <Panel
+                        title="Kanban cargando"
+                        description="Esqueleto con las columnas reales; los nombres aparecen de una vez (B-States)"
+                        className="lg:col-span-2"
+                    >
+                        <SkeletonBoard title="P-07 · Visualizador de cartera" />
+                    </Panel>
                 </div>
             </Section>
 

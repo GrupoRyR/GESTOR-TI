@@ -132,6 +132,8 @@ export function MarkdownEditor({
                             value={value}
                             readOnly={readOnly}
                             spellCheck
+                            // No soft wrap: each visual line matches its number in the gutter.
+                            wrap="off"
                             onChange={(event) => onChange(event.target.value)}
                             onKeyDown={onKeyDown}
                             className="min-h-full w-full flex-1 resize-none bg-transparent px-4 py-4 font-mono text-[13px] leading-6 text-fg outline-none [field-sizing:content] focus-visible:outline-2 focus-visible:-outline-offset-2"

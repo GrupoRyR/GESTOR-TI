@@ -400,7 +400,17 @@ export interface ProductDetail extends Product {
 
 // ---- documentation --------------------------------------------------------
 
-export type DocTemplate = 'project_sheet' | 'requirements' | 'decisions' | 'user_manual' | 'technical_manual' | 'prompts' | 'architecture' | 'blank';
+export type DocTemplate =
+    | 'project_sheet'
+    | 'requirements'
+    | 'decisions'
+    | 'user_manual'
+    | 'technical_manual'
+    | 'prompts'
+    | 'architecture'
+    /** "Acta de entrega": the area confirms it received the app. */
+    | 'delivery_record'
+    | 'blank';
 
 export interface DocSummary {
     id: number;
@@ -468,15 +478,20 @@ export interface VaultItem {
     notes: string | null;
 }
 
-/** Response of the reveal endpoint: the only shape that carries a secret. */
+/**
+ * Response of the reveal endpoint: the only shape that carries a secret.
+ * The UI counts `expires_in_seconds` (30) from the moment it receives it, so
+ * clock skew between server and device never lengthens the exposure, then
+ * wipes the value from memory and from the Inertia page/history state.
+ */
 export interface VaultRevealed {
     item_id: number;
     value: string;
-    /** The UI hides the value at this instant (30 s after reveal). */
-    visible_until: string;
+    /** Seconds the value stays visible (30; the UI never shows it longer). */
+    expires_in_seconds: number;
 }
 
-export type VaultAction = 'viewed' | 'copied' | 'changed' | 'created' | 'blocked';
+export type VaultAction = 'viewed' | 'copied' | 'changed' | 'created' | 'deleted' | 'blocked';
 
 export interface VaultAccessLog {
     id: number;

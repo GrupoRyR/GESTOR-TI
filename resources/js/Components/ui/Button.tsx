@@ -3,7 +3,8 @@ import type { ButtonHTMLAttributes, MouseEventHandler, ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 import { cx } from './utils';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'success' | 'dark';
+/** `vault`: amber main action inside the dark VaultZone only. */
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'success' | 'dark' | 'vault';
 export type ButtonSize = 'md' | 'lg' | 'xl';
 export type LinkMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
@@ -14,6 +15,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
     danger: 'border border-status-failure-line bg-status-failure-bg text-status-failure hover:brightness-[0.97]',
     success: 'bg-status-active text-white hover:brightness-[0.93] dark:text-on-fg',
     dark: 'bg-fg text-on-fg hover:brightness-[1.15] dark:hover:brightness-[0.9]',
+    vault: 'bg-status-maintenance text-on-fg hover:brightness-[0.93]',
 };
 
 const SIZES: Record<ButtonSize, string> = {

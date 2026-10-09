@@ -1212,6 +1212,8 @@ export const VERSIONS_VISUALIZADOR: ProductVersion[] = [
 const P07_OWNER = { kind: 'project' as const, key: 'P-07', name: 'Visualizador de cartera' };
 const VIS_OWNER = { kind: 'product' as const, key: 'visualizador-cartera', name: 'Visualizador de cartera' };
 const TP_OWNER = { kind: 'product' as const, key: 'toma-pedidos', name: 'Toma Pedidos SAP' };
+const PORT_OWNER = { kind: 'product' as const, key: 'portafolio', name: 'Portafolio de productos' };
+const P06_OWNER = { kind: 'project' as const, key: 'P-06', name: 'Toma Pedidos · descuentos' };
 
 export const DOCS: DocSummary[] = [
     { id: 1, title: 'Ficha del proyecto', template: 'project_sheet', owner: P07_OWNER, version: 3, not_applicable: false, updated_at: '2026-09-30T10:00:00-05:00' },
@@ -1223,6 +1225,13 @@ export const DOCS: DocSummary[] = [
     { id: 7, title: 'Ficha del proyecto', template: 'project_sheet', owner: TP_OWNER, version: 6, not_applicable: false, updated_at: '2026-09-02T10:00:00-05:00' },
     { id: 8, title: 'Arquitectura y datos', template: 'architecture', owner: TP_OWNER, version: 3, not_applicable: false, updated_at: '2026-08-20T10:00:00-05:00' },
     { id: 9, title: 'Manual de usuario', template: 'user_manual', owner: TP_OWNER, version: 9, not_applicable: false, updated_at: '2026-09-28T10:00:00-05:00' },
+    { id: 10, title: 'Ficha del proyecto', template: 'project_sheet', owner: PORT_OWNER, version: 4, not_applicable: false, updated_at: '2026-09-10T10:00:00-05:00' },
+    { id: 11, title: 'Manual de usuario', template: 'user_manual', owner: PORT_OWNER, version: 5, not_applicable: false, updated_at: '2026-09-24T10:00:00-05:00' },
+    { id: 12, title: 'Manual técnico y de despliegue', template: 'technical_manual', owner: PORT_OWNER, version: 2, not_applicable: false, updated_at: '2026-08-12T10:00:00-05:00' },
+    { id: 13, title: 'Arquitectura y datos', template: 'architecture', owner: PORT_OWNER, version: 2, not_applicable: false, updated_at: '2026-08-12T10:00:00-05:00' },
+    { id: 14, title: 'Ficha del proyecto', template: 'project_sheet', owner: P06_OWNER, version: 2, not_applicable: false, updated_at: '2026-09-02T10:00:00-05:00' },
+    { id: 15, title: 'Requerimientos y criterios', template: 'requirements', owner: P06_OWNER, version: 3, not_applicable: false, updated_at: '2026-09-29T10:00:00-05:00' },
+    { id: 16, title: 'Registro de decisiones', template: 'decisions', owner: P06_OWNER, version: 1, not_applicable: false, updated_at: '2026-09-05T10:00:00-05:00' },
 ];
 
 export const MANUAL_V7 = `# Visualizador de cartera
@@ -1329,7 +1338,7 @@ export const VAULT_ITEMS: VaultItem[] = [
 export const VAULT_REVEALED_SAMPLE: VaultRevealed = {
     item_id: 1,
     value: 'sk-muestra-9c41f0a7d2e84b6b0e31',
-    visible_until: '2026-10-07T09:40:24-05:00',
+    expires_in_seconds: 30,
 };
 
 export const VAULT_LOG: VaultAccessLog[] = [
