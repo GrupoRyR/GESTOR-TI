@@ -28,7 +28,7 @@ Out of scope: PHP, routes, controllers; Stage C (Asistente), D (GitHub actions, 
 - [x] T3 IT triage (B5–B10): inbox, request detail IT view + action dialogs, approvals (phone + desktop + done), backlog, by area, my week. Route: delegated.
 - [x] T4 Projects (B11–B17): project index, summary, board + task drawer, task phone, requirements + respond, time and costs + time entry, report, admin costs and approvers. Route: delegated.
 - [x] T5 Products, docs, value, vault (B18–B22): products, product detail, docs editor/templates/history/repo, search, value dashboard, vault locked/open/denied, states. Route: delegated.
-- [ ] T6 Handoff: `docs/design/stage-b-contract.md`, gallery check of every new page, PR. Route: inline.
+- [x] T6 Handoff: `docs/design/stage-b-contract.md`, gallery check of every new page, PR. Route: inline.
 
 ## Acceptance criteria
 - `npm run typecheck`, `npm test`, `npm run build:preview` pass.
@@ -41,5 +41,8 @@ Typecheck + Vitest for pure helpers written test-first (priority formula, budget
 ## Progress
 - 2026-10-09: branch created from Stage A head (124 tests green); document created.
 
+- T1 `869d274` foundations (199 tests) · T2 `50c3df8` requester pages (219) · T3 `b2c84ca` IT triage + requester bottom bar (235) · T4 `23e869c` projects/board/costs/report/admin costs (259) · T5 `6c8d516` products/docs/value/vault (300). All delegated writers; each verified with typecheck, tests (helpers test-first) and build; writers checked variants in the gallery at 390/834/1440; parent spot-checked Board+drawer, Vault open (desktop) and Approval (phone, dark).
+- T6 inline: `docs/design/stage-b-contract.md`; PR stacked on Stage A.
+
 ## Next step
-T1 foundations.
+Jhon reviews the gallery; merge #8 first, then retarget the Stage B PR to main.
