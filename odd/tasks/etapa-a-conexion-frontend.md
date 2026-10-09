@@ -158,4 +158,4 @@ Mapping report from 2026-10-09 (summarised in tasks below): shared props/modules
 - Other notes for design: no reactivate-user action (DB only; `UserDetailPanel` and the emergency dialog mention reactivation); `auth.user.company_id` nullable; guest pages receive extra shared keys; `flash.*` arrive as `null`; `AdminCompany.tenant_id`/`sender_email` arrive as `''`; Login always links `login.emergency` (404 when not configured); emergency lockout copy mentions a Telegram alert (now sent through `AlertService` from C4); Integraciones model options per provider and cap-0 handling (see C7); design-owned `app.css` got `@source` lines in C1.
 
 ## Next step
-Push slice `stage-a/08-connect-frontend` and open PR; then Stage B.
+PR GrupoRyR/GESTOR-TI#9 opened (`stage-a/08-connect-frontend` → `stage-a/07-audit-deploy`). Then Stage B.
