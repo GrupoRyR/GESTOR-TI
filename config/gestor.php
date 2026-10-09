@@ -46,6 +46,14 @@ return [
         // Gestor IA: business days for the first response to a request.
         'ai.first_response_business_days' => 3,
 
+        // Holidays skipped by the first-response window (`YYYY-MM-DD`
+        // strings; weekends are always skipped). No calendar is bundled.
+        'ai.holidays' => [],
+
+        // Project approval: when the approver is the person who evaluated
+        // the request, require the other approver (off by default, 6.4).
+        'ai.approval.require_other_if_evaluator' => false,
+
         // AI spend: monthly cap in USD (0 = not configured yet; pending
         // from Jhon) and warning threshold in percent of the cap.
         'ai.monthly_cost_cap_usd' => 0.0,
@@ -67,6 +75,23 @@ return [
     | small curated list for the selector — the saved model may be any id.
     */
     'ai' => [
+        // Request files (App\Domain\Ai\RequestAttachments): private disk,
+        // the design's wizard limits (lib/wizard.ts: 10 files of 10 MB;
+        // images, PDF, Excel, CSV). Types are detected from the content;
+        // SVG is left out on purpose (scripts), CSV is often `text/plain`.
+        'attachments' => [
+            'disk' => 'local',
+            'max_files' => 10,
+            'max_kb' => 10 * 1024,
+            'mimetypes' => [
+                'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
+                'application/pdf',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'text/csv', 'text/plain',
+            ],
+        ],
+
         'providers' => [
             'deepseek' => [
                 'label' => 'DeepSeek',

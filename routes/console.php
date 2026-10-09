@@ -27,6 +27,12 @@ Schedule::command('gestor:sync-employees')
     ->timezone('America/Bogota')
     ->withoutOverlapping();
 
+// Gestor IA: requests past their first-response deadline alert Jhon
+// (`ai.manage`); grouped per request, so reruns never duplicate alerts.
+Schedule::command('ai:first-response-alerts')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')
