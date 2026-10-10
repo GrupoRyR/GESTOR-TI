@@ -81,6 +81,43 @@ class TemplateViewsTest extends TestCase
         $this->assertStringNotContainsString('Si se aprueba, queda en el', $rendered);
     }
 
+    public function test_the_project_report_renders_without_any_cost_variable_for_the_other_group(): void
+    {
+        $samples = json_decode((string) file_get_contents(resource_path('emails/samples.json')), true);
+        $template = EmailTemplate::ProjectReport;
+        $data = array_intersect_key(
+            [...$this->sample($template, 'segurex'), ...$samples['templates'][$template->value]['without_costs']['data']],
+            array_flip($template->allowedVariables(withCosts: false)),
+        );
+
+        $this->assertFalse($data['can_view_costs']);
+        $this->assertSame([], array_values(preg_grep('/cost|hour|budget|rate|approver/', array_diff(array_keys($data), ['can_view_costs']))));
+
+        foreach (['html', 'txt'] as $format) {
+            $rendered = view($this->viewName($template, $format), $data)->render();
+            $visible = $format === 'txt' ? html_entity_decode($rendered, ENT_QUOTES | ENT_HTML5, 'UTF-8') : $rendered;
+
+            $this->assertSame(
+                $this->normalize($this->reference($this->source($template, $format), $data, $format === 'html')),
+                $this->normalize($visible),
+            );
+            $this->assertDoesNotMatchRegularExpression('/\$\s?\d|\d+ h de|presupuesto/u', $visible);
+            $this->assertStringContainsString('Recibes este informe porque pediste el proyecto P-07 (GIA-139).', $visible);
+        }
+    }
+
+    public function test_the_requirement_hides_the_secrets_warning_when_no_keys_are_asked(): void
+    {
+        $data = [...$this->sample(EmailTemplate::Requirement, 'derivados'), 'asks_for_secrets' => false, 'is_overdue' => false];
+
+        foreach (['html', 'txt'] as $format) {
+            $rendered = view($this->viewName(EmailTemplate::Requirement, $format), $data)->render();
+
+            $this->assertStringNotContainsString('No envíes las claves por correo', $rendered);
+            $this->assertStringContainsString('Vence el jueves 1 oct', html_entity_decode($rendered, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+    }
+
     public function test_html_views_keep_outlook_conditionals_and_have_no_svg_or_tracking(): void
     {
         foreach (EmailTemplate::cases() as $template) {
@@ -160,8 +197,9 @@ class TemplateViewsTest extends TestCase
                 continue;
             }
 
-            // A marker alone on its line: keep the marker, drop the line break.
-            $lines[] = preg_match('/^\s*(<!--\s*@\w+.*?-->)\s*$/u', $line, $m) === 1 ? "\x00".$m[1] : $line;
+            // A marker alone on its line (exactly one comment): keep the
+            // marker, drop the line break.
+            $lines[] = preg_match('/^\s*(<!--\s*@\w+(?:(?!-->).)*-->)\s*$/u', $line, $m) === 1 ? "\x00".$m[1] : $line;
         }
 
         $text = (string) preg_replace("/\n\x00/", '', implode("\n", $lines));

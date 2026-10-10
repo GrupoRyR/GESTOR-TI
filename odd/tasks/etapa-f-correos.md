@@ -31,7 +31,7 @@ Every Gestor TI email uses the approved templates:
   - **Wiring:** connect them to the existing notifications.
   - **Tests:** a variable whitelist so requester mails never carry cost, hours, rates or internal fields.
   - Route: delegated (writer trigger).
-- [ ] F2 · `requirement` and `project-report`.
+- [x] F2 · `requirement` and `project-report`.
   - The cost blocks render only for `ai.costs.view` recipients: one render per group, and no cost data at all for the others.
   - The approver lists come from the current `ai.projects.approve` holders.
   - Reminders for requirements.
@@ -68,6 +68,36 @@ Every Gestor TI email uses the approved templates:
   - (b) `RequestRating.ease` can now be null (one-click rating), so the type and its display need `| null`.
   - (c) `delivered` has no variant without a product or version: a manual "En producción" without a release reads "en el Gestor v".
   - (d) After a one-click rating there is no "add a comment" step. The request page's conversation is the fallback.
+
+### F2 · Requirement and project report — done (this commit)
+- **Route:** delegated writer (writer trigger: 2+ non-trivial files).
+- **Views:** `resources/views/mail/{html,text}/{requirement,project-report}.blade.php`, generated with `TemplateToBlade`. They are new `EmailTemplate` cases, so the drift test covers them.
+  - Two converter fixes, needed by these templates; the five F1 views regenerate byte-identical:
+    - A line with several markers is no longer read as a single marker.
+    - Blade skips a directive glued to a letter (`esperando@else`) or a bare one followed by one (`@elseRecibes`). Those cases become the equivalent PHP tags.
+  - The test's reference renderer got the same multi-marker fix. New drift cases cover the no-costs `project-report` and the hidden secrets warning.
+- **`requirement`** (`App\Support\Mail\ProjectEmails::requirement`):
+  - Built by `AiRequirementRequested` (registered or passed on) and `AiRequirementReminder` (manual "Recordar" and `ai:requirement-reminders`) through `toMail`. The requirement is read fresh, with the default layout if it is gone.
+  - Channels come from the preferences of `ai.requirement.requested`. One email per event.
+  - `reminder_text`: "Este es el primero / segundo / tercero…"; the reminder number is captured before `reminders_sent` increments. On registration it reads "Si sigue pendiente, te lo recordamos cerca de la fecha límite".
+  - `asks_for_secrets` is true when the title or detail mention keys, passwords, credentials, tokens or secrets.
+  - `needs`: the detail lines, else the title.
+  - `blocked_task`: "T2 · title", else "que depende de este dato".
+  - `due_note`: "vence hoy / mañana / en N días", "venció ayer / hace N días".
+  - Sender and branding come from the project's company. `action_url` is `ai.requirements.respond`.
+- **`project-report`** (`App\Mail\ProjectReportMail` now extends `TemplateMail`; data from `ProjectEmails::projectReport`):
+  - `ProjectReports::send` is unchanged and still builds the content per recipient group. `budget` carries money only with `ai.costs.view`, the internal version, the section chosen and `include_costs`.
+  - With costs: `can_view_costs` true and every cost variable, including the date risk and `approvers_and` / `approvers_or`.
+  - Without costs: the data has no cost, hour, budget, rate, date-vs-approval or approver key at all. `EmailTemplate::COST_VARIABLES` is dropped by the whitelist whenever `can_view_costs` is not true.
+  - The approvers are the current `ai.projects.approve` holders (`TriagePeople::approvers`), joined "A y a B" / "A o B" (README sample), "A, a B y a C" / "A, B o C" for three or more, and "los aprobadores de proyectos" when there are none.
+  - From, branding and subject come from the project's company. The PDF attachment stays. The old `mail/project-report.blade.php` was removed; the PDF still uses `mail/partials/project-report-body`.
+- **No tracking.** `action_url` comes with the plain fallback link, plus `preferences_url`.
+- **RED:** 10 of the new tests failed on the base (missing cases, `ProjectEmails`, template wiring). **GREEN:** `RequirementEmailTest` (5), `ProjectReportEmailTest` (4), `TemplateViewsTest` (46 with the new cases).
+- **Checks:** `php artisan test --filter='Mail|Report|Requirement'` 136 passed; `php artisan test` 1260 passed (baseline 1237 + 23 new); `vendor/bin/pint --test` passed.
+- **Notes for design:**
+  - (e) `requirement` always says "Lleva {{ days_waiting }} días esperando", so the first email reads "Lleva 0 días esperando" and a later one can read "1 días". A variant or a plural rule is needed.
+  - (f) `project-report` has no `project_title` subtitle in the app, so the title repeats the project name.
+  - (g) `done_items` / `next_items` always show, even when the report settings drop those sections; `risks` follows the `blockers` section.
 
 ## Open questions (for Jhon)
 - Does the app process email replies? If not, `reply_by_email` stays off.

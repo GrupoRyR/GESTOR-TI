@@ -3,13 +3,16 @@
 namespace App\Notifications;
 
 use App\Models\AiRequirement;
+use App\Support\Mail\ProjectEmails;
+use Illuminate\Mail\Mailable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Route;
 
 /**
  * IT needs something from the person (PROMPT 6.4.3): sent when a
  * requirement is created for them or passed to them by a coworker. Uses
  * the event `ai.requirement.requested` (mail, Telegram and bell by default).
- * No costs, no task names.
+ * No costs. Mail: the approved `requirement` template.
  */
 class AiRequirementRequested extends GestorNotification
 {
@@ -59,5 +62,20 @@ class AiRequirementRequested extends GestorNotification
     public function actionText(): string
     {
         return 'Responder';
+    }
+
+    /**
+     * The approved `requirement` email, built from the requirement read
+     * fresh when the queued mail leaves (the default layout if it is gone).
+     */
+    public function toMail(object $notifiable): MailMessage|Mailable
+    {
+        $requirement = AiRequirement::withoutGlobalScopes()->find($this->requirementId);
+
+        if ($requirement === null) {
+            return parent::toMail($notifiable);
+        }
+
+        return $this->templateMail($notifiable, ProjectEmails::requirement($requirement));
     }
 }

@@ -17,6 +17,8 @@ enum EmailTemplate: string
     case StatusChanged = 'status-changed';
     case ItQuestion = 'it-question';
     case Delivered = 'delivered';
+    case Requirement = 'requirement';
+    case ProjectReport = 'project-report';
 
     /**
      * Variables every template receives (README "Shared variables").
@@ -24,6 +26,17 @@ enum EmailTemplate: string
     public const SHARED = [
         'company_name', 'company_sender', 'brand_color', 'logo_url', 'logo_dark_url', 'logo_width',
         'action_url', 'preferences_url',
+    ];
+
+    /**
+     * `project-report` variables that live only inside `@if can_view_costs`:
+     * time, cost, dates against the approval and the approvers. Recipients
+     * without `ai.costs.view` get none of them (README "Privacy rules").
+     */
+    public const COST_VARIABLES = [
+        'summary_with_costs', 'hours_used', 'hours_budget', 'hours_left', 'hours_percent',
+        'cost_used', 'cost_budget', 'cost_percent', 'cost_bar_color', 'cost_alert',
+        'projected_date', 'approved_date', 'days_late', 'cost_reapproval_limit', 'approvers_and', 'approvers_or',
     ];
 
     public function htmlView(): string
@@ -41,7 +54,7 @@ enum EmailTemplate: string
      */
     public function isForRequester(): bool
     {
-        return $this !== self::NewRequest;
+        return in_array($this, [self::RequestReceived, self::StatusChanged, self::ItQuestion, self::Delivered], true);
     }
 
     /**
@@ -63,15 +76,32 @@ enum EmailTemplate: string
                 'request_key', 'request_title', 'requester_first_name', 'product_name', 'release_version', 'released_on',
                 'change_title', 'change_paragraphs', 'rating_url_1', 'rating_url_2', 'rating_url_3', 'rating_url_4', 'rating_url_5',
             ],
+            self::Requirement => [
+                'project_key', 'request_key', 'request_title', 'area_name', 'requirement_title', 'requested_by_name',
+                'is_overdue', 'days_waiting', 'due_date', 'due_note', 'due_summary', 'blocked_task', 'needs',
+                'asks_for_secrets', 'reminder_text',
+            ],
+            self::ProjectReport => [
+                'can_view_costs', 'project_key', 'project_name', 'project_title', 'request_key', 'requested_by',
+                'report_date', 'report_date_short', 'status_label', 'status_glyph', 'status_family', 'status_bg', 'status_fg',
+                'summary', 'phases', 'tasks_done', 'tasks_total', 'tasks_percent', 'criteria_met', 'criteria_total',
+                'criteria_percent', 'criteria_met_marks', 'criteria_pending_marks', 'done_items', 'next_items', 'risks',
+                ...self::COST_VARIABLES,
+            ],
         };
     }
 
     /**
+     * Shared + own variables. Without costs (`project-report` for people
+     * without `ai.costs.view`), the cost variables are left out entirely.
+     *
      * @return list<string>
      */
-    public function allowedVariables(): array
+    public function allowedVariables(bool $withCosts = true): array
     {
-        return [...self::SHARED, ...$this->variables()];
+        $variables = [...self::SHARED, ...$this->variables()];
+
+        return $withCosts ? $variables : array_values(array_diff($variables, self::COST_VARIABLES));
     }
 
     /**
@@ -82,6 +112,7 @@ enum EmailTemplate: string
     public function subject(array $data): string
     {
         $key = (string) ($data['request_key'] ?? '');
+        $project = (string) ($data['project_key'] ?? '');
 
         return match ($this) {
             self::NewRequest => "[{$key}] Nueva solicitud: ".($data['request_title'] ?? ''),
@@ -89,6 +120,8 @@ enum EmailTemplate: string
             self::StatusChanged => "[{$key}] Tu solicitud está ".($data['status_text'] ?? ''),
             self::ItQuestion => "[{$key}] TI tiene una pregunta sobre tu solicitud",
             self::Delivered => "[{$key}] Ya está en producción: ".($data['request_title'] ?? ''),
+            self::Requirement => "[{$project}] TI necesita ".($data['requirement_title'] ?? '').' · '.($data['due_summary'] ?? ''),
+            self::ProjectReport => "[{$project}] Informe semanal: ".($data['project_name'] ?? '').' al '.($data['report_date_short'] ?? ''),
         };
     }
 }

@@ -25,7 +25,7 @@ final class RequestEmails
     /**
      * Status → [glyph, family]; colors per family (design status tokens).
      */
-    private const FAMILY_COLORS = [
+    public const FAMILY_COLORS = [
         'gray' => ['#F0F0EC', '#45484E'],
         'amber' => ['#FFF4DB', '#7A4F00'],
         'blue' => ['#E8EEFA', '#1E4FA8'],
@@ -34,7 +34,7 @@ final class RequestEmails
         'red' => ['#FEEEEC', '#B42318'],
     ];
 
-    private const PHASES = [1 => 'Evaluación', 2 => 'Aprobación', 3 => 'Plan', 4 => 'Construcción', 5 => 'Entrega'];
+    public const PHASES = [1 => 'Evaluación', 2 => 'Aprobación', 3 => 'Plan', 4 => 'Construcción', 5 => 'Entrega'];
 
     /**
      * `new-request`, to IT.
@@ -228,7 +228,7 @@ final class RequestEmails
     /**
      * Phase of the rail (resources/js/lib/status.ts `phase`).
      */
-    private static function phase(RequestStatus $status): int
+    public static function phase(RequestStatus $status): int
     {
         return match ($status) {
             RequestStatus::Received, RequestStatus::Evaluating, RequestStatus::NeedsInfo => 1,

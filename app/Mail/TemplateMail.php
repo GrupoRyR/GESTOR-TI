@@ -15,7 +15,8 @@ use Illuminate\Support\HtmlString;
  * - Subject: the template's;
  * - View data: the shared company variables (MailBranding) plus the given
  *   ones, filtered to the template's whitelist (EmailTemplate), so nothing
- *   outside it (costs, hours, internal notes…) ever reaches the view;
+ *   outside it (costs, hours, internal notes…) ever reaches the view; with
+ *   `can_view_costs` not true, the cost variables are dropped as well;
  * - `preferences_url`: "Cambiar mis avisos" (Perfil).
  *
  * The plain-text part goes through the same escaped Blade echoes as the
@@ -28,7 +29,7 @@ class TemplateMail extends Mailable
     /**
      * @param  array<string, mixed>  $variables  already whitelisted
      */
-    private function __construct(
+    protected function __construct(
         private readonly EmailTemplate $template,
         private readonly array $variables,
     ) {
@@ -43,13 +44,25 @@ class TemplateMail extends Mailable
      */
     public static function make(EmailTemplate $template, ?Company $company, array $data): self
     {
+        return new self($template, self::data($template, $company, $data));
+    }
+
+    /**
+     * The whitelisted view data of a template for a company.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected static function data(EmailTemplate $template, ?Company $company, array $data): array
+    {
         $variables = [
             ...MailBranding::for($company),
             'preferences_url' => route('profile.edit'),
             ...$data,
         ];
+        $withCosts = ($variables['can_view_costs'] ?? false) === true;
 
-        return new self($template, array_intersect_key($variables, array_flip($template->allowedVariables())));
+        return array_intersect_key($variables, array_flip($template->allowedVariables($withCosts)));
     }
 
     public function template(): EmailTemplate

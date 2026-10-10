@@ -3,20 +3,26 @@
 namespace App\Mail;
 
 use App\Domain\Ai\ProjectReports;
+use App\Models\Company;
+use App\Support\Mail\EmailTemplate;
+use App\Support\Mail\ProjectEmails;
 use Illuminate\Mail\Attachment;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Address;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Support\Carbon;
 
 /**
- * Project report by e-mail (HTML body + the same content as PDF). The
- * content was built for this recipient: `budget` is null unless they may
- * see time and cost (App\Domain\Ai\ProjectReports::send). Sent from the
- * project company's sender mailbox when it has one.
+ * Weekly project report by e-mail: the approved `project-report` template
+ * (HTML + text) plus the same content as PDF.
+ *
+ * The content was built for the recipient's group
+ * (App\Domain\Ai\ProjectReports::send): `budget` carries money only when
+ * they may see time and cost (`ai.costs.view`, internal version, section
+ * chosen). The view data follows: `can_view_costs` and the cost variables
+ * for that group; for everyone else the data has no cost, hour, budget,
+ * rate or approver key at all (ProjectEmails + the template whitelist).
+ *
+ * From, branding and subject come from the project's company
+ * (TemplateMail); `$senderEmail` / `$senderName` are kept for the callers.
  */
-class ProjectReportMail extends Mailable
+class ProjectReportMail extends TemplateMail
 {
     /**
      * @param  array<string, mixed>  $content  design `ReportContent`
@@ -28,25 +34,13 @@ class ProjectReportMail extends Mailable
         public string $version,
         public ?string $senderEmail = null,
         public ?string $senderName = null,
-    ) {}
+    ) {
+        $company = isset($content['company_id']) ? Company::query()->find($content['company_id']) : null;
 
-    public function envelope(): Envelope
-    {
-        $project = $this->content['project'];
-        $date = Carbon::parse((string) $this->content['as_of'])->format('d/m/Y');
-
-        return new Envelope(
-            from: $this->senderEmail !== null ? new Address($this->senderEmail, $this->senderName) : null,
-            subject: "{$project['key']} {$project['name']}: informe al {$date}",
+        parent::__construct(
+            EmailTemplate::ProjectReport,
+            self::data(EmailTemplate::ProjectReport, $company, ProjectEmails::projectReport($content, $sections)),
         );
-    }
-
-    public function content(): Content
-    {
-        return new Content(view: 'mail.project-report', with: [
-            'content' => $this->content,
-            'sections' => $this->sections,
-        ]);
     }
 
     /**

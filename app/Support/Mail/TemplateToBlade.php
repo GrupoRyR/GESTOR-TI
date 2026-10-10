@@ -28,7 +28,11 @@ final class TemplateToBlade
 {
     private const DOC_COMMENT = '/<!--\s*(?:subject|from|to|when|partial):.*?-->/u';
 
-    private const MARKER = '/<!--\s*@(if|else|endif|optional|endoptional|foreach|endforeach)\b\s*(.*?)\s*-->/u';
+    /**
+     * One marker comment; its argument never spans another comment, so a
+     * line with several markers is never read as a single one.
+     */
+    private const MARKER = '/<!--\s*@(if|else|endif|optional|endoptional|foreach|endforeach)\b\s*((?:(?!-->).)*?)\s*-->/u';
 
     public static function convert(string $source): string
     {
@@ -52,11 +56,17 @@ final class TemplateToBlade
 
             $converted = preg_replace_callback(
                 self::MARKER,
-                fn (array $match): string => self::directive($match[1], $match[2]),
+                fn (array $match): string => self::inline(
+                    $match[1][0],
+                    $match[2][0],
+                    $match[0][1] > 0 ? $converted[$match[0][1] - 1] : '',
+                    substr($converted, $match[0][1] + strlen($match[0][0]), 1),
+                ),
                 $converted,
+                flags: PREG_OFFSET_CAPTURE,
             ) ?? $converted;
 
-            if (preg_match('/@(endif|else|endforeach)$/', $converted) === 1 || preg_match('/@(if|foreach) \(.*\)$/', $converted) === 1) {
+            if (preg_match('/(@(endif|else|endforeach)|\?>)$/', $converted) === 1 || preg_match('/@(if|foreach) \(.*\)$/', $converted) === 1) {
                 $converted .= "\n";
             }
 
@@ -84,6 +94,36 @@ final class TemplateToBlade
             'foreach' => self::foreach($argument),
             'endforeach' => '@endforeach',
         };
+    }
+
+    /**
+     * An inline directive. Blade ignores a directive right after a letter
+     * or digit ("esperando@else") and reads a bare one followed by a letter
+     * as a longer name ("@elseRecibes"), so there it becomes the equivalent
+     * PHP tag, which also swallows the newline after it like a directive.
+     */
+    private static function inline(string $name, string $argument, string $before, string $after): string
+    {
+        $bare = in_array($name, ['else', 'endif', 'endoptional', 'endforeach'], true);
+
+        if (preg_match('/^\w$/', $before) !== 1 && ! ($bare && preg_match('/^\w$/', $after) === 1)) {
+            return self::directive($name, $argument);
+        }
+
+        return match ($name) {
+            'if', 'optional' => '<?php if ('.self::variable($argument).'): ?>',
+            'else' => '<?php else: ?>',
+            'endif', 'endoptional' => '<?php endif; ?>',
+            'foreach' => '<?php foreach ('.self::foreachArguments($argument).'): ?>',
+            'endforeach' => '<?php endforeach; ?>',
+        };
+    }
+
+    private static function foreachArguments(string $argument): string
+    {
+        [$list, $item] = array_map('trim', explode(' as ', $argument, 2));
+
+        return self::variable($list).' as $'.$item;
     }
 
     private static function foreach(string $argument): string

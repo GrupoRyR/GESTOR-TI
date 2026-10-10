@@ -7,7 +7,7 @@ use Carbon\CarbonInterface;
 /**
  * Dates already phrased in Spanish for the email templates, in Bogotá time
  * (samples.json formats): "martes 13 oct", "5:00 p. m.", "hoy 5:00 p. m.",
- * "hoy, 9:14 a. m.".
+ * "hoy, 9:14 a. m.", "7 oct".
  */
 final class MailDates
 {
@@ -25,6 +25,16 @@ final class MailDates
         $local = self::local($date);
 
         return self::DAYS[$local->dayOfWeek].' '.$local->day.' '.self::MONTHS[$local->month - 1];
+    }
+
+    /**
+     * "7 oct" (subjects and short dates).
+     */
+    public static function short(CarbonInterface $date): string
+    {
+        $local = self::local($date);
+
+        return $local->day.' '.self::MONTHS[$local->month - 1];
     }
 
     /**
