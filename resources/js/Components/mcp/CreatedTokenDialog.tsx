@@ -95,7 +95,7 @@ export function CreatedTokenDialog({ token, onDone, initiallyCopied = false }: C
 
             <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-line px-3.5 py-3">
                 <SectionTile icon="book" size={36} />
-                <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex min-w-[12rem] flex-1 basis-[12rem] flex-col">
                     <b className="text-sm">Siguiente paso</b>
                     <span className="text-[13px] text-fg-soft">Pega la dirección del servidor y este token en Claude.</span>
                 </span>

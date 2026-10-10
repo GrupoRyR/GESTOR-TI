@@ -29,12 +29,12 @@ Out of scope: the MCP server itself, PHP and routes.
 `stacked-to-main` chain. Branch `claude/diseno-gestor-ia-etapa-e` is stacked on Stage D (`claude/diseno-gestor-ia-etapa-d`, PR #20). There is one PR with base = the Stage D branch.
 
 ## Tasks
-- [ ] T1 Conector page.
+- [x] T1 Conector page.
   - **Pages and props:** `Profile/Mcp` with tokens, create dialog, show-once, setup section, activity and revoke, and states. Types `types/pages/profile-mcp.ts`, mocks `mocks/profile-mcp.ts`.
   - **Components and helpers:** components in `Components/mcp/`. Test-first helpers: expiry date and days left, last4 masking, tool list per permission, and the `claude mcp add` command builder.
   - **Profile link:** add a link from `Profile/Edit`.
   - **Route:** delegated (2+ non-trivial files).
-- [ ] T2 Handoff.
+- [x] T2 Handoff.
   - `docs/design/stage-e-contract.md`, a gallery check and the PR.
   - **Route:** inline.
 
@@ -51,6 +51,8 @@ Out of scope: the MCP server itself, PHP and routes.
 
 ## Progress
 - 2026-10-10: branch created from the Stage D head (`8810f63`, 476 tests); document created.
+- T1 `070d28e` Profile/Mcp (12 variants), Components/mcp, lib/mcp.ts test-first (20 tests) — 496 tests. Delegated writer checked variants; parent spot-checked show-once at 390 dark and fixed the squeezed "Siguiente paso" card.
+- T2 inline: `docs/design/stage-e-contract.md`; PR stacked on Stage D.
 
 ## Next step
-T1.
+Jhon reviews the gallery; merge the stacked PRs in order (#8, #10, #11, #20, this one).
