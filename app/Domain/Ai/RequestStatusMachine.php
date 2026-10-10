@@ -30,7 +30,9 @@ final class RequestStatusMachine
             S::NeedsInfo->value => [S::Evaluating, S::Rejected],
             S::PendingApproval->value => [S::Approved, S::Rejected, S::Backlog, S::Evaluating],
             S::Approved->value => [S::Planned, S::Backlog],
-            S::Backlog->value => [S::Evaluating, S::PendingApproval, S::Rejected],
+            // Backlog → Planned only for approved work parked in the backlog
+            // (App\Actions\Ai\ConvertRequestToProject checks the approval).
+            S::Backlog->value => [S::Evaluating, S::PendingApproval, S::Rejected, S::Planned],
             S::Rejected->value => [S::Evaluating],
             S::Planned->value => [S::InDevelopment, S::Backlog],
             S::InDevelopment->value => [S::InTesting, S::Planned],

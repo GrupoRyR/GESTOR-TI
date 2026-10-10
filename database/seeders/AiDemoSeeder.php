@@ -12,7 +12,10 @@ use App\Enums\Ai\RequestStatus;
 use App\Enums\Ai\RequestType;
 use App\Enums\Ai\RiskLevel;
 use App\Enums\Ai\Urgency;
+use App\Models\AiProject;
 use App\Models\AiRequest;
+use App\Models\AiRequirement;
+use App\Models\AiTask;
 use App\Models\Area;
 use App\Models\Company;
 use App\Models\Employee;
@@ -136,11 +139,102 @@ class AiDemoSeeder extends Seeder
         $testing->criteria()->firstOrCreate(['position' => 1], ['text' => 'Concilia los movimientos del día anterior', 'result' => AcceptanceResult::Pass, 'validated_by_id' => $monica->id, 'validated_at' => now()]);
         $testing->criteria()->firstOrCreate(['position' => 2], ['text' => 'Marca las diferencias para revisar']);
 
-        foreach (AiRequest::withoutGlobalScopes()->whereIn('key', ['GIA-121', 'GIA-144', 'GIA-146', 'GIA-148', 'GIA-150', 'GIA-151', 'GIA-152', 'GIA-153'])->get() as $request) {
+        $gia139 = $this->request('GIA-139', $company, $areas['Cartera'], $diego, [
+            'type' => RequestType::Improvement,
+            'title' => 'Visualizador de cartera: filtrar por asesor y por zona',
+            'problem' => 'La Gerencia de cartera pide a TI reportes por asesor y por zona cada semana.',
+            'expected_result' => 'Que la Gerencia de cartera filtre la cartera por asesor y por zona sin pedir reportes a TI.',
+            'hours_per_week' => 3, 'people_count' => 3, 'urgency' => Urgency::Medium,
+            'status' => RequestStatus::InDevelopment, 'size' => EffortSize::M, 'risk' => RiskLevel::Low,
+            'evaluated_by_id' => $jhon->id,
+        ]);
+        $this->project($gia139, $jhon, $diego, $camila);
+
+        foreach (AiRequest::withoutGlobalScopes()->whereIn('key', ['GIA-121', 'GIA-139', 'GIA-144', 'GIA-146', 'GIA-148', 'GIA-150', 'GIA-151', 'GIA-152', 'GIA-153'])->get() as $request) {
             $request->votes_count = $request->votes()->count();
             $request->recomputePriority();
             $request->save();
         }
+    }
+
+    /**
+     * Demo project of GIA-139 (B5 board): columns, tasks, a subtask list
+     * and a requirement that blocks a task. Created once (next P-n key).
+     */
+    private function project(AiRequest $request, User $lead, User $recipient, User $designer): void
+    {
+        if ($request->projects()->exists()) {
+            return;
+        }
+
+        $project = AiProject::create([
+            'company_id' => $request->company_id,
+            'area_id' => $request->area_id,
+            'name' => 'Visualizador de cartera · filtros',
+            'objective' => $request->expected_result,
+            'status' => RequestStatus::InDevelopment,
+            'lead_id' => $lead->id,
+            'start_date' => now()->subDays(6)->toDateString(),
+            'due_date' => now()->addWeeks(3)->toDateString(),
+            'started_at' => now()->subDays(6),
+            'approved_at' => now()->subDays(7),
+        ]);
+        $project->requests()->attach($request->id);
+        $project->members()->create(['user_id' => $lead->id, 'role' => 'Líder del proyecto', 'position' => 0]);
+
+        $tasks = [];
+        foreach ([
+            ['Diseñar filtros', 'done', ['Diseño']],
+            ['Consulta SAP por asesor', 'done', ['SAP']],
+            ['Endpoint de zonas', 'review', ['Backend']],
+            ['Consulta de cartera por asesor desde SAP B1', 'in_progress', ['SAP', 'Backend']],
+            ['Total vencido por rango de días', 'in_progress', ['SAP']],
+            ['Pruebas con cartera real', 'todo', ['Pruebas']],
+            ['Manual de usuario', 'backlog', ['Documentación']],
+        ] as [$title, $column, $labels]) {
+            $task = AiTask::create([
+                'ai_project_id' => $project->id,
+                'ai_project_column_id' => $project->column($column)->id,
+                'title' => $title,
+                'labels' => $labels,
+                'due_date' => $column === 'done' ? null : now()->addDays(count($tasks) + 2)->toDateString(),
+                'completed_at' => $column === 'done' ? now()->subDays(2) : null,
+                'started_at' => in_array($column, ['done', 'review', 'in_progress'], true) ? now()->subDays(5) : null,
+            ]);
+            $task->assignees()->sync([$lead->id]);
+            $tasks[$title] = $task;
+        }
+
+        $tasks['Consulta de cartera por asesor desde SAP B1']->subtasks()->createMany([
+            ['title' => 'Conectar a la vista de cartera de SAP B1 en pruebas', 'done' => true, 'position' => 1],
+            ['title' => 'Filtrar por código de asesor', 'done' => true, 'position' => 2],
+            ['title' => 'Agrupar por rango de días vencidos', 'done' => false, 'position' => 3],
+        ]);
+
+        AiRequirement::create([
+            'company_id' => $project->company_id,
+            'ai_project_id' => $project->id,
+            'title' => 'Lista de zonas y asesores vigentes',
+            'recipient_id' => $recipient->id,
+            'recipient_label' => $recipient->name,
+            'area_id' => $request->area_id,
+            'area_name' => 'Cartera',
+            'due_date' => now()->addDays(2)->toDateString(),
+            'blocks_task_id' => $tasks['Total vencido por rango de días']->id,
+            'requested_by_id' => $lead->id,
+        ]);
+        AiRequirement::create([
+            'company_id' => $project->company_id,
+            'ai_project_id' => $project->id,
+            'title' => 'Íconos para la vista en celular',
+            'recipient_id' => $designer->id,
+            'recipient_label' => $designer->name,
+            'area_name' => 'Diseño',
+            'due_date' => now()->subDay()->toDateString(),
+            'requested_by_id' => $lead->id,
+        ]);
+
+        $project->recordActivity('task', 'movió T3 Endpoint de zonas a En revisión', $lead);
     }
 
     private function person(Company $company, string $name, string $handle, string $role, ?Area $area): User

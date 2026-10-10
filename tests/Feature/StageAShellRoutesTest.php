@@ -21,11 +21,11 @@ class StageAShellRoutesTest extends TestCase
      * GestorLayout tabs. The requester routes are real since B3.
      */
     private const STAGE_B_ROUTES = [
-        'ai.tasks.show' => ['request' => 'GIA-131', 'task' => 'T2'],
-        'ai.requirements.show' => ['requirement' => 57],
         'ai.vault.index' => [],
-        'ai.projects.index' => [],
-        'ai.projects.show' => ['project' => 'P-07'],
+        'ai.projects.costs' => ['project' => 'P-07'],
+        'ai.projects.costs.export' => ['project' => 'P-07', 'week' => '2026-10-05'],
+        'ai.time-entries.create' => [],
+        'ai.projects.docs' => ['project' => 'P-07'],
         'ai.products.index' => [],
         'ai.products.show' => ['product' => 'toma-pedidos'],
         'ai.docs.index' => [],
@@ -33,14 +33,15 @@ class StageAShellRoutesTest extends TestCase
     ];
 
     /**
-     * POST placeholders the B4 pages already call (projects B5, timer B6,
-     * weekly review): they go back with the notice.
+     * POST placeholders the B4/B5 pages already call (timer, time entries,
+     * costs and re-approval B6, weekly review): they go back with the notice.
      */
     private const STAGE_B_ACTIONS = [
-        'ai.requests.convert' => ['request' => 'GIA-131'],
         'ai.timer.start' => ['project' => 'P-07', 'task' => 'T4'],
         'ai.timer.stop' => [],
-        'ai.requirements.remind' => ['requirement' => 57],
+        'ai.time-entries.store' => ['project' => 'P-07'],
+        'ai.costs.store' => ['project' => 'P-07'],
+        'ai.projects.reapproval.store' => ['project' => 'P-07'],
         'ai.reviews.store' => [],
     ];
 

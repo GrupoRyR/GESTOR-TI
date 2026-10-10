@@ -45,7 +45,7 @@ class AreaBoardController extends Controller
             'company_id' => (int) $companyId,
             'area_companies' => $reachable->map(fn (Company $company) => ['id' => $company->id, 'short_name' => $company->short_name])->values()->all(),
             'areas' => $companyId === null ? [] : $this->board->summaries($companyId),
-            'selected_area' => $area === null ? null : $this->board->detail($area),
+            'selected_area' => $area === null ? null : $this->board->detail($area, $user->can('ai.costs.view')),
         ]);
     }
 

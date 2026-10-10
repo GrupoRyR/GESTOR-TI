@@ -5,6 +5,7 @@ namespace Tests\Feature\Ai\Triage;
 use App\Enums\Ai\ApprovalChannel;
 use App\Enums\Ai\RequestStatus;
 use App\Events\RequestApproved;
+use App\Models\AiProject;
 use App\Models\AiRequest;
 use App\Models\Role;
 use App\Notifications\AiApprovalRequested;
@@ -146,7 +147,8 @@ class ApprovalsTest extends TriageTestCase
     public function test_show_from_telegram_and_wip(): void
     {
         app(Settings::class)->set('ai.wip_limit', 4);
-        $this->request(['status' => RequestStatus::InDevelopment, 'first_responded_at' => now()]);
+        // WIP counts projects "En desarrollo" (B5), not requests.
+        AiProject::factory()->create(['company_id' => $this->segurex->id, 'area_id' => $this->ventas->id, 'status' => RequestStatus::InDevelopment]);
 
         $this->actingAs($this->edward)
             ->get(route('ai.approvals.show', [$this->pending, 'desde' => 'telegram']))

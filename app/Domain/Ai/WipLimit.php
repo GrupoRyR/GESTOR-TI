@@ -3,14 +3,14 @@
 namespace App\Domain\Ai;
 
 use App\Enums\Ai\RequestStatus;
-use App\Models\AiRequest;
+use App\Models\AiProject;
 use App\Support\Settings;
 
 /**
  * Work in progress limit (PROMPT 6.4.3): how many projects are "En
  * desarrollo" at the same time across every company, against Settings
- * `ai.wip_limit` (default 3). Until projects exist (B5) the requests in
- * development stand for them.
+ * `ai.wip_limit` (default 3). A planned project cannot start (first task
+ * to "En progreso", App\Actions\Ai\MoveTask) while the limit is reached.
  */
 final class WipLimit
 {
@@ -21,6 +21,19 @@ final class WipLimit
         return max(1, (int) $this->settings->get('ai.wip_limit', 3));
     }
 
+    public function inDevelopment(): int
+    {
+        return AiProject::query()
+            ->withoutGlobalScopes()
+            ->where('status', RequestStatus::InDevelopment->value)
+            ->count();
+    }
+
+    public function isFull(): bool
+    {
+        return $this->inDevelopment() >= $this->limit();
+    }
+
     /**
      * Design `wip`: `{ in_development, limit }`.
      *
@@ -28,13 +41,6 @@ final class WipLimit
      */
     public function snapshot(): array
     {
-        // TODO B5: count projects in development instead of requests.
-        $inDevelopment = AiRequest::query()
-            ->withoutGlobalScopes()
-            ->whereNull('deleted_at')
-            ->where('status', RequestStatus::InDevelopment->value)
-            ->count();
-
-        return ['in_development' => $inDevelopment, 'limit' => $this->limit()];
+        return ['in_development' => $this->inDevelopment(), 'limit' => $this->limit()];
     }
 }

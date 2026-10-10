@@ -33,6 +33,17 @@ Schedule::command('ai:first-response-alerts')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
+// Gestor IA projects: reminders of requirements due tomorrow or overdue
+// (every 2 days per requirement), and the weekly project reports.
+Schedule::command('ai:requirement-reminders')
+    ->dailyAt('08:00')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
+Schedule::command('ai:project-reports')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

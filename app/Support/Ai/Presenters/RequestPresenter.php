@@ -16,7 +16,7 @@ use App\Models\User;
 final class RequestPresenter
 {
     /** Relations `summary()` reads. */
-    public const RELATIONS = ['requester.employee', 'area', 'product'];
+    public const RELATIONS = ['requester.employee', 'area', 'product', 'projects'];
 
     /**
      * Whole numbers as int, others as float (JSON `6` instead of `6.0`).
@@ -94,8 +94,7 @@ final class RequestPresenter
                 'answered_at' => $request->first_responded_at?->toIso8601String(),
             ],
             'product' => $request->product !== null ? self::productRef($request->product, $request->product_version) : null,
-            // Projects arrive in B5; merged duplicates in B4.
-            'project_key' => null,
+            'project_key' => $request->projectKey(),
             'rank' => $rank,
             'similar_to' => null,
             'created_at' => $request->created_at->toIso8601String(),

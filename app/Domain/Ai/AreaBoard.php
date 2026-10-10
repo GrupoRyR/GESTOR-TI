@@ -2,10 +2,13 @@
 
 namespace App\Domain\Ai;
 
+use App\Enums\Ai\AcceptanceResult;
 use App\Enums\Ai\ProductStatus;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiProduct;
+use App\Models\AiProject;
 use App\Models\AiRequest;
+use App\Models\AiRequirement;
 use App\Models\Area;
 use App\Models\Scopes\CompanyScope;
 use App\Support\Ai\Presenters\RequestPresenter;
@@ -18,7 +21,8 @@ use Illuminate\Support\Str;
  *
  * Counters (`AreaSummary`):
  * - products_in_use: products of the area in production or pilot;
- * - projects_in_progress: 0 until projects exist (B5);
+ * - projects_in_progress: projects of the area "En desarrollo" or "En
+ *   pruebas" (B5); the detail lists its open projects (`AreaProject`);
  * - backlog: requests of the area "En backlog";
  * - hours_saved_per_month: requests of the area in production or closed,
  *   requester's hours/week × people × 52/12 (one decimal), null when none
@@ -78,7 +82,7 @@ final class AreaBoard
      *
      * @return array<string, mixed>
      */
-    public function detail(Area $area): array
+    public function detail(Area $area, bool $withCosts = false): array
     {
         $requests = $this->requests([$area->id]);
         $backlog = Roadmap::order(AiRequest::query()
@@ -100,8 +104,7 @@ final class AreaBoard
                 'state' => $product->status->value,
                 'monitoring_active' => $product->health()['monitoring_active'],
             ])->values()->all(),
-            // TODO B5: projects of the area (`AreaProject`).
-            'projects' => [],
+            'projects' => $this->projects($area)->map(fn (AiProject $project) => $this->areaProject($project, $withCosts))->values()->all(),
             'backlog' => $backlog->map(fn (AiRequest $request) => RequestPresenter::summary($request, $ranks[$request->id] ?? null))->values()->all(),
             'inbox_keys' => $requests
                 ->filter(fn (AiRequest $request) => in_array($request->status, Inbox::STATUSES, true))
@@ -126,8 +129,9 @@ final class AreaBoard
             'semaphore' => $semaphore,
             'reason' => $reason,
             'products_in_use' => $this->products($area)->count(),
-            // TODO B5: projects in development of the area.
-            'projects_in_progress' => 0,
+            'projects_in_progress' => $this->projects($area)
+                ->filter(fn (AiProject $project) => in_array($project->status, [RequestStatus::InDevelopment, RequestStatus::InTesting], true))
+                ->count(),
             'backlog' => $requests->where('status', RequestStatus::Backlog)->count(),
             'hours_saved_per_month' => $this->hoursSaved($requests),
         ];
@@ -189,6 +193,68 @@ final class AreaBoard
         $monthly = $delivered->sum(fn (AiRequest $request) => (float) Money::hoursPerMonth($request));
 
         return RequestPresenter::number(round($monthly, 1));
+    }
+
+    /**
+     * Open projects of the area (not closed), newest first; any company
+     * context (the caller checked access).
+     *
+     * @return Collection<int, AiProject>
+     */
+    private function projects(Area $area): Collection
+    {
+        return AiProject::query()
+            ->withoutGlobalScopes()
+            ->where('area_id', $area->id)
+            ->where('status', '!=', RequestStatus::Closed->value)
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
+     * `AreaProject`: hours (and cost with `ai.costs.view`) plus one note —
+     * an overdue requirement (late), blocked tasks or missing validations
+     * while in testing (attention).
+     *
+     * @return array<string, mixed>
+     */
+    private function areaProject(AiProject $project, bool $withCosts): array
+    {
+        $budget = app(ProjectBudget::class)->for($project, $withCosts);
+        $requests = $project->requests()->with(['criteria', 'requester'])->get();
+        [$note, $level] = [null, null];
+
+        $overdue = $project->requirements()
+            ->where('status', AiRequirement::PENDING)
+            ->whereDate('due_date', '<', Week::today()->toDateString())
+            ->orderBy('due_date')
+            ->first();
+        $blocked = $project->tasks()->whereHas('blockingRequirements')->count();
+
+        if ($overdue !== null) {
+            [$note, $level] = ["Espera «{$overdue->title}» de {$overdue->area_name}, vencido", 'late'];
+        } elseif ($blocked > 0) {
+            [$note, $level] = [$blocked === 1 ? '1 tarea bloqueada' : "{$blocked} tareas bloqueadas", 'attention'];
+        } elseif ($project->status === RequestStatus::InTesting) {
+            $criteria = $requests->flatMap(fn (AiRequest $request) => $request->criteria);
+            $missing = $criteria->filter(fn ($criterion) => $criterion->result !== AcceptanceResult::Pass)->count();
+
+            if ($missing > 0) {
+                $who = Str::before(trim((string) $requests->first()?->requester?->name), ' ');
+                [$note, $level] = ["Falta validar {$missing} de {$criteria->count()} criterios".($who !== '' ? " con {$who}" : ''), 'attention'];
+            }
+        }
+
+        return [
+            'key' => $project->key,
+            'name' => $project->name,
+            'request_key' => (string) $requests->first()?->key,
+            'status' => $project->status->value,
+            'hours' => $budget['hours'],
+            'cost' => $budget['cost'],
+            'note' => $note,
+            'note_level' => $level,
+        ];
     }
 
     /**

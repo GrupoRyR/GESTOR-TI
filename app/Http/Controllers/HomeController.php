@@ -3,16 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Ai\ApprovalRounds;
+use App\Domain\Ai\BusinessDays;
 use App\Domain\Ai\DueLabel;
 use App\Domain\Ai\Inbox;
 use App\Domain\Ai\Roadmap;
+use App\Domain\Ai\Week;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiRequest;
+use App\Models\AiRequirement;
+use App\Models\AiTask;
 use App\Models\MonitoredApp;
 use App\Models\Scopes\CompanyScope;
 use App\Models\User;
 use App\Support\Ai\Presenters\ApprovalPresenter;
 use App\Support\Ai\RequesterCopy;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -25,7 +30,8 @@ use Inertia\Response;
  * else. The requester view lists the person's open requests (B3). The IT
  * view (B4) lists unanswered requests past or near their first-response
  * deadline and, for project approvers, the approvals waiting for them;
- * tasks and requirements (B5) and credentials (B8) are still empty;
+ * since B5 also overdue tasks and requirements waiting on users;
+ * credentials (B8) are still empty;
  * monitoring lists the registered apps as placeholders until the module is
  * enabled.
  */
@@ -64,9 +70,8 @@ class HomeController extends Controller
             ...$greeting,
             'attention' => [
                 'unanswered_requests' => $this->unansweredRequests(),
-                // TODO B5: overdue tasks and requirements waiting on users.
-                'overdue_tasks' => [],
-                'waiting_requirements' => [],
+                'overdue_tasks' => $this->overdueTasks(),
+                'waiting_requirements' => $this->waitingRequirements(),
                 // TODO B8: only filled for `ai.vault.access` once the vault exists.
                 'expiring_credentials' => [],
             ],
@@ -138,6 +143,78 @@ class HomeController extends Controller
                     'href_route' => 'ai.requests.show',
                     'href_params' => ['request' => $request->key],
                     'severity' => $due['level'] === 'late' ? 'late' : 'attention',
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * `AttentionItem` rows: open tasks of the company in view past their
+     * due date (Bogotá calendar), most overdue first.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function overdueTasks(): array
+    {
+        $today = Week::today();
+
+        return Week::openTasks()
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<', $today->toDateString())
+            ->with('project')
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->limit(self::ATTENTION_LIMIT)
+            ->get()
+            ->map(function (AiTask $task) use ($today): array {
+                $days = (int) CarbonImmutable::parse($task->due_date->toDateString(), BusinessDays::TIMEZONE)->diffInDays($today);
+                $key = (string) $task->project?->key;
+
+                return [
+                    'id' => 'task-'.$task->id,
+                    'title' => "{$key} · {$task->key} · vencida hace ".($days === 1 ? '1 día' : "{$days} días"),
+                    'detail' => $task->title,
+                    'href_route' => 'ai.tasks.show',
+                    'href_params' => ['project' => $key, 'task' => $task->key],
+                    'severity' => 'late',
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * `AttentionItem` rows: pending requirements of the company in view,
+     * soonest due first; `late` once overdue.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function waitingRequirements(): array
+    {
+        $today = Week::today();
+
+        return AiRequirement::query()
+            ->where('status', AiRequirement::PENDING)
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->limit(self::ATTENTION_LIMIT)
+            ->get()
+            ->map(function (AiRequirement $requirement) use ($today): array {
+                $asked = $requirement->created_at->copy()->timezone(BusinessDays::TIMEZONE)->startOfDay();
+                $days = (int) $asked->diffInDays($today);
+
+                return [
+                    'id' => 'requirement-'.$requirement->id,
+                    'title' => "{$requirement->title} · {$requirement->area_name}",
+                    'detail' => "{$requirement->recipient_label} · pedido ".match (true) {
+                        $days <= 0 => 'hoy',
+                        $days === 1 => 'hace 1 día',
+                        default => "hace {$days} días",
+                    },
+                    'href_route' => 'ai.requirements.show',
+                    'href_params' => ['requirement' => $requirement->id],
+                    'severity' => $requirement->displayStatus($today) === AiRequirement::OVERDUE ? 'late' : 'attention',
                 ];
             })
             ->values()

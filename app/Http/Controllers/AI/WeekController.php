@@ -9,8 +9,9 @@ use Inertia\Response;
 
 /**
  * "Mi semana" (`Ai/Week/Index`, WeekIndexProps). Items come from
- * App\Domain\Ai\Week; the running timer arrives with time entries (B6) and
- * the weekly review with projects (B5), so both are null for now.
+ * App\Domain\Ai\Week (requests, tasks and requirements since B5). The
+ * running timer arrives with the timer (B6); the weekly review
+ * (`ai.reviews.store`) has no storage yet, so both are null for now.
  */
 class WeekController extends Controller
 {
@@ -23,7 +24,7 @@ class WeekController extends Controller
             'items' => $week->items(),
             // TODO B6: the viewer's running timer.
             'running_timer' => null,
-            // TODO B5: weekly review agenda ("Revisión semanal con Leonardo").
+            // TODO: weekly review agenda ("Revisión semanal con Leonardo"), not designed as storage yet.
             'review' => null,
         ]);
     }

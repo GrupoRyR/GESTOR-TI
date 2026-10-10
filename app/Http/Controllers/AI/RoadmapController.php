@@ -108,8 +108,8 @@ class RoadmapController extends Controller
             'mine' => (int) $request->requester_id === $user->id,
             'voted' => $voted,
             'note' => RequesterCopy::roadmapNote($request, $rank),
-            // Sprints/plan dates arrive with projects (B5).
-            'planned_start' => null,
+            // Start date of its project (B5; no sprints in Stage B).
+            'planned_start' => $request->projects()->first()?->start_date?->toDateString(),
         ];
     }
 

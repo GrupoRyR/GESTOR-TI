@@ -3,6 +3,7 @@
 namespace Tests\Feature\Ai\Triage;
 
 use App\Enums\Ai\RequestStatus;
+use App\Models\AiProject;
 use App\Support\Settings;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -63,8 +64,8 @@ class BacklogTest extends TriageTestCase
         $this->assertSame(3, config('gestor.settings_defaults')['ai.wip_limit']);
 
         app(Settings::class)->set('ai.wip_limit', 2);
-        $this->request(['status' => RequestStatus::InDevelopment, 'first_responded_at' => now()]);
-        $this->request(['status' => RequestStatus::InDevelopment, 'first_responded_at' => now(), 'company_id' => $this->derivados->id, 'area_id' => $this->derivadosVentas->id]);
+        AiProject::factory()->create(['company_id' => $this->segurex->id, 'area_id' => $this->ventas->id, 'status' => RequestStatus::InDevelopment]);
+        AiProject::factory()->create(['company_id' => $this->derivados->id, 'area_id' => $this->derivadosVentas->id, 'status' => RequestStatus::InDevelopment]);
 
         $this->actingAs($this->jhon)
             ->withSession(['current_company_id' => $this->segurex->id])

@@ -60,6 +60,14 @@ return [
         // (global, PROMPT 6.4.3). Shown on backlog, approvals and roadmap.
         'ai.wip_limit' => 3,
 
+        // Projects (B5): tasks allowed in "En progreso" per project (the
+        // board shows it; it does not block), days between reminders of a
+        // pending requirement, and the cost/hours increase over the approved
+        // estimate that asks for a new approval (0.2 = 20 %).
+        'ai.board.in_progress_limit' => 3,
+        'ai.requirements.reminder_every_days' => 2,
+        'ai.reapproval_threshold' => 0.2,
+
         // AI spend: monthly cap in USD (0 = not configured yet; pending
         // from Jhon) and warning threshold in percent of the cap.
         'ai.monthly_cost_cap_usd' => 0.0,

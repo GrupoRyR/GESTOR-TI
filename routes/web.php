@@ -10,13 +10,18 @@ use App\Http\Controllers\AI\AcceptanceValidationController;
 use App\Http\Controllers\AI\ApprovalController;
 use App\Http\Controllers\AI\AreaBoardController;
 use App\Http\Controllers\AI\BacklogController;
+use App\Http\Controllers\AI\BoardController;
 use App\Http\Controllers\AI\InboxController;
+use App\Http\Controllers\AI\ProjectController;
+use App\Http\Controllers\AI\ProjectReportController;
 use App\Http\Controllers\AI\RatingController;
 use App\Http\Controllers\AI\RequestController;
 use App\Http\Controllers\AI\RequestInteractionController;
 use App\Http\Controllers\AI\RequestWizardController;
+use App\Http\Controllers\AI\RequirementController;
 use App\Http\Controllers\AI\RoadmapController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
+use App\Http\Controllers\AI\TaskController;
 use App\Http\Controllers\AI\TriageController;
 use App\Http\Controllers\AI\WeekController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
@@ -158,20 +163,67 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
         Route::post('/approvals/{request}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
     });
 
-    // TEMPORARY (Stage B): routes the B4 pages and the GestorLayout tabs
-    // already call, implemented by later tasks (projects/tasks/requirements
-    // and weekly review B5, timer B6, docs/value B7, vault B8, products B9).
-    // Pages redirect to Inicio and actions go back, both with a notice.
-    Route::get('/requests/{request}/tasks/{task}', StageBPlaceholderController::class)->name('tasks.show');
-    Route::get('/requirements/{requirement}', StageBPlaceholderController::class)->name('requirements.show');
-    Route::post('/requirements/{requirement}/remind', StageBPlaceholderController::class)->name('requirements.remind');
-    Route::post('/requests/{request}/convert', StageBPlaceholderController::class)->name('requests.convert');
+    // Projects (B5, types/pages/ai-projects.ts). `{project}` is the key (P-n)
+    // through CompanyScope; `{task}` is the task key inside its project.
+    // Pages: AiProjectPolicy::view (IT, team, assignees, area viewers);
+    // the list and every change: `ai.manage` + AiProjectPolicy::manage.
+    Route::get('/projects', [ProjectController::class, 'index'])->middleware('can:ai.manage')->name('projects.index');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::get('/projects/{project}/board', [BoardController::class, 'board'])->name('projects.board');
+    Route::scopeBindings()->group(function () {
+        Route::get('/projects/{project}/tasks/{task}', [BoardController::class, 'task'])->name('tasks.show');
+        // Signed links only (FileRef.url, 30 minutes), then authorized again.
+        Route::get('/projects/{project}/tasks/{task}/attachments/{attachment}', [BoardController::class, 'attachment'])
+            ->middleware('signed')
+            ->name('tasks.attachments.show');
+    });
+
+    Route::middleware('can:ai.manage')->group(function () {
+        Route::post('/requests/{request}/convert', [ProjectController::class, 'convert'])->name('requests.convert');
+
+        Route::post('/projects/{project}/tasks', [TaskController::class, 'store'])->name('tasks.store');
+        Route::scopeBindings()->group(function () {
+            Route::put('/projects/{project}/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+            Route::put('/projects/{project}/tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
+            Route::post('/projects/{project}/tasks/{task}/comments', [TaskController::class, 'comment'])->name('tasks.comments.store');
+            Route::post('/projects/{project}/tasks/{task}/attachments', [TaskController::class, 'attach'])->name('tasks.attachments.store');
+            Route::post('/projects/{project}/tasks/{task}/subtasks', [TaskController::class, 'storeSubtask'])->name('subtasks.store');
+            Route::patch('/projects/{project}/tasks/{task}/subtasks/{subtask}', [TaskController::class, 'toggleSubtask'])->name('subtasks.toggle');
+        });
+
+        Route::get('/projects/{project}/requirements', [RequirementController::class, 'index'])->name('projects.requirements');
+        Route::post('/projects/{project}/requirements', [RequirementController::class, 'store'])->name('requirements.store');
+        Route::post('/requirements/{requirement}/remind', [RequirementController::class, 'remind'])->name('requirements.remind');
+
+        Route::get('/projects/{project}/report', [ProjectReportController::class, 'show'])->name('projects.report');
+        Route::get('/projects/{project}/report/pdf', [ProjectReportController::class, 'pdf'])->name('projects.report.pdf');
+        Route::post('/projects/{project}/report/send', [ProjectReportController::class, 'send'])->name('projects.report.send');
+        Route::put('/projects/{project}/report/schedule', [ProjectReportController::class, 'schedule'])->name('projects.report.schedule');
+    });
+
+    // The person who must answer a requirement (any company) or IT:
+    // AiRequirementPolicy. `show` is the link of Inicio and the notices.
+    Route::get('/requirements/{requirement}', [RequirementController::class, 'show'])->name('requirements.show');
+    Route::get('/requirements/{requirement}/respond', [RequirementController::class, 'respond'])->name('requirements.respond');
+    Route::post('/requirements/{requirement}/answer', [RequirementController::class, 'answer'])->name('requirements.answer');
+    Route::post('/requirements/{requirement}/reassign', [RequirementController::class, 'reassign'])->name('requirements.reassign');
+
+    // TEMPORARY (Stage B): routes the pages and the GestorLayout tabs
+    // already call, implemented by later tasks (timer, time entries, costs
+    // and re-approval B6, docs/value B7, vault B8, products B9; the weekly
+    // review has no design for its storage yet). Pages redirect to Inicio
+    // and actions go back, both with a notice.
     Route::post('/projects/{project}/tasks/{task}/timer', StageBPlaceholderController::class)->name('timer.start');
     Route::post('/timer/stop', StageBPlaceholderController::class)->name('timer.stop');
+    Route::get('/projects/{project}/costs', StageBPlaceholderController::class)->name('projects.costs');
+    Route::get('/projects/{project}/costs/export', StageBPlaceholderController::class)->name('projects.costs.export');
+    Route::post('/projects/{project}/costs', StageBPlaceholderController::class)->name('costs.store');
+    Route::get('/time-entries/create', StageBPlaceholderController::class)->name('time-entries.create');
+    Route::post('/projects/{project}/time-entries', StageBPlaceholderController::class)->name('time-entries.store');
+    Route::post('/projects/{project}/reapproval', StageBPlaceholderController::class)->name('projects.reapproval.store');
+    Route::get('/projects/{project}/docs', StageBPlaceholderController::class)->name('projects.docs');
     Route::post('/reviews', StageBPlaceholderController::class)->name('reviews.store');
     Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
-    Route::get('/projects', StageBPlaceholderController::class)->name('projects.index');
-    Route::get('/projects/{project}', StageBPlaceholderController::class)->name('projects.show');
     Route::get('/products', StageBPlaceholderController::class)->name('products.index');
     Route::get('/products/{product}', StageBPlaceholderController::class)->name('products.show');
     Route::get('/docs', StageBPlaceholderController::class)->name('docs.index');

@@ -271,6 +271,26 @@ class AiRequest extends Model
     }
 
     /**
+     * Project the request became (at most one, `ai_project_request`).
+     *
+     * @return BelongsToMany<AiProject, $this>
+     */
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(AiProject::class, 'ai_project_request')->withoutGlobalScopes()->withTimestamps();
+    }
+
+    /**
+     * Key of its project ("P-07"), or null while it has none.
+     */
+    public function projectKey(): ?string
+    {
+        $project = $this->relationLoaded('projects') ? $this->projects->first() : $this->projects()->first();
+
+        return $project?->key;
+    }
+
+    /**
      * IT timeline entries that are not status changes.
      *
      * @return HasMany<AiRequestEvent, $this>
