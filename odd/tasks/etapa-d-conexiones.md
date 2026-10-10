@@ -403,7 +403,7 @@ Notes for design:
 - Guard: `tests/TestCase.php` now calls `Http::preventStrayRequests()` for every test (`f32695c`); full suite still green.
 - Deploy: `docs/deploy-cpanel.md` §4 env keys + §4.1 GitHub App setup (permissions, events, `.pem` outside `public_html`, `github:sync`, linking, `github_login` via tinker until there is a screen).
 - Checks (2026-10-10): `php artisan test` 1068 passed (11712 assertions); `vendor/bin/pint --test` pass; `npm run typecheck` pass; `npm test` 476 passed; `npm run build` pass.
-- Slices (stacked, base `stage-c/06-pending-forms`): 01-design-merge (`1e39cc7`,`8e3802e`), 02-github-foundation (`8337b13`), 03-webhooks (`5bcf2c1`), 04-repos-issues (`c1a01d5`), 05-releases (`1e84a97`), 06-brief (`1522330`), 07-suggestions (`0ad97ae` + close). Each slice also holds its `docs(odd)` evidence commit.
+- PRs GrupoRyR/GESTOR-TI#27–#33 (one per slice, in order). Slices (stacked, base `stage-c/06-pending-forms`): 01-design-merge (`1e39cc7`,`8e3802e`), 02-github-foundation (`8337b13`), 03-webhooks (`5bcf2c1`), 04-repos-issues (`c1a01d5`), 05-releases (`1e84a97`), 06-brief (`1522330`), 07-suggestions (`0ad97ae` + close). Each slice also holds its `docs(odd)` evidence commit.
 
 ### Stage D summary · notes for design
 - `lib/githubAdmin.ts`: label for the `administration` permission.
