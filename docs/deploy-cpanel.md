@@ -75,6 +75,19 @@ Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
 - Respaldos: `BACKUP_NOTIFICATION_EMAIL` (recibe los avisos de fallas), `BACKUP_ARCHIVE_PASSWORD` (opcional, cifra el zip).
 - Módulos: `MODULE_AI_ENABLED`, `MODULE_ASSISTANT_ENABLED`, `MODULE_ADMIN_ENABLED` (y los reservados).
 - Etapa C: `DEEPSEEK_API_KEY` (puede esperar).
+- Etapa D (GitHub App): `GITHUB_APP_ID`, `GITHUB_APP_INSTALL_URL` (`https://github.com/apps/<nombre>/installations/new`), `GITHUB_APP_NAME`, `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta al `.pem`, fuera de `public_html`, permisos 600), `GITHUB_WEBHOOK_SECRET`.
+
+## 4.1 GitHub App (Etapa D)
+
+1. En la organización de GitHub: *Settings › Developer settings › GitHub Apps › New GitHub App*.
+2. Webhook URL: `https://{dominio}/api/github/webhook`, tipo JSON, con un secreto largo (va en `GITHUB_WEBHOOK_SECRET`).
+3. Permisos de repositorio: Contents (lectura y escritura), Administration (lectura y escritura, para crear repos), Issues (lectura y escritura), Pull requests (lectura), Actions (lectura), Metadata (lectura).
+4. Eventos: Issues, Pull request, Release, Workflow run, Push (los de instalación llegan solos).
+5. Generar la llave privada, subir el `.pem` al servidor fuera de `public_html` y apuntar `GITHUB_PRIVATE_KEY_PATH` a ella.
+6. Instalar la app en la organización (solo los repos del grupo). Guardar la organización en *Administración › Integraciones*.
+7. Por SSH: `php artisan config:cache` y `php artisan github:sync`. *Integraciones › GitHub* debe mostrar "Conectado" y los repos.
+8. Vincular cada producto y proyecto con su repo desde su ficha. Los eventos que fallaron por "repo no vinculado" se reprocesan solos al vincular.
+9. Cada miembro de TI que reciba issues necesita su usuario de GitHub en `users.github_login`. Todavía no hay pantalla para editarlo: se carga por SSH con `php artisan tinker`.
 
 ## 5. Respaldos
 

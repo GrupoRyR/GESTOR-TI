@@ -26,7 +26,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 - [x] D4 · Releases: page `Ai/Releases/Show`, `ai.releases.notes.update`, `ai.releases.notify` (bell + Telegram to each requester, confirmed notes only). Route: delegated.
 - [x] D5 · Brief para Claude: whitelisted `brief` inputs + `brief_state` on request/task/project/board, `brief_omitted`; tests that vault, credentials, costs, rates, hours and internal notes never appear. Route: delegated.
 - [x] D6 · AI suggestions: `ai_suggestions`, agents, `ai.requests.suggestions.store`, `ai.suggestions.{accept,discard,regenerate,cancel}`, `ai.requests.compare`, `ai.requests.criteria.update`, `size_suggestion_id` on evaluation, `ai_availability`/`ai_usage`/`merge_into`; release-notes suggestion. Route: delegated.
-- [ ] D7 · Close: full checks, deploy doc (GitHub App setup, env keys), PRs.
+- [x] D7 · Close: full checks, deploy doc (GitHub App setup, env keys), PRs. Route: inline (one doc file + state).
 
 ## Progress / evidence
 
@@ -399,6 +399,20 @@ Notes for design:
   `suggestion_id`; release `suggestion_id` errors on `suggestion_id`.
 - `Suggestion.provider` is the label of the provider that answered ("DeepSeek"), the configured one while generating.
 
+### D7 · Close — done
+- Guard: `tests/TestCase.php` now calls `Http::preventStrayRequests()` for every test (`f32695c`); full suite still green.
+- Deploy: `docs/deploy-cpanel.md` §4 env keys + §4.1 GitHub App setup (permissions, events, `.pem` outside `public_html`, `github:sync`, linking, `github_login` via tinker until there is a screen).
+- Checks (2026-10-10): `php artisan test` 1068 passed (11712 assertions); `vendor/bin/pint --test` pass; `npm run typecheck` pass; `npm test` 476 passed; `npm run build` pass.
+- Slices (stacked, base `stage-c/06-pending-forms`): 01-design-merge (`1e39cc7`,`8e3802e`), 02-github-foundation (`8337b13`), 03-webhooks (`5bcf2c1`), 04-repos-issues (`c1a01d5`), 05-releases (`1e84a97`), 06-brief (`1522330`), 07-suggestions (`0ad97ae` + close). Each slice also holds its `docs(odd)` evidence commit.
+
+### Stage D summary · notes for design
+- `lib/githubAdmin.ts`: label for the `administration` permission.
+- `WebhookEventType`: add `installation`, `installation_repositories`.
+- `ReleaseRequest.status`: widen to `RequestStatusKey`; `GestorDid` wording before notify ("la pasará a En producción al avisar").
+- Suggestions: poll `only: ['suggestions']` while generating; release page keeps the suggestion in `useState` (ignores new props); no button to ask a first release-notes draft.
+
 ## Open questions (for Jhon)
 - GitHub organization name, App registration (app id, private key, webhook secret go to `.env`).
 - `github_login` for each IT member (issue assignees).
+- Approve the release notice text (bell + Telegram) and the issue privacy footer.
+- `.env.example`: add the Stage D keys listed in `docs/deploy-cpanel.md` §4 (file is read-blocked for the agent).
