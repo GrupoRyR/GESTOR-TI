@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AI;
 use App\Domain\Ai\Board;
 use App\Domain\Ai\BoardPeople;
 use App\Domain\Ai\Week;
+use App\Domain\GitHub\TaskActivity;
 use App\Http\Controllers\Controller;
 use App\Models\AiProject;
 use App\Models\AiProjectColumn;
@@ -30,8 +31,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   (`assignee_id`, `label`, `blocked=1`), totals without filters, the
  *   "En progreso" limit, people and labels; `selected_task` is the task of
  *   `?tarea=` (partial reload `only: ['selected_task']`), null when absent.
+ *   Stage D: `selected_task_github` (App\Domain\GitHub\TaskActivity, lazy
+ *   like `selected_task`) and `issue_created` (flashed once by
+ *   `ai.tasks.issue.store`, always sent).
  * - `Ai/Tasks/Show` (`ai.tasks.show`, phone): the task detail and the
- *   hours the viewer logged today on the project.
+ *   hours the viewer logged today on the project; Stage D `github`
+ *   (`TaskGitHub`, null without `ai.manage`).
  * - `ai.tasks.attachments.show`: signed link of a task file, authorized
  *   again (view).
  *
@@ -42,6 +47,7 @@ class BoardController extends Controller
     public function __construct(
         private readonly ProjectPresenter $projects,
         private readonly BoardPeople $people,
+        private readonly TaskActivity $github,
     ) {}
 
     public function board(Request $http, AiProject $project): Response
@@ -82,7 +88,9 @@ class BoardController extends Controller
             'people' => $this->people->for($project)->map(fn (User $user) => RequestPresenter::person($user))->values()->all(),
             'labels' => array_values($labels),
             'selected_task' => fn () => $this->selected($http, $project, $timer),
+            'selected_task_github' => fn () => $this->selectedGitHub($http, $project),
             'running_timer' => TimerPresenter::running($timer),
+            'issue_created' => Inertia::always(fn () => $http->session()->get(GitHubController::ISSUE_CREATED)),
             'now' => now()->toIso8601String(),
         ]);
     }
@@ -99,6 +107,7 @@ class BoardController extends Controller
                 ->where('user_id', $user->id)
                 ->whereDate('date', Week::today()->toDateString())
                 ->sum('hours'), 2)) ?? 0,
+            'github' => $this->github->for($task, $project, $user, $http->session()->get('errors')),
             'now' => now()->toIso8601String(),
         ]);
     }
@@ -124,6 +133,19 @@ class BoardController extends Controller
         $task = $project->tasks()->where('key', $key)->first();
 
         return $task === null ? null : TaskPresenter::detail($task, $project, $timer);
+    }
+
+    /**
+     * `TaskGitHub` of the `?tarea=` task; null when the drawer is closed.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function selectedGitHub(Request $http, AiProject $project): ?array
+    {
+        $key = $http->query('tarea');
+        $task = is_string($key) && $key !== '' ? $project->tasks()->where('key', $key)->first() : null;
+
+        return $task === null ? null : $this->github->for($task, $project, $this->user($http), $http->session()->get('errors'));
     }
 
     private function user(Request $http): User

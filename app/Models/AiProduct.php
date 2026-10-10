@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -227,6 +228,16 @@ class AiProduct extends Model
     public function monitoredApp(): HasOne
     {
         return $this->hasOne(MonitoredApp::class);
+    }
+
+    /**
+     * Repository linked to this product (Stage D, `github_repositories.linkable`).
+     *
+     * @return MorphOne<GitHubRepository, $this>
+     */
+    public function githubRepository(): MorphOne
+    {
+        return $this->morphOne(GitHubRepository::class, 'linkable');
     }
 
     /**

@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\URL;
  * Board shapes of resources/js/types/ai.ts: `Task` and `TaskDetail`.
  * Hours only, never money. `timer` is the viewer's own running timer on
  * the task (TimerPresenter), else null;
- * `github` stays null until Stage D fills the issue/PR columns.
+ * `github` (`GithubLink`) comes from the issue/PR/CI columns GitHub
+ * webhooks and "Crear issue" fill (null while the task has neither); the
+ * full GitHub block is App\Domain\GitHub\TaskActivity.
  * Task criteria are not linked yet (empty list).
  */
 final class TaskPresenter
@@ -128,7 +130,8 @@ final class TaskPresenter
     }
 
     /**
-     * Stage D fills the columns; null while the task has no issue nor PR.
+     * `GithubLink`; null while the task has no issue nor PR. A CI run that
+     * counts as none (cancelled, skipped) shows no CI.
      *
      * @return array<string, mixed>|null
      */
@@ -141,7 +144,7 @@ final class TaskPresenter
         return [
             'issue' => $task->github_issue_number === null ? null : ['number' => $task->github_issue_number, 'state' => $task->github_issue_state ?? 'open'],
             'pr' => $task->github_pr_number === null ? null : ['number' => $task->github_pr_number, 'state' => $task->github_pr_state ?? 'open'],
-            'ci' => $task->github_ci,
+            'ci' => in_array($task->github_ci, ['passing', 'failing', 'running'], true) ? $task->github_ci : null,
         ];
     }
 }

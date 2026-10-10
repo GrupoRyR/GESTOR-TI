@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -131,6 +132,16 @@ class AiProject extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(AiProduct::class, 'product_id')->withTrashed();
+    }
+
+    /**
+     * Repository linked to this project (Stage D, `github_repositories.linkable`).
+     *
+     * @return MorphOne<GitHubRepository, $this>
+     */
+    public function githubRepository(): MorphOne
+    {
+        return $this->morphOne(GitHubRepository::class, 'linkable');
     }
 
     /**

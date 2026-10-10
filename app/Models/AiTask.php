@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property ?string $github_pr_url
  * @property ?string $github_pr_state
  * @property ?string $github_ci
+ * @property ?array<string, mixed> $github_issue snapshot of the issue created from the Gestor (title, labels, assignee_login, created_by_id, created_at)
  * @property ?Carbon $started_at
  * @property ?Carbon $completed_at
  * @property ?int $created_by_id
@@ -45,7 +46,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'ai_project_id', 'ai_project_column_id', 'number', 'key', 'position', 'title', 'description', 'labels',
     'due_date', 'estimate_hours', 'github_issue_number', 'github_issue_url', 'github_issue_state',
-    'github_pr_number', 'github_pr_url', 'github_pr_state', 'github_ci', 'started_at', 'completed_at',
+    'github_pr_number', 'github_pr_url', 'github_pr_state', 'github_ci', 'github_issue', 'started_at', 'completed_at',
     'created_by_id',
 ])]
 class AiTask extends Model
@@ -80,6 +81,7 @@ class AiTask extends Model
             'estimate_hours' => 'decimal:1',
             'github_issue_number' => 'integer',
             'github_pr_number' => 'integer',
+            'github_issue' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];

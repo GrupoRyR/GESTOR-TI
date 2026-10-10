@@ -56,7 +56,7 @@ class ProductIncidentsTest extends KnowledgeTestCase
         $product = $this->product(['owner_user_id' => $this->paola->id]);
 
         $this->assertSame(
-            $this->withShared(['product', 'health', 'incidents', 'hours_note', 'cost_note', 'request_notes', 'incident_form', 'now']),
+            $this->withShared(['product', 'health', 'incidents', 'hours_note', 'cost_note', 'request_notes', 'incident_form', 'github', 'repo_link', 'now']),
             $this->propKeys(route('ai.products.show', $product)),
         );
 

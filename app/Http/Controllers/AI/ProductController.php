@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\AI;
 
 use App\Domain\Ai\IncidentForm;
+use App\Domain\GitHub\ProductActivity;
+use App\Domain\GitHub\RepoLinkForm;
 use App\Enums\Ai\ProductStatus;
 use App\Enums\Ai\RequestStatus;
 use App\Http\Controllers\Controller;
@@ -37,6 +39,9 @@ use Inertia\Response;
  *   the context, docs, incidents and the explanatory notes. Health is the
  *   Stage B placeholder `{ enabled: false }`. `incident_form` sets up the
  *   "Registrar incidente" drawer (ProductIncidentController stores it).
+ *   Stage D: `github` (App\Domain\GitHub\ProductActivity, null without a
+ *   linked repository) and `repo_link` (null without `ai.github.manage`
+ *   or once linked; `?vincular=1` opens it).
  *
  * Money is null without `ai.costs.view`.
  */
@@ -50,6 +55,8 @@ class ProductController extends Controller
     public function __construct(
         private readonly CurrentCompany $companies,
         private readonly IncidentForm $incidentForm,
+        private readonly ProductActivity $github,
+        private readonly RepoLinkForm $repoLink,
     ) {}
 
     public function index(Request $http): Response
@@ -131,6 +138,8 @@ class ProductController extends Controller
             'cost_note' => $this->costNote($product, $user),
             'request_notes' => (object) $requests->mapWithKeys(fn (AiRequest $request) => [$request->key => $this->requestNote($request)])->all(),
             'incident_form' => $this->incidentForm->setup($product, $user, $incidentOpen, (array) $http->old()),
+            'github' => $this->github->for($product),
+            'repo_link' => $this->repoLink->setup($product, $user, $http->boolean('vincular'), (array) $http->old(), $http->session()->get('errors')),
             'now' => now()->toIso8601String(),
         ]);
     }

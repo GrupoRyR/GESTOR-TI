@@ -187,6 +187,37 @@ class GitHubApp
     }
 
     /**
+     * Every path of a branch (Git trees API, recursive): `path` and `type`
+     * (`blob` file | `tree` folder). Empty when the branch is missing.
+     *
+     * @return list<array{path: string, type: string}>
+     */
+    public function tree(string $fullName, string $ref): array
+    {
+        $response = $this->send('get', 'repos/'.$this->repoPath($fullName).'/git/trees/'.rawurlencode($ref), ['recursive' => 1], $this->installationToken(), allowNotFound: true);
+
+        if ($response === null) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $item): array => ['path' => (string) ($item['path'] ?? ''), 'type' => (string) ($item['type'] ?? '')],
+            array_filter((array) $response->json('tree', []), 'is_array'),
+        ));
+    }
+
+    /**
+     * When the last commit of the branch touching a path was made; null when none.
+     */
+    public function lastCommitAt(string $fullName, string $path, string $ref): ?Carbon
+    {
+        $commits = (array) $this->send('get', 'repos/'.$this->repoPath($fullName).'/commits', ['sha' => $ref, 'path' => $path, 'per_page' => 1], $this->installationToken())->json();
+        $date = $commits[0]['commit']['committer']['date'] ?? $commits[0]['commit']['author']['date'] ?? null;
+
+        return is_string($date) ? Carbon::parse($date) : null;
+    }
+
+    /**
      * Decoded text of a file; null when missing or a directory.
      */
     public function fileContents(string $fullName, string $path, ?string $ref = null): ?string

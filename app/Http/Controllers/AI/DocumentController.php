@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AI;
 use App\Actions\Ai\Documents;
 use App\Domain\Ai\DocumentTemplates;
 use App\Domain\Ai\LineDiff;
+use App\Domain\GitHub\RepoDocs;
 use App\Http\Controllers\Controller;
 use App\Models\AiDocument;
 use App\Models\AiDocumentRevision;
@@ -32,7 +33,9 @@ use Inertia\Response;
  * - `Ai/Docs/Edit` + `ai.docs.update` (autosave, partial reload
  *   `saved_at`/`version`) + `ai.docs.publish` (new version).
  * - `Ai/Docs/History` (`compare` partial with `?version=`) + `ai.docs.restore`.
- * - `Ai/Docs/Repo`: GitHub reading arrives in Stage D: `{ connected: false }`.
+ * - `Ai/Docs/Repo`: Markdown of the product's linked repository, read with
+ *   the GitHub App (App\Domain\GitHub\RepoDocs); `{ connected: false }`
+ *   without a repository that reads docs or when GitHub fails.
  *
  * Optional `version` in the update/publish bodies is the version the
  * editor started from: a stale one is refused (optimistic concurrency).
@@ -199,10 +202,10 @@ class DocumentController extends Controller
     }
 
     /**
-     * Read-only files from the product's GitHub repository (Stage D): not
-     * connected yet. `repo` is also the partial reload of a file choice.
+     * Read-only files from the product's GitHub repository (`?path=` picks
+     * the file). `repo` is also the partial reload of a file choice.
      */
-    public function repo(Request $http): Response
+    public function repo(Request $http, RepoDocs $docs): Response
     {
         $user = $this->user($http);
         Gate::authorize('viewAny', AiDocument::class);
@@ -214,7 +217,10 @@ class DocumentController extends Controller
         return Inertia::render('Ai/Docs/Repo', [
             'products' => $products->map(fn (AiProduct $product) => ['slug' => $product->slug, 'name' => $product->name])->values()->all(),
             'product_slug' => $slug,
-            'repo' => fn () => ['connected' => false],
+            'repo' => fn () => $docs->state(
+                $products->firstWhere('slug', $slug),
+                is_string($http->query('path')) ? (string) $http->query('path') : null,
+            ),
             'now' => now()->toIso8601String(),
         ]);
     }

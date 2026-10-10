@@ -10,6 +10,7 @@ use App\Domain\Ai\ProjectBudget;
 use App\Domain\Ai\TriagePeople;
 use App\Domain\Ai\Week;
 use App\Domain\Ai\WipLimit;
+use App\Domain\GitHub\RepoLinkForm;
 use App\Enums\Ai\ApprovalDecision;
 use App\Enums\Ai\RequestStatus;
 use App\Http\Controllers\Controller;
@@ -37,7 +38,9 @@ use Inertia\Response;
  *   (only in "Todas"); global WIP.
  * - `Ai/Projects/Show` (`ai.projects.show`, AiProjectPolicy::view): the
  *   summary with the origin request, open requirements, the last 6
- *   activity entries and the re-approval data.
+ *   activity entries and the re-approval data. Stage D: `repo_link` and
+ *   `repo_create` (App\Domain\GitHub\RepoLinkForm), null without
+ *   `ai.github.manage` or once the project has a repository.
  * - `ai.requests.convert` ("Convertir en proyecto", `ai.manage`):
  *   App\Actions\Ai\ConvertRequestToProject, then the new summary.
  *
@@ -53,6 +56,7 @@ class ProjectController extends Controller
         private readonly WipLimit $wip,
         private readonly ProjectBudget $budget,
         private readonly TriagePeople $people,
+        private readonly RepoLinkForm $repoLink,
     ) {}
 
     public function index(Request $http, CurrentCompany $companies): Response
@@ -117,6 +121,8 @@ class ProjectController extends Controller
             'reapproval_requested_at' => $project->reapproval_requested_at?->toIso8601String(),
             'next_step' => $this->nextStep($project),
             'today' => Week::today()->toDateString(),
+            'repo_link' => $this->repoLink->setup($project, $user, false, (array) $http->old(), $http->session()->get('errors')),
+            'repo_create' => $this->repoLink->createSetup($project, $user),
             'now' => now()->toIso8601String(),
         ]);
     }

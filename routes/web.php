@@ -14,6 +14,7 @@ use App\Http\Controllers\AI\AreaBoardController;
 use App\Http\Controllers\AI\BacklogController;
 use App\Http\Controllers\AI\BoardController;
 use App\Http\Controllers\AI\DocumentController;
+use App\Http\Controllers\AI\GitHubController;
 use App\Http\Controllers\AI\InboxController;
 use App\Http\Controllers\AI\KnowledgeSearchController;
 use App\Http\Controllers\AI\ProductController;
@@ -291,6 +292,21 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
                 ->name('docs.restore');
         });
     });
+    // Stage D · GitHub (types/pages/ai-github.ts), `ai.github.manage`: link a
+    // repository to a product or project, create the project repository with
+    // its CLAUDE.md and create a task's issue. Pages send the dialogs as null
+    // without the permission.
+    Route::middleware('can:ai.github.manage')->group(function () {
+        Route::post('/products/{product}/repository', [GitHubController::class, 'linkProduct'])
+            ->middleware('can:ai.manage')
+            ->name('products.repository.store');
+        Route::post('/projects/{project}/repository', [GitHubController::class, 'linkProject'])->name('projects.repository.store');
+        Route::post('/projects/{project}/repository/create', [GitHubController::class, 'createRepository'])->name('projects.repository.create');
+        Route::post('/projects/{project}/tasks/{task}/issue', [GitHubController::class, 'storeIssue'])
+            ->scopeBindings()
+            ->name('tasks.issue.store');
+    });
+
     // Module users (AiProductPolicy::viewAny); docs only reach `ai.manage`.
     Route::get('/search', KnowledgeSearchController::class)->name('search');
 

@@ -4,12 +4,17 @@ namespace Tests\Feature\Ai\Knowledge;
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\AiDocument;
+use App\Models\AiProductVersion;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Feature\GitHub\BuildsGitHubWork;
 
 class DocumentsTest extends KnowledgeTestCase
 {
+    use BuildsGitHubWork;
+
     public function test_index_returns_exactly_the_contract_props_and_lists_visible_docs(): void
     {
         $product = $this->product(['slug' => 'cartera', 'name' => 'Cartera']);
@@ -318,10 +323,10 @@ class DocumentsTest extends KnowledgeTestCase
         $this->actingAs($this->jhon)->post(route('ai.docs.restore', [$doc, 9]))->assertNotFound();
     }
 
-    public function test_repo_page_is_not_connected_until_stage_d(): void
+    public function test_repo_page_is_not_connected_without_a_readable_repository(): void
     {
         $this->product(['slug' => 'cartera', 'name' => 'Cartera']);
-        $this->product(['slug' => 'pedidos', 'name' => 'Pedidos']);
+        $pedidos = $this->product(['slug' => 'pedidos', 'name' => 'Pedidos']);
 
         $this->assertSame($this->withShared(['products', 'product_slug', 'repo', 'now']), $this->propKeys(route('ai.docs.repo')));
 
@@ -337,6 +342,116 @@ class DocumentsTest extends KnowledgeTestCase
         $this->actingAs($this->jhon)
             ->get(route('ai.docs.repo', ['product' => 'nada']))
             ->assertInertia(fn (Assert $page) => $page->where('product_slug', 'cartera'));
+
+        // Linked, but GitHub is not configured, or the link does not read docs.
+        Http::fake();
+        $repo = $this->githubRepo('pedidos');
+        $repo->linkTo($pedidos, 'main', $this->jhon);
+        $this->actingAs($this->jhon)
+            ->get(route('ai.docs.repo', ['product' => 'pedidos']))
+            ->assertInertia(fn (Assert $page) => $page->where('repo', ['connected' => false]));
+
+        $this->connectGitHub();
+        $repo->linkTo($pedidos, 'main', $this->jhon, readDocs: false);
+        $this->actingAs($this->jhon)
+            ->get(route('ai.docs.repo', ['product' => 'pedidos']))
+            ->assertInertia(fn (Assert $page) => $page->where('repo', ['connected' => false]));
+        Http::assertNothingSent();
+    }
+
+    public function test_repo_page_reads_the_markdown_of_the_linked_repository(): void
+    {
+        $this->freezeSecond();
+        $this->connectGitHub();
+        $product = $this->product(['slug' => 'cartera', 'name' => 'Visualizador de cartera']);
+        $repo = $this->githubRepo('visualizador-cartera', ['branches' => ['main', 'develop']]);
+        $repo->linkTo($product, 'develop', $this->jhon);
+        AiProductVersion::factory()->create([
+            'ai_product_id' => $product->id, 'version' => '3.1.0', 'tag' => 'v3.1.0', 'github_repository_id' => $repo->id,
+            'published_at' => '2026-09-22 16:00:00', 'released_at' => '2026-09-22',
+        ]);
+
+        $commit = fn (string $date) => Http::response([['sha' => 'abc', 'commit' => ['committer' => ['date' => $date]]]]);
+        $this->fakeGitHub([
+            'api.github.com/repos/GrupoRyR/visualizador-cartera/git/trees/develop*' => Http::response(['tree' => [
+                ['path' => 'README.md', 'type' => 'blob'],
+                ['path' => 'CLAUDE.md', 'type' => 'blob'],
+                ['path' => 'CHANGELOG.md', 'type' => 'blob'],
+                ['path' => 'package.json', 'type' => 'blob'],
+                ['path' => 'src', 'type' => 'tree'],
+                ['path' => 'src/notas.md', 'type' => 'blob'],
+                ['path' => 'docs', 'type' => 'tree'],
+                ['path' => 'docs/arquitectura.md', 'type' => 'blob'],
+                ['path' => 'docs/diagrama.png', 'type' => 'blob'],
+                ['path' => 'docs/decisiones', 'type' => 'tree'],
+                ['path' => 'docs/decisiones/0001-next-vercel.md', 'type' => 'blob'],
+            ]]),
+            'api.github.com/repos/GrupoRyR/visualizador-cartera/commits?*path=README.md*' => $commit('2026-09-20T15:00:00Z'),
+            'api.github.com/repos/GrupoRyR/visualizador-cartera/commits?*path=docs%2Farquitectura.md*' => $commit('2026-09-25T15:00:00Z'),
+            'api.github.com/repos/GrupoRyR/visualizador-cartera/commits*' => $commit('2026-08-18T15:00:00Z'),
+            'api.github.com/repos/GrupoRyR/visualizador-cartera/contents/README.md*' => Http::response([
+                'type' => 'file', 'content' => base64_encode("# Visualizador\n\nCartera por asesor.\n"),
+            ]),
+            'api.github.com/repos/GrupoRyR/visualizador-cartera/contents/docs/arquitectura.md*' => Http::response([
+                'type' => 'file', 'content' => base64_encode("# Arquitectura\n"),
+            ]),
+        ]);
+
+        $this->actingAs($this->jhon)
+            ->get(route('ai.docs.repo', ['product' => 'cartera']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('repo.connected', true)
+                ->where('repo.name', 'GrupoRyR/visualizador-cartera')
+                ->where('repo.branch', 'develop')
+                ->where('repo.fetched_at', now()->toIso8601String())
+                ->where('repo.files', [
+                    ['path' => 'README.md', 'kind' => 'file', 'depth' => 0, 'updated_at' => '2026-09-20'],
+                    ['path' => 'CLAUDE.md', 'kind' => 'file', 'depth' => 0, 'updated_at' => '2026-08-18'],
+                    ['path' => 'CHANGELOG.md', 'kind' => 'file', 'depth' => 0, 'updated_at' => '2026-08-18'],
+                    ['path' => 'docs/', 'kind' => 'dir', 'depth' => 0, 'updated_at' => null],
+                    ['path' => 'docs/arquitectura.md', 'kind' => 'file', 'depth' => 1, 'updated_at' => '2026-09-25'],
+                    ['path' => 'docs/decisiones/', 'kind' => 'dir', 'depth' => 1, 'updated_at' => null],
+                    ['path' => 'docs/decisiones/0001-next-vercel.md', 'kind' => 'file', 'depth' => 2, 'updated_at' => '2026-08-18'],
+                ])
+                ->where('repo.selected', [
+                    'path' => 'README.md',
+                    'markdown' => "# Visualizador\n\nCartera por asesor.\n",
+                    'updated_at' => '2026-09-20',
+                    'release' => 'versión 3.1.0',
+                    'github_url' => 'https://github.com/GrupoRyR/visualizador-cartera/blob/develop/README.md',
+                ])
+            );
+
+        // Choosing a file is a partial reload of `repo`; the listing comes from the cache.
+        $sent = count(Http::recorded());
+        $this->actingAs($this->jhon)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request()),
+                'X-Inertia-Partial-Component' => 'Ai/Docs/Repo',
+                'X-Inertia-Partial-Data' => 'repo',
+            ])
+            ->get(route('ai.docs.repo', ['product' => 'cartera', 'path' => 'docs/arquitectura.md']))
+            ->assertOk()
+            ->assertJsonPath('props.repo.selected.path', 'docs/arquitectura.md')
+            ->assertJsonPath('props.repo.selected.markdown', "# Arquitectura\n")
+            ->assertJsonPath('props.repo.selected.release', null)
+            ->assertJsonMissingPath('props.products');
+        $this->flushHeaders();
+        $this->assertSame($sent + 1, count(Http::recorded()));
+    }
+
+    public function test_repo_page_falls_back_when_github_fails(): void
+    {
+        $this->connectGitHub();
+        $product = $this->product(['slug' => 'cartera', 'name' => 'Cartera']);
+        $this->githubRepo('cartera')->linkTo($product, 'main', $this->jhon);
+        $this->fakeGitHub(['api.github.com/repos/*' => Http::response(['message' => 'Server Error'], 500)]);
+
+        $this->actingAs($this->jhon)
+            ->get(route('ai.docs.repo', ['product' => 'cartera']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('repo', ['connected' => false]));
     }
 
     private function itWithoutDocs(): User

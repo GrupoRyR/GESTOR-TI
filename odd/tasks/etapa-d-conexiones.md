@@ -22,7 +22,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 - [x] D0 · Merge design PR #20 (`1e39cc7`): no conflicts; typecheck, 476 vitest and build green.
 - [x] D1 · GitHub foundation: `github_repositories` (installed repos + polymorphic product/project link: branch, read_docs, receive_events, linked_by/at), `github_webhook_events`, `users.github_login`; `GitHubApp` client (JWT, installation token, repos, contents, issues, create repo); `GiaKeys` matcher; page `Admin/Integrations/GitHub` + `admin.integrations.github{,.update,.events.retry,.disconnect}`; Integraciones card. Route: delegated (writer trigger).
 - [x] D2 · Webhook: `POST /api/github/webhook` (HMAC `X-Hub-Signature-256`, rate limit), store event, queued processor; `issues`/`pull_request` (task → En revisión / Hecho, activity), `workflow_run` (CI), `push` to main (deploy), `release` (product version + included `GIA-…` since previous release); failed-event reprocess. Route: delegated.
-- [ ] D3 · Repos, issues and docs: `ai.products.repository.store`, `ai.projects.repository.store`, `ai.projects.repository.create` (private repo with README, CLAUDE.md, docs/), `ai.tasks.issue.store`; props `Ai/Products/Show.github|repo_link`, `Ai/Projects/Show.repo_link|repo_create`, Board `selected_task_github|issue_created`, `Ai/Tasks/Show.github`; `Ai/Docs/Repo` connected. Route: delegated.
+- [x] D3 · Repos, issues and docs: `ai.products.repository.store`, `ai.projects.repository.store`, `ai.projects.repository.create` (private repo with README, CLAUDE.md, docs/), `ai.tasks.issue.store`; props `Ai/Products/Show.github|repo_link`, `Ai/Projects/Show.repo_link|repo_create`, Board `selected_task_github|issue_created`, `Ai/Tasks/Show.github`; `Ai/Docs/Repo` connected. Route: delegated.
 - [ ] D4 · Releases: page `Ai/Releases/Show`, `ai.releases.notes.update`, `ai.releases.notify` (bell + Telegram to each requester, confirmed notes only). Route: delegated.
 - [ ] D5 · Brief para Claude: whitelisted `brief` inputs + `brief_state` on request/task/project/board, `brief_omitted`; tests that vault, credentials, costs, rates, hours and internal notes never appear. Route: delegated.
 - [ ] D6 · AI suggestions: `ai_suggestions`, agents, `ai.requests.suggestions.store`, `ai.suggestions.{accept,discard,regenerate,cancel}`, `ai.requests.compare`, `ai.requests.criteria.update`, `size_suggestion_id` on evaluation, `ai_availability`/`ai_usage`/`merge_into`; release-notes suggestion. Route: delegated.
@@ -121,6 +121,71 @@ Server steps (D7 deploy doc):
 - GitHub App → Webhook URL `https://{dominio}/api/github/webhook`, content type `application/json`, secret = `GITHUB_WEBHOOK_SECRET` in `.env`.
 - Subscribe to events: Issues, Pull request, Release, Workflow runs, Push (installation events are always sent to the app). Permissions: Actions read (workflow_run).
 - After installing: `php artisan github:sync` once; the cron `schedule:run` + database queue processes the events.
+
+### D3 · Repos, issues, repo creation, GitHub props, repo docs — done
+- Route: delegated (writer trigger: 3 actions, 6 domain classes, presenter, controller, 3 form requests, 5 controllers wired, migration; 5 test files + 5 updated).
+- Test-first: 20 new tests (`tests/Feature/GitHub/{RepositoryLinkTest,RepositoryCreateTest,TaskGitHubTest,ProductGitHubTest}`, 2 new in
+  `tests/Feature/Ai/Knowledge/DocumentsTest`) plus prop-key updates in `ProductPagesTest`, `ProductIncidentsTest`, `ProjectPagesTest`. RED observed by
+  setting the implementation aside: 24 of 55 tests in the touched files failing (routes missing, props absent); then GREEN.
+- Checks: `php artisan test --filter='GitHub|Repository|Issue|Docs|Board|Product|Project'` 227/227; full suite 1022/1022 passed (10900 assertions);
+  `vendor/bin/pint --test` passed; `npm run typecheck` passed.
+- Size: ~2,050 authored code lines (with docblocks) + ~1,120 test lines, above the ~400 heuristic: four routes and five page props read one shared
+  stored-event model (RepoActivity) and were kept in one slice so the props stay consistent.
+
+Routes (`can:ai.github.manage`, App\Http\Controllers\AI\GitHubController):
+- `ai.products.repository.store` POST `/ai/products/{product}/repository` (also `can:ai.manage` + AiProductPolicy::view) and
+  `ai.projects.repository.store` POST `/ai/projects/{project}/repository` (AiProjectPolicy::manage), body `RepoLinkPayload`, errors `repo`, `branch` →
+  `App\Actions\Ai\LinkRepository`. Back to the show page with flash "Repositorio vinculado." (+ "N evento(s) pendiente(s) se está(n) reprocesando.").
+- `ai.projects.repository.create` POST `/ai/projects/{project}/repository/create`, body `{name, claude_md}`, errors `name`, `claude_md` →
+  `App\Actions\Ai\CreateProjectRepository`; flash "Se creó el repositorio privado {org}/{name} y quedó vinculado al proyecto.".
+- `ai.tasks.issue.store` POST `/ai/projects/{project}/tasks/{task}/issue` (scoped bindings), body `IssuePayload`, errors `title`, `body`,
+  `assignee_id` → `App\Actions\Ai\CreateTaskIssue`. From the board (previous URL ends in `/board`) it flashes `issue_created`; otherwise flash
+  success "Se creó el issue #N en GitHub.".
+
+Props:
+- `Ai/Products/Show`: `github` (`App\Domain\GitHub\ProductActivity`, null without a linked repo; GitHub data to every `ai.manage` viewer) and
+  `repo_link` (`App\Domain\GitHub\RepoLinkForm`; null without `ai.github.manage` or once linked; `?vincular=1` or a failed store → `open`).
+- `Ai/Projects/Show`: `repo_link`, `repo_create` (`{organization, default_name}` = project name slug), both null without `ai.github.manage` or once
+  `repository_url` is set / a repo is linked.
+- `Ai/Projects/Board`: `selected_task_github` (lazy closure on `?tarea=`, like `selected_task`) and `issue_created` (`Inertia::always`, read from the
+  session flash `github_issue_created`, so it survives a partial reload and shows once).
+- `Ai/Tasks/Show`: `github` (`App\Domain\GitHub\TaskActivity`, null without `ai.manage`, e.g. a team member requester).
+- `Ai/Docs/Repo`: `repo` from `App\Domain\GitHub\RepoDocs`.
+
+Classes:
+- `App\Domain\GitHub\RepoActivity`: latest payload per PR/issue from processed events of the repo (newest 300 per type), `PullRequest`/`GitHubIssue`
+  shapes, actors via `users.github_login` (`@login`), `LinkedWork` (first `GIA-…` key, task holding the PR/issue in the repo projects), closing PR
+  from merged PR bodies; `repositoryOf(project)` = project link, else its product's link.
+- `App\Support\Ai\Presenters\GitHubPresenter`: `GitHubRepo` (free repos first, then by name), `GitHubRepoLink`, `CiRun` (`none` placeholder).
+- `App\Domain\GitHub\IssueText`: mirrors lib/issue.ts (`gestor-ia` first, privacy footer appended when missing) and re-validates: SecretGuard,
+  money amounts (`$ 1.200`, `COP`, `USD`) and internal notes (≥ 15 chars) of the project's requests.
+- `GitHubApp::tree()` (git trees, recursive) and `lastCommitAt()` (commits API, per path) for the docs page.
+- Migration `2026_10_28_000001_add_github_issue_to_ai_tasks`: `ai_tasks.github_issue` json snapshot (title, labels, assignee login, created_by_id,
+  created_at) shown until the `issues` webhook arrives. `AiProduct|AiProject::githubRepository()` morphOne.
+- `TaskPresenter::github` (`GithubLink`): CI `none` now maps to null (type has no `none`).
+
+Decisions:
+- A project may reuse its product's repository: the product keeps the morph link (events, CI, releases); the project only stores
+  `repository_url`/`repository_branch` (one link per repo in `github_repositories`). Another product/project cannot take a linked repo.
+- Linking re-queues failed `repo_not_linked` events of that repo (pending, error cleared, `ProcessGitHubEvent` after commit) and audits
+  `github_repository_linked`; repo creation audits `github_repository_created`; project links/creations/issues add a "github" activity.
+- GitHub failures are validation errors (`title` for issues, `name` for repo creation) with Spanish messages by reason; tokens never reach the
+  session or response (asserted). A repo created on GitHub whose file commits then fail is not stored: retrying gives "Ya existe…" (rare; fix by
+  `php artisan github:sync` + linking).
+- `TaskGitHub.criteria` = acceptance criteria of the project's origin request (tasks have no criteria relation yet). `request_key` = origin request
+  key ('' without one). `events`: PR opened (PR `created_at`) / merged (`merged_at`), completed CI runs of the PR (passing/failing), the issue the
+  Gestor created, and board moves parsed from the activity feed ("movió T3 … a En revisión|Hecho|En progreso"); ids = source id × 10 + 1/2/3.
+- `ProductGitHub`: commits = last 7 Bogotá days of `recent_commits` (max 20 stored), period "jue 1 a mié 7 oct"; `last_closed_pull_request` = latest
+  closed without merging (as the mock); deploy provider = product hosting (else "GitHub"), url = product url; `planned_release` always null (no planned
+  version stored); `fetched_at` = repo row `updated_at`.
+- Docs: root `*.md` + everything Markdown under `docs/` (folders as `dir` rows with depth), README.md then CLAUDE.md first; dates for the first 40
+  files (one commits call each); listing and each file cached 10 min; `release` = first GitHub release published on/after the file's last change.
+- All GitHub instants are converted to America/Bogota offsets.
+
+Notes for design:
+- Issue dialog: GitHub/no-repo/duplicate errors arrive on `title`; credential/money/internal-note refusals on `body`; no GitHub login on `assignee_id`.
+- `IssueAssignee.github_login` is sent as `@login` (null without a login), like `GitHubActor.login`.
+- If a future board call uses `only` after "Crear issue", `issue_created` is still included (`Inertia::always`).
 
 ## Open questions (for Jhon)
 - GitHub organization name, App registration (app id, private key, webhook secret go to `.env`).
