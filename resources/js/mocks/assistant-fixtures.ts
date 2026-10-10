@@ -287,8 +287,75 @@ export const CARD_K029 = card({
     fields: { shows: '[QUÉ MUESTRA]', source_system: 'SAP Business One', recipients: '[DESTINATARIOS]', schedule: '[HORARIO]', format: '[FORMATO]' },
 });
 
-/** Order of the list board (last edited first): the 8 visible rows, then the import targets. */
-export const KNOWLEDGE_CARDS: KnowledgeCard[] = [CARD_K031, CARD_K014, CARD_K027, CARD_K040, CARD_K022, CARD_K018, CARD_K035, CARD_K009, CARD_K024, CARD_K029];
+// The brief names only 2 of the 5 overdue cards (K-014, K-040). These three
+// complete the overdue filter; their titles and dates are invented for the
+// mocks (the chat suggests "Ver la ficha de Toma Pedidos SAP", so it exists).
+
+export const CARD_K011 = card({
+    id: 11,
+    key: 'K-011',
+    type: 'system',
+    title: 'Toma Pedidos SAP',
+    company_ids: [SEGUREX.id],
+    area: KNOWLEDGE_AREAS.ventas,
+    visibility: 'it',
+    owner: PEOPLE.jhon,
+    review_at: '2026-09-15',
+    updated_at: '2026-03-15T10:00:00-05:00',
+    description: null,
+    fields: { what_is: 'App de pedidos de los asesores de Segurex', runs_on: 'GoDaddy', access: '[ACCESO]', version: PRODUCT_REFS.tomaPedidos.version },
+    related_products: [PRODUCT_REFS.tomaPedidos],
+    usage_count_month: 8,
+});
+
+export const CARD_K016 = card({
+    id: 16,
+    key: 'K-016',
+    type: 'procedure',
+    title: 'Pedir el desbloqueo de un pedido retenido por cartera',
+    company_ids: [SEGUREX.id],
+    area: KNOWLEDGE_AREAS.cartera,
+    visibility: 'company',
+    owner: PEOPLE.cartera,
+    review_at: '2026-08-31',
+    updated_at: '2026-02-28T09:00:00-05:00',
+    description: null,
+    fields: { steps: ['[PASOS PARA PEDIR EL DESBLOQUEO]'], who_can: 'Asesores comerciales' },
+    usage_count_month: 1,
+});
+
+export const CARD_K005 = card({
+    id: 5,
+    key: 'K-005',
+    type: 'glossary',
+    title: 'Cupo de crédito',
+    company_ids: [SEGUREX.id],
+    area: KNOWLEDGE_AREAS.cartera,
+    visibility: 'company',
+    owner: PEOPLE.cartera,
+    review_at: '2026-09-28',
+    updated_at: '2026-03-28T09:00:00-05:00',
+    description: null,
+    fields: { term: 'Cupo de crédito', definition: '[DEFINICIÓN]', also_called: null },
+    usage_count_month: 0,
+});
+
+/** Order of the list board (last edited first): the 8 visible rows, then the import targets and the other overdue cards. */
+export const KNOWLEDGE_CARDS: KnowledgeCard[] = [
+    CARD_K031,
+    CARD_K014,
+    CARD_K027,
+    CARD_K040,
+    CARD_K022,
+    CARD_K018,
+    CARD_K035,
+    CARD_K009,
+    CARD_K024,
+    CARD_K029,
+    CARD_K011,
+    CARD_K005,
+    CARD_K016,
+];
 
 // Related cards need the refs, so they are linked after creation.
 CARD_K031.related_cards = [cardRef(CARD_K027)];
@@ -308,7 +375,7 @@ export function cardSummary(source: KnowledgeCard): KnowledgeCardSummary {
 /** The 8 rows of page 1 of the list (C-Knowledge, C-KnowledgePhone). */
 export const KNOWLEDGE_PAGE_1: KnowledgeCardSummary[] = KNOWLEDGE_CARDS.slice(0, 8).map(cardSummary);
 
-/** The overdue cards among the fixtures (K-014, K-040); the other 3 of the 5 are not modeled. */
+/** The 5 overdue cards, last edited first (K-014, K-040 and the three invented ones). */
 export const KNOWLEDGE_OVERDUE: KnowledgeCardSummary[] = KNOWLEDGE_CARDS.filter((item) => item.review_status === 'overdue').map(cardSummary);
 
 export const cardByKey = (key: string): KnowledgeCard => {
