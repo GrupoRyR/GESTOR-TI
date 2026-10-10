@@ -52,7 +52,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
 - [x] T2 Chat pages (C1–C3): `Assistant/Chat` (phone and desktop) with variants for conversation, no answer, person picker, credential, vault link, first open, unavailable, off (admin and other users), no permission, refused and searching. Route: delegated.
 - [x] T3 Knowledge base (C4): `Assistant/Knowledge/Index` (+ phone and overdue filter), `Show`, `Create` and `Edit` (form by type with visibility and review date), plus the types reference. Route: delegated.
 - [x] T4 Import, drafts and unanswered questions (C5–C7): `Assistant/Import/Create` (upload), `Assistant/Import/Mapping`, `Assistant/Import/Preview`, `Assistant/Drafts/Index` (+ phone approval) and `Assistant/Unanswered/Index`. Route: delegated.
-- [ ] T5 Pending Stage B forms and the Telegram spec. Route: delegated.
+- [x] T5 Pending Stage B forms and the Telegram spec. Route: delegated.
   - `Ai/Products/Create` and `Ai/Products/Edit`.
   - The incident drawer on `Ai/Products/Show` (`Ai/Products/Incidents/Create`).
   - `Ai/Vault/Edit`.
@@ -79,6 +79,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
 - T2 `7f17be9` Assistant/Chat (12 variants; routes added: assistant.messages.retry, assistant.credentials.copied — to confirm), fixes ChatLog relative + tablet rail overflow-x — 339 tests. Delegated writer checked 390/834/1440 light/dark with Playwright; parent re-ran typecheck + tests.
 - T3 `264afc4` Knowledge Index/Show/Create/Edit (15 variants, types help drawer, steps editor, related picker; helpers knowledgeQuery + knowledgeFields test-first) — 357 tests. Delegated writer checked most variants with Playwright; glossary/data_flow shows not visually checked. Parent re-ran typecheck + tests.
 - T4 `e8ac746` Import Create/Mapping/Preview, Drafts, Unanswered (12 variants; routes added: assistant.import.update, assistant.import.destroy; approve allowed with missing optional fields; helpers importPreview + curation test-first) — 378 tests. Delegated writer checked all variants 390/834/1440 light/dark; parent re-ran typecheck + tests.
+- T5 `f0bea10` Ai/Products/Create+Edit, incident drawer on Show (+ deep link), Ai/Vault/Edit+Create, docs/design/telegram-format.md; helpers slug + vault rotation/delete-confirm test-first — 393 tests. Writer spot-checked variants; parent re-ran typecheck, tests, build.
 
 ## Next step
-T5 pending Stage B forms + Telegram spec.
+T6 handoff.
