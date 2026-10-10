@@ -62,7 +62,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
   - The release page `Ai/Releases/Show` (notes, AI-drafted user notes suggestion, notify requesters).
   - PR status on the task phone view.
   - Replace the "etapa D" placeholders, including `Ai/Docs/Repo`.
-- [ ] T3 Brief para Claude. Route: delegated.
+- [x] T3 Brief para Claude. Route: delegated.
   - The BriefPanel wired into `Ai/Requests/Show` (IT view), `Ai/Tasks/Show`, `Ai/Projects/Show` (with the "CLAUDE.md inicial" tab and create-repo), and phone.
 - [ ] T4 AI suggestions. Route: delegated.
   - The suggestions inside `Ai/Requests/Show` (IT view): summary, duplicate, criteria, size.
@@ -89,6 +89,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
 - 2026-10-09: branch created from the Stage C head (`78e1795`, 393 tests); document created.
 - T1 `38b9056` foundations: types github/suggestions, github-fixtures, Components github/suggestions/brief, helpers brief/issue/githubKeys test-first (forbidden data tested); T4 issue removed from Stage B fixtures — 436 tests. Delegated writer; parent re-ran typecheck + tests.
 - T2 `d39aa41` Admin/Integrations/GitHub, repo link dialog (product + project), product GitHub section, create issue (task page + board), PR card/history, Ai/Releases/Show with notes suggestion + notify; helpers repoLink/releaseNotice/taskGitHub/githubAdmin test-first — 454 tests. Writer swept all variants 390/1440 (+834) light/dark with Playwright; parent re-ran typecheck + tests. Follow-up: .md-prose heading sizes too large.
+- T3 `ccfd5f0` BriefPanel wired on request IT view, task page, board drawer, project summary (+ CLAUDE.md tab, create repo route ai.projects.repository.create); .md-prose moved into @layer components with relative headings — 466 tests. Writer checked variants 390/1440; parent re-ran typecheck + tests.
 
 ## Next step
-T3 brief para Claude.
+T4 AI suggestions.
