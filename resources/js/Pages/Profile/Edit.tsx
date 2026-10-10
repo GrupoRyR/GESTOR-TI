@@ -1,8 +1,12 @@
 import { NotificationMatrix } from '@/Components/profile/NotificationMatrix';
 import { TelegramCard } from '@/Components/profile/TelegramCard';
 import { Avatar } from '@/Components/ui/Avatar';
+import { Button } from '@/Components/ui/Button';
 import { Chip } from '@/Components/ui/Chip';
+import { Icon } from '@/Components/ui/Icon';
 import { AppLayout } from '@/Layouts/AppLayout';
+import { can } from '@/lib/can';
+import { route } from '@/lib/route';
 import type { ProfileEditProps } from '@/types/pages/profile';
 import type { PageProps } from '@/types/shared';
 
@@ -46,6 +50,20 @@ export default function ProfileEdit(props: PageProps<ProfileEditProps>) {
                     </section>
 
                     <TelegramCard telegram={telegram} />
+                    {can(auth.user, 'ai.mcp.use') ? (
+                        <section aria-labelledby="perfil-mcp" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
+                            <div className="flex items-center gap-2.5">
+                                <Icon name="plug" size={22} className="text-brand-ink" />
+                                <h2 id="perfil-mcp" className="text-lg font-bold">
+                                    Conector para Claude
+                                </h2>
+                            </div>
+                            <p className="text-sm leading-[1.45] text-fg-soft">Consulta y actualiza el Gestor IA desde una conversación con Claude, con tokens personales.</p>
+                            <Button variant="secondary" href={route('profile.mcp')} icon="chevron-right" iconPosition="end" className="self-start">
+                                Configurar conector
+                            </Button>
+                        </section>
+                    ) : null}
                 </div>
 
                 <NotificationMatrix events={notification_events} telegramLinked={telegram.linked} />

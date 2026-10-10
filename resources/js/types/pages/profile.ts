@@ -1,6 +1,6 @@
 /**
  * Perfil (`Pages/Profile/Edit.tsx` → `Profile/Edit`, `Pages/Profile/TelegramLink.tsx` → `Profile/TelegramLink`).
- * Any signed-in user; no extra permission.
+ * Any signed-in user; no extra permission (`ai.mcp.use` only shows the "Conector para Claude" card).
  *
  * Ziggy routes used:
  * - `profile.edit`                   GET     —                 back link from TelegramLink
@@ -9,6 +9,8 @@
  * - `profile.telegram.create`        GET     —                 "Vincular Telegram" (TelegramLink page)
  * - `profile.telegram.store`         POST    —                 "Generar otro enlace" (new link, back to TelegramLink)
  * - `profile.telegram.destroy`       DELETE  —                 "Desvincular"
+ * - `profile.mcp`                    GET     —                 "Configurar conector" card on Profile/Edit, shown only
+ *                                            with `ai.mcp.use` (see `types/pages/profile-mcp.ts`)
  *
  * TelegramLink polls itself with `router.reload({ only: ['status'] })` every
  * 4 s while `status === 'waiting'`.
