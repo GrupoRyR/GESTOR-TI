@@ -53,7 +53,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `/mcp` accepting personal tokens or OAuth, 401/403 rules;
   - `agregar_nota` rename, costs removed, per-call audit.
   - Route: delegated.
-- [ ] E4 · Close: deploy doc (Passport keys, WAF/ModSecurity for `/.well-known` and `/oauth/*`, adding the connector in claude.ai and Claude Code, hosting test checklist), full checks, PRs.
+- [x] E4 · Close: deploy doc (Passport keys, WAF/ModSecurity for `/.well-known` and `/oauth/*`, adding the connector in claude.ai and Claude Code, hosting test checklist), full checks, PRs.
 
 ## Progress / evidence
 
@@ -186,6 +186,17 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - Calls through claude.ai OAuth are audited but not shown on the page, since `McpCall.token` is required. If design wants them, the type needs an OAuth variant.
   - Revoking from the activity panel keeps `?token=` (from the referer), so the panel stays open.
 - Follow-ups outside the E3 surface: the `App\Actions\Ai\AddProgressNote` docblock still names `agregar_nota_avance`. There is no per-IP throttle before authentication on `/mcp`: unauthenticated requests cost one indexed lookup or one JWT check.
+
+### E4 · Close — done
+- Deploy: `docs/deploy-cpanel.md` §4 env keys (Passport keys, `MCP_*`) + §4.2 connector (server steps, WAF, adding it in Claude Code and claude.ai, hosting test checklist, `mcp:revoke`, schedules).
+- Checks (2026-10-10): `php artisan test` 1181 passed (12630 assertions); `vendor/bin/pint --test` pass; `npm run typecheck` pass; `npm test` 496 passed; `npm run build` pass.
+- Slices (stacked on `stage-d/07-suggestions`): 01-mcp-oauth (`338907f`, `fc9fc3b`, `15e43ee`), 02-tools (`8ab68f8`, `d3a3fb2`), 03-security-fixes (`c273ceb`, `32ddf08`), 04-design-merge (`787f5f6`, design PR #34), 05-personal-tokens (`95485a9`, `874b7bc`, `defa887` + close).
+- Pending on the hosting: the test checklist in §4.2 (needs domain, Passport keys and `ai.mcp.use` holders).
+
+### Stage E notes for design
+- Consent and "sin permiso" Blade screens (`resources/views/mcp/*`) need RYR branding.
+- `last_client` is the raw MCP client name (e.g. `claude-code`).
+- OAuth (claude.ai) calls are audited but not listed on `Profile/Mcp` (`McpCall.token` is required); this needs a type variant.
 
 ## Open questions (for Jhon)
 - "Gerente de TI" is not a role in `config/permissions.php` (only Súper Admin, Líder IA, approvers, Usuario final): today `ai.mcp.use` = Líder IA + Súper Admin. Create a "Gerente de TI" role or give it to a specific user?

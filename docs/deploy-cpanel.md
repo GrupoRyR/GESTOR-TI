@@ -76,6 +76,7 @@ Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
 - Módulos: `MODULE_AI_ENABLED`, `MODULE_ASSISTANT_ENABLED`, `MODULE_ADMIN_ENABLED` (y los reservados).
 - Etapa C: `DEEPSEEK_API_KEY` (puede esperar).
 - Etapa D (GitHub App): `GITHUB_APP_ID`, `GITHUB_APP_INSTALL_URL` (`https://github.com/apps/<nombre>/installations/new`), `GITHUB_APP_NAME`, `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta al `.pem`, fuera de `public_html`, permisos 600), `GITHUB_WEBHOOK_SECRET`.
+- Etapa E (conector MCP): `PASSPORT_PRIVATE_KEY` y `PASSPORT_PUBLIC_KEY` (PEM con los saltos de línea escritos como `\n`; si faltan, se usan `storage/oauth-*.key` creados con `php artisan passport:keys`), opcionales `MCP_ENABLED` (por defecto activo), `MCP_ACCESS_TOKEN_MINUTES` (60), `MCP_REFRESH_TOKEN_DAYS` (30), `MCP_REDIRECT_DOMAINS`, `MCP_CALLS_RETENTION_DAYS` (180). `APP_URL` debe ser la URL pública https exacta: Claude compara el recurso `APP_URL/mcp`.
 
 ## 4.1 GitHub App (Etapa D)
 
@@ -88,6 +89,29 @@ Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
 7. Por SSH: `php artisan config:cache` y `php artisan github:sync`. *Integraciones › GitHub* debe mostrar "Conectado" y los repos.
 8. Vincular cada producto y proyecto con su repo desde su ficha. Los eventos que fallaron por "repo no vinculado" se reprocesan solos al vincular.
 9. Cada miembro de TI que reciba issues necesita su usuario de GitHub en `users.github_login`. Todavía no hay pantalla para editarlo: se carga por SSH con `php artisan tinker`.
+
+## 4.2 Conector MCP (Etapa E)
+
+El Gestor IA queda como servidor MCP en `https://{dominio}/mcp`. Solo lo usa quien tiene `ai.mcp.use`, y cada persona entra con su propia identidad:
+- **Claude Code / scripts:** token personal creado en *Perfil › Conector para Claude* (`read` o `read_write`, vence en 30, 90 o 180 días; el valor se muestra una sola vez).
+- **claude.ai web y escritorio:** OAuth. Se agrega como conector personalizado con la URL `https://{dominio}/mcp` (pasos de Claude: https://claude.com/docs/connectors/custom/add-unlisted). Claude se registra solo y pide iniciar sesión con Microsoft y autorizar.
+
+Pasos en el servidor:
+1. `php artisan migrate --force` (tablas `oauth_*`, `mcp_tokens`, `mcp_calls`).
+2. Llaves de Passport: generarlas una vez (`php artisan passport:keys`) y pasarlas al `.env` o dejar los archivos en `storage/` con permisos 600.
+3. `php artisan optimize`.
+4. Comprobar que el firewall o ModSecurity de GoDaddy no bloquea `/.well-known/*`, `/oauth/*` ni `/mcp` (Claude llama desde `160.79.104.0/21`).
+5. En *Perfil › Conector para Claude*, "Probar conexión" debe salir en verde.
+
+Prueba en el hosting (pendiente hasta tener dominio):
+1. Crear un token `read`, agregarlo en Claude Code (`claude mcp add --transport http gestor-ia https://{dominio}/mcp --header "Authorization: Bearer <token>"`), pedir "busca solicitudes de facturación" y ver la llamada en *Actividad*.
+2. Con ese token, pedir crear una tarea: debe salir rechazada ("token de solo lectura").
+3. Agregar el conector en claude.ai, autorizar y llamar `ver_solicitud`.
+4. Revocar el token y confirmar que la siguiente llamada falla.
+
+Operación:
+- Retirar el acceso OAuth de una persona: `php artisan mcp:revoke correo@empresa.com` (opcional `--client=<id>`). Los tokens personales los revoca cada persona en su perfil. Quitar `ai.mcp.use` o desactivar al usuario corta todo de inmediato.
+- Tareas programadas: `mcp:prune-clients` (03:15) borra clientes registrados que nunca obtuvieron token; `mcp:prune-calls` (03:20) borra la actividad de más de 180 días.
 
 ## 5. Respaldos
 
