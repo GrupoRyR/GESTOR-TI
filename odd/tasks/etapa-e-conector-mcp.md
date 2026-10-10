@@ -27,7 +27,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - Loopback redirect for any port.
   - Tests: metadata documents, 401 `WWW-Authenticate`, DCR, token, `initialize` and `tools/list`, users without permission.
   - Route: delegated (writer trigger).
-- [ ] E2 · Tools:
+- [x] E2 · Tools:
   - `buscar_solicitudes`, `ver_solicitud` (with docs and criteria), `crear_tarea`, `actualizar_tarea`, `agregar_nota_avance`, `adjuntar_documento`.
   - Company scope, policies, audit and whitelist leak tests.
   - Route: delegated.
@@ -83,6 +83,29 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   4. Check that `/.well-known/*` and `/oauth/*` pass WAF/ModSecurity.
 - Design notes: `resources/views/mcp/{layout,authorize,forbidden}.blade.php` are minimal, accessible, Spanish, inline CSS with light and dark themes, no Vite. They sit outside the design-owned folders and are flagged for design (RYR branding).
 - Size: about 1,000 authored lines (about 600 of them tests) plus published vendor config and migrations, over the ~400 heuristic. OAuth flow coverage needed the full flow helper and the data-provider cases.
+
+### E2 · Tools — done
+- Route: delegated direct (writer trigger: 2+ non-trivial files). Only `GestorIaServer` registration touched E1 code; OAuth files untouched.
+- Tools (Spanish names, inputs and answers; JSON text responses; errors are tool errors `isError: true` in Spanish, never JSON-RPC errors or 500s):
+  - `quien_soy`: kept.
+  - `buscar_solicitudes` (read-only, idempotent): `texto` (every word in key, title or problem, plain LIKE), `estado` (RequestStatus value), `producto`, `area`, `empresa` (name/slug, partial), `limite` (1–25, default 10). Returns `total` and `solicitudes[]` with `clave`, `titulo`, `estado`, `estado_clave`, `producto`, `empresa`, `area`, `prioridad` (final, else suggested), `actualizada`, `url`. Only requests the user may open (AiRequestPolicy::view), newest change first.
+  - `ver_solicitud` (read-only, idempotent): `clave` GIA-n. Returns problem, current process, expected result, criteria (text, result), evaluation (size, urgency, risk, suggested and final priority), requester, product, linked projects the user may view (AiProjectPolicy::view) with repository and tasks (column, assignees, GitHub issue/PR URLs, task URL), public comments, documents of those projects and the request's product the user may view (AiDocumentPolicy::view; id, title, template, version, URL, Markdown cut at 20 000 chars). `notas_internas` only with AiRequestPolicy::viewInternal; `costos` (monthly impact, latest estimate without hourly rates via ItDetailPresenter/TriagePresenter) only with `ai.costs.view`. Unknown, out-of-scope and forbidden keys all answer "No encontré la solicitud GIA-n.".
+  - `crear_tarea`: `proyecto`, `titulo`, optional `descripcion`, `columna` (Board key, default `todo`), `responsable` (email, BoardPeople), `horas_estimadas` (0.5–999), `solicitud` (must be one of the project's requests). Returns `proyecto`, `tarea`, `titulo`, `columna`, `responsables`, `url`.
+  - `actualizar_tarea`: `proyecto`, `tarea`, any of `titulo`, `descripcion`, `columna` (MoveTask), `responsable` (empty clears). Same answer shape.
+  - `agregar_nota_avance`: `proyecto`, optional `tarea`, `nota`. With a task: task comment (≤ 5000) plus "comentó en T…" in the feed, as the board. Without: project activity feed `comment` "nota de avance: …" (≤ 200 so it fits the 255-char feed).
+  - `adjuntar_documento`: `documento_id` + `contenido` (+ `resumen`) saves and publishes the next version; otherwise `proyecto` or `producto` (slug) + `titulo` (+ `plantilla`, default `blank`) creates version 1. Markdown/text only, no binary uploads; limit `gestor.mcp.document_max_chars` (default 100 000, read with a code default; no config file change).
+- Annotations: reads `readOnlyHint` + `idempotentHint`; writes `destructiveHint: false`. Server instructions list every tool and the "no credentials" rule.
+- Reused: AiRequestPolicy, AiProjectPolicy (`manage` for writes), AiDocumentPolicy, CompanyScope, BoardPeople, Board, MoveTask (lifecycle and request transitions/notifications), App\Actions\Ai\Documents (SecretGuard, revisions), ItDetailPresenter::estimate, Money, RepoActivity::repositoryOf, BriefText + SecretGuard (SafeText).
+- New shared actions (app/Actions/Ai): `CreateTask` and `UpdateTask` mirror `TaskController::store|update` exactly; `AddProgressNote` (task comment or feed entry + SecretGuard). Follow-up for the app owner: `App\Http\Controllers\AI\TaskController` store/update/comment should call these actions (outside this task's edit surface, so the board rules exist in both places until then).
+- Company context: the MCP route has no session, so `CurrentCompany` resolves a `companies.view_all` user to "Todas" and anyone else to their own company. That is the "all companies the user may access" default. Tested with a connector role without `companies.view_all`.
+- Visibility and leaks (SafeText): every free text is returned whole or replaced by "[Texto omitido…]". Credentials are always omitted (SecretGuard). Viewers without `ai.costs.view` or without internal notes also get BriefText rules (money amounts, quotes of internal notes). Never read: vault items, rates, time entries, salaries, task comments.
+- Writes: AiProjectPolicy::manage / AiDocumentPolicy create|update through `Gate::forUser`; SecretGuard refuses credentials in titles, descriptions, notes and documents; each write logs an `ai` activity (`mcp_task_created`, `mcp_task_updated`, `mcp_progress_note`, `mcp_document_created`, `mcp_document_updated`, property `tool`) with origin `api` stamped by EnsureMcpAccess. Notifications are the app's (MoveTask → TransitionRequest); the board sends none for create, edit or comments.
+- Test-first: RED 69 tests, 44 passed, 25 failed (new tools missing). GREEN 70/70 in `tests/Feature/Mcp`, with 1 more real-OAuth-token test added after GREEN. Files: `McpToolsTestCase`, `RequestToolsTest`, `TaskToolsTest`, `NoteAndDocumentToolsTest`. `GestorIaServerTest` no longer expects `quien_soy` to be the only tool.
+- Checks:
+  - `php artisan test --filter=Mcp`: 70 passed.
+  - `php artisan test`: 1138 passed (baseline 1112, plus 26).
+  - `vendor/bin/pint --test`: passed.
+- Size: about 1,250 authored app lines plus 700 test lines, over the ~400 heuristic: six tools with their visibility rules and leak tests belong together.
 
 ## Open questions (for Jhon)
 - "Gerente de TI" is not a role in `config/permissions.php` (only Súper Admin, Líder IA, approvers, Usuario final): today `ai.mcp.use` = Líder IA + Súper Admin. Create a "Gerente de TI" role or give it to a specific user?

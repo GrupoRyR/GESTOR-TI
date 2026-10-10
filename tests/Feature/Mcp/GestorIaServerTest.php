@@ -30,10 +30,11 @@ class GestorIaServerTest extends McpTestCase
     {
         Passport::actingAs($this->jhon, ['mcp:use'], 'api');
 
-        $tools = collect($this->rpc('tools/list')->assertOk()->json('result.tools'));
+        $tools = collect($this->rpc('tools/list')->assertOk()->json('result.tools'))->keyBy('name');
 
-        $this->assertSame(['quien_soy'], $tools->pluck('name')->all());
-        $this->assertTrue($tools->first()['annotations']['readOnlyHint'] ?? false);
+        // The E2 tools are covered by RequestToolsTest.
+        $this->assertTrue($tools->has('quien_soy'));
+        $this->assertTrue($tools['quien_soy']['annotations']['readOnlyHint'] ?? false);
     }
 
     public function test_quien_soy_returns_the_token_owner(): void
