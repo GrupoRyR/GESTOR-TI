@@ -239,6 +239,21 @@ const ICONS = {
     ),
     merge: <path d="M6 3v6a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 21v-6" />,
     rocket: <path d="M5 15c-1.5 1.5-2 4-2 6 2 0 4.5-.5 6-2M9 15l-3-3c2-6 7-9 14-9 0 7-3 12-9 14zM14.5 9.5h.01" />,
+    plug: <path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5" />,
+    server: (
+        <>
+            <rect x="3" y="4" width="18" height="7" rx="2" />
+            <rect x="3" y="13" width="18" height="7" rx="2" />
+            <path d="M7 7.5h.01M7 16.5h.01" />
+        </>
+    ),
+    terminal: (
+        <>
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="m7 9 3 3-3 3M13 15h4" />
+        </>
+    ),
+    book: <path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof ICONS;
