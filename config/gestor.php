@@ -97,6 +97,11 @@ return [
         // Installation of the GitHub App on the organization; set by
         // App\Services\GitHub\RepositorySync, cleared by "Desconectar GitHub".
         'github.installation_id' => null,
+
+        // Emails (Stage F): show "También puedes responder este correo" in
+        // `it-question` only when the app processes email replies (it does
+        // not yet, so off).
+        'mail.reply_by_email' => false,
     ],
 
     /*
@@ -240,6 +245,14 @@ return [
             'MICROSOFT_ADMIN_CONSENT_URL_TEMPLATE',
             'https://login.microsoftonline.com/{tenant}/adminconsent?client_id={client_id}',
         ),
+    ],
+
+    'mail' => [
+        // Template emails (App\Support\Mail): logo width in px at 28 px tall
+        // when the PNG logo cannot be measured, and validity in days of the
+        // signed one-click rating links of the `delivered` email.
+        'logo_width' => 140,
+        'rating_link_days' => 30,
     ],
 
     'brand' => [

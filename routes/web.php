@@ -23,6 +23,7 @@ use App\Http\Controllers\AI\ProductIncidentController;
 use App\Http\Controllers\AI\ProjectController;
 use App\Http\Controllers\AI\ProjectCostController;
 use App\Http\Controllers\AI\ProjectReportController;
+use App\Http\Controllers\AI\QuickRatingController;
 use App\Http\Controllers\AI\RatingController;
 use App\Http\Controllers\AI\ReapprovalController;
 use App\Http\Controllers\AI\ReleaseController;
@@ -121,6 +122,13 @@ Route::middleware('auth')->group(function () {
 // is inactive in config/modules.php) and `auth`.
 // TEMPORARY placeholders: replaced by real controllers in B (ai), C (assistant)
 // and the administration tasks of stage A (admin).
+// One-click rating from the "Ya está en producción" email (Stage F): signed,
+// expiring link that names the requester; works without signing in.
+Route::get('/ai/requests/{request}/rating/{score}', QuickRatingController::class)
+    ->middleware(['module:ai', 'signed', 'throttle:30,1'])
+    ->whereNumber('score')
+    ->name('ai.ratings.quick');
+
 Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(function () {
     Route::inertia('/', 'AI/Index')->name('index');
 

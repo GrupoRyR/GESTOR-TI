@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Gate;
  * "Calificar la entrega" and, 30 days later, "¿cuántas horas te ahorra por
  * semana?" (PROMPT 6.4.5). Only the requester, once each (policy `rate` and
  * `reportHoursSaved`); input ranges are checked by the form requests.
+ * The one-click email rating (`ai.ratings.quick`) saves only the "solved
+ * need" score: `ease_of_use` stays null.
  */
 class RateRequest
 {
-    public function rate(AiRequest $request, User $requester, int $solvedNeed, int $easeOfUse, ?string $comment): AiRating
+    public function rate(AiRequest $request, User $requester, int $solvedNeed, ?int $easeOfUse, ?string $comment): AiRating
     {
         Gate::forUser($requester)->authorize('rate', $request);
 

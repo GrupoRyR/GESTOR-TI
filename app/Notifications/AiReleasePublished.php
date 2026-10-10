@@ -5,6 +5,9 @@ namespace App\Notifications;
 use App\Models\AiProductVersion;
 use App\Models\AiRequest;
 use App\Models\User;
+use App\Support\Mail\RequestEmails;
+use Illuminate\Mail\Mailable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -18,6 +21,10 @@ use Illuminate\Support\Facades\Route;
  * It replaces the per-request "Ya está en producción" notice
  * (AiRatingRequested) for the requests the release moves, so a requester
  * gets one message per release.
+ *
+ * Mail: the `delivered` template for the requester's first request of the
+ * release (all their titles in the heading, the confirmed user notes as
+ * "Qué cambia para ti") with its signed one-click rating links.
  */
 class AiReleasePublished extends GestorNotification
 {
@@ -32,6 +39,7 @@ class AiReleasePublished extends GestorNotification
         public readonly string $requesterName,
         public readonly array $requests,
         public readonly string $notes,
+        public readonly ?int $versionId = null,
     ) {}
 
     /**
@@ -53,6 +61,7 @@ class AiReleasePublished extends GestorNotification
             $requester->name,
             $list,
             trim($notes),
+            $version->id,
         ))->forCompany($companyId);
     }
 
@@ -88,6 +97,21 @@ class AiReleasePublished extends GestorNotification
     public function actionText(): string
     {
         return 'Calificar';
+    }
+
+    public function toMail(object $notifiable): MailMessage|Mailable
+    {
+        $first = $this->requests[0]['key'] ?? null;
+        $request = $first !== null && $notifiable instanceof User ? self::findRequest($first) : null;
+
+        if ($request === null || ! $notifiable instanceof User) {
+            return parent::toMail($notifiable);
+        }
+
+        $version = $this->versionId === null ? null : AiProductVersion::query()->with('product')->find($this->versionId);
+        $title = self::joinSpanish(array_map(fn (array $item): string => $item['title'], $this->requests));
+
+        return $this->templateMail($notifiable, RequestEmails::delivered($request, $notifiable, $version, $title, $this->notes));
     }
 
     /**

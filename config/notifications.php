@@ -43,6 +43,11 @@ return [
         ],
 
         // Gestor IA (Stage B).
+        'ai.request.created' => [
+            'label' => 'Solicitudes nuevas',
+            'hint' => 'Solo TI: cuando alguien de tu empresa envía una solicitud',
+            'channels' => ['mail', 'database'],
+        ],
         'ai.request.status_changed' => [
             'label' => 'Cambio de estado de mis solicitudes',
             'hint' => 'Las que tú pediste',

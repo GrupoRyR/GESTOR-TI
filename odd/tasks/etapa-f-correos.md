@@ -20,7 +20,7 @@ Every Gestor TI email uses the approved templates:
 
 ## Tasks
 - [x] F0 · Merge `main` (with design #35/#36) into the branch: typecheck, 598 vitest and build green.
-- [ ] F1 · Mail foundation and the four requester templates plus `new-request`.
+- [x] F1 · Mail foundation and the four requester templates plus `new-request`.
   - **Rendering:**
     - Blade views for `new-request`, `request-received`, `status-changed`, `it-question` and `delivered` (HTML + text).
     - The From address and name come from the record's company, and the subject comes from the template.
@@ -39,6 +39,35 @@ Every Gestor TI email uses the approved templates:
 - [ ] F3 · Close: full checks, deploy doc (mail setup, PNG logos), PRs.
 
 ## Progress / evidence
+
+### F1 · Mail foundation, requester templates and `new-request` — done
+- **Route:** delegated writer (writer trigger: 2+ non-trivial files).
+- **Views:** `resources/views/mail/{html,text}/<name>.blade.php` for `new-request`, `request-received`, `status-changed`, `it-question`, `delivered`. Generated from `resources/emails/` with `App\Support\Mail\TemplateToBlade` (escaped echoes only, Outlook conditionals kept, documentation comments dropped). `tests/Feature/Mail/TemplateViewsTest.php` fails when a view drifts from its source: exact match with the converted source, plus a render with `samples.json` (both companies, blocks on and off) compared with an independent reference renderer of the markers.
+- **Mail layer:** `App\Mail\TemplateMail` + `App\Support\Mail\{EmailTemplate, MailBranding, BrandColor, MailDates, RequestEmails}`.
+  - From = company `sender_email` as "{company_name} · Gestor TI"; subject from `EmailTemplate::subject()` (tested against the `subject:` comment).
+  - Data filtered to a per-template whitelist; the text part is entity-decoded.
+  - `brand_color`: `colors.button` when stored, else derived from `colors.primary` with a PHP port of `lib/brand.ts`.
+  - `preferences_url` = `route('profile.edit')`.
+- **PNG logos:** the uploaded logo is used when it is PNG, JPEG or GIF. Otherwise `public/brand/logo-{slug}.png` and `logo-{slug}-dark.png` are used (the dark one falls back to the light one). `logo_width` is read from the PNG, else `gestor.mail.logo_width` (140). An SVG never reaches mail. F3 must document exporting the PNGs to `public/brand/` at deploy.
+- **Wiring (event → template):**
+  - `AiRequestCreated` (new, `ai.request.created`, mail + bell, to `ai.manage` holders who reach the company, never the actor or requester) → `new-request`.
+  - `AiRequestReceived` (new, `ai.request.status_changed`) → `request-received`.
+  - `AiRequestStatusChanged` → `status-changed`; a move to "Necesita información" with a question → `it-question`.
+  - `AiRequestReminder::question` → `it-question`; the validation reminder keeps the default layout.
+  - `AiRatingRequested` (notice and reminder) → `delivered`.
+  - `AiReleasePublished` → `delivered` for the requester's first request, all titles joined, user notes as paragraphs.
+  - Channels still come from preferences. A release still sends one notice per requester.
+- **Ratings:** `ai.ratings.quick` `GET /ai/requests/{key}/rating/{score}?user=…` (signed, 30 days, `module:ai` + `signed` + `throttle:30,1`, no login).
+  - The named user must be the requester (else 403).
+  - Saves `solved_need` through `RateRequest` (`ease_of_use` now nullable, migration `2026_11_01_000001`). Idempotent, race-safe. Then redirects to `ai.requests.show` with a flash.
+- **Setting:** `mail.reply_by_email` (default false) drives the `it-question` reply block.
+- **RED:** 26 of 26 new tests failed on the base commit (missing classes and route). **GREEN:** 56 tests in `tests/Feature/Mail`.
+- **Checks:** `php artisan test --filter='Mail|Notification|Rating'` 119 passed; `php artisan test` 1236/1237, then the one failure fixed (`CreateRequestTest` asserted that nothing was sent) and re-run: 1237 passed; `vendor/bin/pint --test` passed.
+- **Notes for design:**
+  - (a) `lib/brand.ts` derives Segurex's button as `#CD4B00`, not the README's `#C4470F`. Store `colors.button` or update the README.
+  - (b) `RequestRating.ease` can now be null (one-click rating), so the type and its display need `| null`.
+  - (c) `delivered` has no variant without a product or version: a manual "En producción" without a release reads "en el Gestor v".
+  - (d) After a one-click rating there is no "add a comment" step. The request page's conversation is the fallback.
 
 ## Open questions (for Jhon)
 - Does the app process email replies? If not, `reply_by_email` stays off.

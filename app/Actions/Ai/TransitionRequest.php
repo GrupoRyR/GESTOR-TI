@@ -119,7 +119,7 @@ class TransitionRequest
             }
 
             if ($notifyRequester) {
-                $requester->notify($asksRating ? AiRatingRequested::for($request, false, $note) : AiRequestStatusChanged::for($request, $note));
+                $requester->notify($asksRating ? AiRatingRequested::for($request, false, $note) : AiRequestStatusChanged::for($request, $note, $actor?->name));
             }
         }
 

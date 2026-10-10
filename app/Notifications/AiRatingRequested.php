@@ -3,6 +3,10 @@
 namespace App\Notifications;
 
 use App\Models\AiRequest;
+use App\Models\User;
+use App\Support\Mail\RequestEmails;
+use Illuminate\Mail\Mailable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -10,6 +14,9 @@ use Illuminate\Support\Facades\Route;
  * when a request reaches "En producción" (instead of the plain status
  * notice, with the same public note) and the reminder 3 days later
  * (`ai:ratings-lifecycle`). Public data only.
+ *
+ * Mail: the `delivered` template, with the five signed one-click rating
+ * links, for the notice and the reminder.
  */
 class AiRatingRequested extends GestorNotification
 {
@@ -54,5 +61,14 @@ class AiRatingRequested extends GestorNotification
     public function actionText(): string
     {
         return 'Calificar';
+    }
+
+    public function toMail(object $notifiable): MailMessage|Mailable
+    {
+        $request = $notifiable instanceof User ? self::findRequest($this->requestKey) : null;
+
+        return $request === null || ! $notifiable instanceof User
+            ? parent::toMail($notifiable)
+            : $this->templateMail($notifiable, RequestEmails::delivered($request, $notifiable));
     }
 }

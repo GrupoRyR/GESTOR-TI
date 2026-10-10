@@ -210,7 +210,8 @@ class CreateRequestTest extends AiTestCase
 
         $this->assertNull($request->area_approval_status);
         $this->assertSame(0, $request->approvals()->count());
-        Notification::assertNothingSent();
+        // Stage F: only the "received" / "new request" notices go out.
+        Notification::assertSentTimes(AiApprovalRequested::class, 0);
     }
 
     public function test_an_area_without_approver_skips_the_area_step_even_when_enabled(): void

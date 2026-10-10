@@ -5,6 +5,7 @@ namespace App\Actions\Ai;
 use App\Domain\Ai\FirstResponse;
 use App\Domain\Ai\ProductResolver;
 use App\Domain\Ai\RequestAttachments;
+use App\Domain\Ai\TriagePeople;
 use App\Enums\Ai\ApprovalKind;
 use App\Enums\Ai\AreaApprovalStatus;
 use App\Enums\Ai\RequestStatus;
@@ -15,10 +16,14 @@ use App\Models\AiRequest;
 use App\Models\Area;
 use App\Models\User;
 use App\Notifications\AiApprovalRequested;
+use App\Notifications\AiRequestCreated;
+use App\Notifications\AiRequestReceived;
 use App\Support\AreaApproval;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -45,7 +50,10 @@ use Throwable;
  *   stored on the private disk;
  * - product: `product` (slug, the `?producto={slug}` entry point) or
  *   `product_id`; it must serve the requester's company. The version
- *   defaults to the product's current one.
+ *   defaults to the product's current one;
+ * - notices (Stage F): "Recibimos tu solicitud" to the requester and
+ *   "Llegó una solicitud nueva" to the IT team (`ai.manage`) that reaches
+ *   the company, except whoever filed it.
  *
  * Data keys: type, product (slug), product_id, product_version, title, problem, who_suffers,
  * current_process, hours_per_week, people, expected_result, success_criteria,
@@ -61,6 +69,7 @@ class CreateRequest
         private readonly RequestAttachments $attachments,
         private readonly AreaApproval $areaApproval,
         private readonly ProductResolver $products,
+        private readonly TriagePeople $people,
     ) {}
 
     /**
@@ -157,6 +166,8 @@ class CreateRequest
 
         // Outside the transaction: a delivery failure never loses the request.
         $approver?->notify(AiApprovalRequested::for($request, ApprovalKind::Area));
+        $requester->notify(AiRequestReceived::for($request));
+        Notification::send($this->itTeam($request, $actor, $requester), AiRequestCreated::for($request));
 
         return $request;
     }
@@ -198,6 +209,23 @@ class CreateRequest
         }
 
         return $product;
+    }
+
+    /**
+     * IT people (`ai.manage`) who reach the request's company: theirs,
+     * global ones or `companies.view_all`; never the requester or the
+     * person who filed it.
+     *
+     * @return Collection<int, User>
+     */
+    private function itTeam(AiRequest $request, User $actor, User $requester): Collection
+    {
+        return $this->people->team()
+            ->reject(fn (User $user): bool => in_array($user->id, [$actor->id, $requester->id], true))
+            ->filter(fn (User $user): bool => $user->is_global
+                || (int) $user->company_id === (int) $request->company_id
+                || $user->can('companies.view_all'))
+            ->values();
     }
 
     private function areaApprover(Area $area): ?User

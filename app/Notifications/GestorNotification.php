@@ -2,12 +2,15 @@
 
 namespace App\Notifications;
 
+use App\Mail\TemplateMail;
+use App\Models\AiRequest;
 use App\Models\Company;
 use App\Models\User;
 use App\Notifications\Messages\TelegramMessage;
 use App\Services\Notifications\NotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -20,6 +23,8 @@ use Illuminate\Notifications\Notification;
  * - Mail leaves from the sender mailbox of the notification's company
  *   (`forCompany()`), else of the recipient's company, else the default
  *   `MAIL_FROM_*`. Never assumes a fixed set of companies.
+ * - Mail: the default layout below, or an approved template email
+ *   (`templateMail()`, resources/views/mail) when the subclass has one.
  * - Queued (database queue, cron worker), except the `database` channel,
  *   which is written right away so the bell updates immediately.
  *
@@ -90,7 +95,7 @@ abstract class GestorNotification extends Notification implements ShouldQueue
         return ['database' => 'sync'];
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): MailMessage|Mailable
     {
         $message = $this->mailMessage($notifiable)
             ->subject($this->title())
@@ -133,6 +138,24 @@ abstract class GestorNotification extends Notification implements ShouldQueue
             'url' => $this->actionUrl(),
             'company_id' => $this->companyId,
         ];
+    }
+
+    /**
+     * An approved template email (App\Mail\TemplateMail) addressed to the
+     * notifiable: subclasses with a template return it from `toMail`.
+     */
+    protected function templateMail(object $notifiable, TemplateMail $mail): TemplateMail
+    {
+        return $mail->to($notifiable->routeNotificationFor('mail', $this));
+    }
+
+    /**
+     * The request a notice is about, read fresh when the queued mail is
+     * built (no company scope: the queue has no signed-in user).
+     */
+    protected static function findRequest(string $key): ?AiRequest
+    {
+        return AiRequest::withoutGlobalScopes()->where('key', $key)->first();
     }
 
     /**

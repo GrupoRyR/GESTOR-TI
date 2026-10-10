@@ -42,7 +42,7 @@ class AskForInformation
 
         if ($request->status === RequestStatus::NeedsInfo) {
             $this->comments->handle($request, $actor, $question, CommentVisibility::Public);
-            $request->requester?->notify(AiRequestReminder::question($request, $question));
+            $request->requester?->notify(AiRequestReminder::question($request, $question, $actor->name));
 
             return $request;
         }

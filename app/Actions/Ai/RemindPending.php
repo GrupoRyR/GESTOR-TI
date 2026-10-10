@@ -36,7 +36,7 @@ class RemindPending
         $requester = $request->requester;
 
         $notification = match ($request->status) {
-            RequestStatus::NeedsInfo => AiRequestReminder::question($request, $this->openQuestion($request)),
+            RequestStatus::NeedsInfo => AiRequestReminder::question($request, ...$this->openQuestion($request)),
             RequestStatus::InTesting => AiRequestReminder::validation($request),
             default => null,
         };
@@ -70,14 +70,20 @@ class RemindPending
         return $rows->count();
     }
 
-    private function openQuestion(AiRequest $request): ?string
+    /**
+     * TI's latest public message and who wrote it.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function openQuestion(AiRequest $request): array
     {
-        $body = $request->comments()
+        $comment = $request->comments()
+            ->with('author')
             ->where('visibility', CommentVisibility::Public->value)
             ->where('user_id', '!=', $request->requester_id)
             ->latest('id')
-            ->value('body');
+            ->first();
 
-        return is_string($body) ? $body : null;
+        return [is_string($comment?->body) ? $comment->body : null, $comment?->author?->name];
     }
 }
