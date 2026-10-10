@@ -36,7 +36,7 @@ Every Gestor TI email uses the approved templates:
   - The approver lists come from the current `ai.projects.approve` holders.
   - Reminders for requirements.
   - Route: delegated.
-- [ ] F3 · Close: full checks, deploy doc (mail setup, PNG logos), PRs.
+- [x] F3 · Close: full checks, deploy doc (mail setup, PNG logos), PRs.
 
 ## Progress / evidence
 
@@ -69,7 +69,7 @@ Every Gestor TI email uses the approved templates:
   - (c) `delivered` has no variant without a product or version: a manual "En producción" without a release reads "en el Gestor v".
   - (d) After a one-click rating there is no "add a comment" step. The request page's conversation is the fallback.
 
-### F2 · Requirement and project report — done (this commit)
+### F2 · Requirement and project report — done (`12cab97`)
 - **Route:** delegated writer (writer trigger: 2+ non-trivial files).
 - **Views:** `resources/views/mail/{html,text}/{requirement,project-report}.blade.php`, generated with `TemplateToBlade`. They are new `EmailTemplate` cases, so the drift test covers them.
   - Two converter fixes, needed by these templates; the five F1 views regenerate byte-identical:
@@ -99,5 +99,10 @@ Every Gestor TI email uses the approved templates:
   - (f) `project-report` has no `project_title` subtitle in the app, so the title repeats the project name.
   - (g) `done_items` / `next_items` always show, even when the report settings drop those sections; `risks` follows the `blockers` section.
 
+### F3 · Close — done
+- Deploy: `docs/deploy-cpanel.md` §4 mail line (send-as permission per company mailbox, PNG logos in `public/brand/`, `colors.button`, `mail.reply_by_email`).
+- Slices (stacked on `stage-e/05-personal-tokens`): 01-mail-foundation (F0 merge of `main` with design #35/#36, doc, `07b046e`), 02-project-mails (`12cab97` + close).
+
 ## Open questions (for Jhon)
+- PNG logos per company (light and dark) for email; send-as permission of the sending account on both mailboxes.
 - Does the app process email replies? If not, `reply_by_email` stays off.

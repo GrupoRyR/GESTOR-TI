@@ -67,6 +67,7 @@ Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
 - Base de datos: `DB_CONNECTION=mysql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
 - Cola, caché y sesión: `QUEUE_CONNECTION=database`, `CACHE_STORE=database`, `SESSION_DRIVER=database`.
 - Correo: `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`.
+- Correos con plantilla: cada correo sale del buzón de la empresa del registro (`companies.sender_email`, por ejemplo `segurex.info@segurex.com` y `derivados.info@derivadoscol.com`). La cuenta de envío (`MAIL_USERNAME`) necesita permiso para enviar como cada buzón ("Enviar como" en Microsoft 365 o el permiso de Graph). Logos de correo en PNG: subir `public/brand/logo-{slug}.png` y `public/brand/logo-{slug}-dark.png` (56 px de alto) por empresa, o cargar el logo de la empresa en PNG; los correos nunca usan SVG. El color del botón sale de `colors.button` de la empresa si está guardado (Segurex `#C4470F`, Derivados `#183F94`). `mail.reply_by_email` queda apagado mientras la app no procese respuestas por correo.
 - Microsoft: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI=${APP_URL}/auth/microsoft/callback`, `MICROSOFT_TENANT=organizations`.
 - Acceso de emergencia: `EMERGENCY_ADMIN_EMAIL`.
 - Roles iniciales: `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL` (separados por coma).
