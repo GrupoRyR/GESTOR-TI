@@ -15,6 +15,14 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
 - Consent screen: a minimal Blade view (Spanish). It sits outside the design-owned folders, so it is flagged for design.
 - Claude Code: the same OAuth flow (`/mcp`). If Passport rejects its changing loopback port, a fallback gets decided then (Sanctum header).
 
+- 2026-10-10 (user, after design PR GrupoRyR/GESTOR-TI#34): "Ambos". The MCP server accepts the design's personal tokens (Claude Code, scripts) AND the E1 OAuth (claude.ai web/desktop) on one endpoint, `POST /mcp`. User rules:
+  - each person manages only their own tokens (`ai.mcp.use`);
+  - the value travels only in `created_token`, once, with `encryptHistory` + `no-store`, hashed at rest, never in URLs or logs;
+  - 401 for an expired or revoked token; 403 when a read-only token calls a write tool (logged as rejected);
+  - every call is audited;
+  - NEVER vault, credentials, rates, costs or salaries (costs removed from `ver_solicitud` even with `ai.costs.view`).
+- Scopes: `read` = `buscar_solicitudes`, `ver_solicitud`; `read_write` adds `crear_tarea`, `actualizar_tarea`, `agregar_nota` (renamed from `agregar_nota_avance`), `adjuntar_documento`. OAuth tokens (scope `mcp:use`) act as `read_write`.
+
 ## Delivery
 - Strategy: stacked-to-main. Slices `stage-e/NN-*` stacked on `stage-d/07-suggestions`. RDD off.
 - Checks: `php artisan test`, `vendor/bin/pint --test`, `npm run typecheck`, `npm test`, `npm run build`.
@@ -38,7 +46,14 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - low: `mcp:revoke` command and consent wording matching it;
   - follow-up from E2: the task controller uses `CreateTask`/`UpdateTask`/`AddProgressNote` (one copy of the rules).
   - Route: delegated.
-- [ ] E3 · Close: deploy doc (Passport keys, WAF/ModSecurity for `/.well-known` and `/oauth/*`, adding the connector in claude.ai and Claude Code, hosting test checklist), full checks, PRs.
+- [x] E2c · Merge design PR #34 (`787f5f6`): no conflicts; typecheck, 496 vitest and build green.
+- [ ] E3 · Personal tokens + `Profile/Mcp`:
+  - `mcp_tokens` (hashed, scope, expiry, last used/client, revoked) and `mcp_calls` audit;
+  - page + `profile.mcp.tokens.{store,destroy}`, `profile.mcp.test`;
+  - `/mcp` accepting personal tokens or OAuth, 401/403 rules;
+  - `agregar_nota` rename, costs removed, per-call audit.
+  - Route: delegated.
+- [ ] E4 · Close: deploy doc (Passport keys, WAF/ModSecurity for `/.well-known` and `/oauth/*`, adding the connector in claude.ai and Claude Code, hosting test checklist), full checks, PRs.
 
 ## Progress / evidence
 
