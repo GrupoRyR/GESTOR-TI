@@ -190,7 +190,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
 ### E4 · Close — done
 - Deploy: `docs/deploy-cpanel.md` §4 env keys (Passport keys, `MCP_*`) + §4.2 connector (server steps, WAF, adding it in Claude Code and claude.ai, hosting test checklist, `mcp:revoke`, schedules).
 - Checks (2026-10-10): `php artisan test` 1181 passed (12630 assertions); `vendor/bin/pint --test` pass; `npm run typecheck` pass; `npm test` 496 passed; `npm run build` pass.
-- Slices (stacked on `stage-d/07-suggestions`): 01-mcp-oauth (`338907f`, `fc9fc3b`, `15e43ee`), 02-tools (`8ab68f8`, `d3a3fb2`), 03-security-fixes (`c273ceb`, `32ddf08`), 04-design-merge (`787f5f6`, design PR #34), 05-personal-tokens (`95485a9`, `874b7bc`, `defa887` + close).
+- PRs GrupoRyR/GESTOR-TI#37–#41 (one per slice, in order). Slices (stacked on `stage-d/07-suggestions`): 01-mcp-oauth (`338907f`, `fc9fc3b`, `15e43ee`), 02-tools (`8ab68f8`, `d3a3fb2`), 03-security-fixes (`c273ceb`, `32ddf08`), 04-design-merge (`787f5f6`, design PR #34), 05-personal-tokens (`95485a9`, `874b7bc`, `defa887` + close).
 - Pending on the hosting: the test checklist in §4.2 (needs domain, Passport keys and `ai.mcp.use` holders).
 
 ### Stage E notes for design
