@@ -110,7 +110,7 @@ class ProjectPagesTest extends ProjectsTestCase
         $project = $this->project();
 
         $this->assertSame(
-            $this->withShared(['project', 'origin_request', 'open_requirements', 'activity', 'approvers', 'reapproval_threshold', 'reapproval_requested_at', 'next_step', 'today', 'repo_link', 'repo_create', 'now']),
+            $this->withShared(['project', 'origin_request', 'open_requirements', 'activity', 'approvers', 'reapproval_threshold', 'reapproval_requested_at', 'next_step', 'today', 'repo_link', 'repo_create', 'brief', 'brief_omitted', 'brief_state', 'now']),
             $this->propKeys(route('ai.projects.show', $project)),
         );
     }
@@ -182,7 +182,7 @@ class ProjectPagesTest extends ProjectsTestCase
         $project = $this->project();
 
         $this->assertSame(
-            $this->withShared(['project', 'tasks', 'total_tasks', 'blocked_total', 'column_limits', 'filters', 'people', 'labels', 'selected_task', 'selected_task_github', 'running_timer', 'issue_created', 'now']),
+            $this->withShared(['project', 'tasks', 'total_tasks', 'blocked_total', 'column_limits', 'filters', 'people', 'labels', 'selected_task', 'selected_task_github', 'selected_task_brief', 'selected_task_brief_state', 'running_timer', 'issue_created', 'now']),
             $this->propKeys(route('ai.projects.board', $project)),
         );
 
@@ -284,7 +284,7 @@ class ProjectPagesTest extends ProjectsTestCase
         $this->flushHeaders();
 
         $this->assertSame(
-            $this->withShared(['project', 'task', 'today_project_hours', 'github', 'now']),
+            $this->withShared(['project', 'task', 'today_project_hours', 'github', 'brief', 'brief_state', 'now']),
             $this->propKeys(route('ai.tasks.show', [$project, $task])),
         );
 

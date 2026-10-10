@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AI;
 use App\Actions\Ai\ConvertRequestToProject;
 use App\Domain\Ai\ApprovalRounds;
 use App\Domain\Ai\Board;
+use App\Domain\Ai\Brief\BriefInputs;
 use App\Domain\Ai\InvalidTransition;
 use App\Domain\Ai\ProjectBudget;
 use App\Domain\Ai\TriagePeople;
@@ -57,6 +58,7 @@ class ProjectController extends Controller
         private readonly ProjectBudget $budget,
         private readonly TriagePeople $people,
         private readonly RepoLinkForm $repoLink,
+        private readonly BriefInputs $briefs,
     ) {}
 
     public function index(Request $http, CurrentCompany $companies): Response
@@ -123,6 +125,9 @@ class ProjectController extends Controller
             'today' => Week::today()->toDateString(),
             'repo_link' => $this->repoLink->setup($project, $user, false, (array) $http->old(), $http->session()->get('errors')),
             'repo_create' => $this->repoLink->createSetup($project, $user),
+            'brief' => $brief = $this->briefs->forProject($project, $user),
+            'brief_omitted' => $brief === null ? null : $this->briefs->omitted($project, $user),
+            'brief_state' => $brief === null ? null : BriefInputs::state($http),
             'now' => now()->toIso8601String(),
         ]);
     }

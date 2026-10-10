@@ -24,7 +24,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 - [x] D2 · Webhook: `POST /api/github/webhook` (HMAC `X-Hub-Signature-256`, rate limit), store event, queued processor; `issues`/`pull_request` (task → En revisión / Hecho, activity), `workflow_run` (CI), `push` to main (deploy), `release` (product version + included `GIA-…` since previous release); failed-event reprocess. Route: delegated.
 - [x] D3 · Repos, issues and docs: `ai.products.repository.store`, `ai.projects.repository.store`, `ai.projects.repository.create` (private repo with README, CLAUDE.md, docs/), `ai.tasks.issue.store`; props `Ai/Products/Show.github|repo_link`, `Ai/Projects/Show.repo_link|repo_create`, Board `selected_task_github|issue_created`, `Ai/Tasks/Show.github`; `Ai/Docs/Repo` connected. Route: delegated.
 - [x] D4 · Releases: page `Ai/Releases/Show`, `ai.releases.notes.update`, `ai.releases.notify` (bell + Telegram to each requester, confirmed notes only). Route: delegated.
-- [ ] D5 · Brief para Claude: whitelisted `brief` inputs + `brief_state` on request/task/project/board, `brief_omitted`; tests that vault, credentials, costs, rates, hours and internal notes never appear. Route: delegated.
+- [x] D5 · Brief para Claude: whitelisted `brief` inputs + `brief_state` on request/task/project/board, `brief_omitted`; tests that vault, credentials, costs, rates, hours and internal notes never appear. Route: delegated.
 - [ ] D6 · AI suggestions: `ai_suggestions`, agents, `ai.requests.suggestions.store`, `ai.suggestions.{accept,discard,regenerate,cancel}`, `ai.requests.compare`, `ai.requests.criteria.update`, `size_suggestion_id` on evaluation, `ai_availability`/`ai_usage`/`merge_into`; release-notes suggestion. Route: delegated.
 - [ ] D7 · Close: full checks, deploy doc (GitHub App setup, env keys), PRs.
 
@@ -246,6 +246,62 @@ Notes for design:
   producción" for every request even before the notice — consider "la pasará a En producción al avisar" while `notified_at` is null.
 - `ReleaseSummary.url` / `Release.url` stay the GitHub release URL; the product page already links the tag with `route('ai.releases.show')`.
 - Errors of notify/update arrive on `user_notes` (the page already shows them).
+
+### D5 · Brief para Claude — done
+- Commit: the `feat(ai)` commit that adds this block (code, tests and this evidence in one work unit).
+- Route: delegated (writer trigger: builder + sanitizer classes, 3 controllers wired; 1 new test file + 2 updated).
+- Test-first: 8 new tests (`tests/Feature/Ai/Brief/BriefInputsTest`) written first and observed RED (8 of 8 failing: props `brief`,
+  `brief_omitted`, `brief_state`, `selected_task_brief` missing), then GREEN. Prop-key lists updated in `ProjectPagesTest` (show, board,
+  task page) and `Triage/ItShowTest`.
+- Checks: `php artisan test --filter='Brief'` 8/8 (181 assertions); full suite 1039/1039 passed (11260 assertions);
+  `vendor/bin/pint --test` passed; `npm run typecheck` passed.
+- Size: ~500 authored code lines (with docblocks) + ~420 test lines, above the ~400 heuristic: the three inputs share one whitelist,
+  one sanitizer and the same link/task/decision builders, kept together so the leak test covers all four pages at once.
+
+Props (no new routes; the page builds the Markdown with `lib/brief.ts`):
+- `Ai/Requests/Show` IT view: `brief` (`RequestBriefInput`), `brief_state`. The requester view never has either key (asserted `missing`).
+- `Ai/Projects/Show`: `brief` (`ProjectBriefInput`), `brief_omitted` (`{time_and_costs, internal_notes}`), `brief_state`.
+- `Ai/Projects/Board`: `selected_task_brief` (`TaskBriefInput`) and `selected_task_brief_state`, lazy closures on `?tarea=` like
+  `selected_task` (partial reload `only: ['selected_task','selected_task_github','selected_task_brief']` covered).
+- `Ai/Tasks/Show`: `brief`, `brief_state`.
+- `brief_state` = `{open: true}` with `?brief=1`, else null. Every brief prop is null without `ai.manage` + company access (request
+  `viewInternal`, project `manage` policies); `brief_omitted`/`brief_state` are null whenever `brief` is null.
+
+Classes:
+- `App\Domain\Ai\Brief\BriefInputs`: `forRequest`, `forProject`, `forTask`, `omitted`, `state`.
+- `App\Domain\Ai\Brief\BriefText`: drops a whole free-text field (null / '' / item removed) when SecretGuard finds a credential, it
+  carries a money amount (IssueText rule: `$ 1.200`, `COP`, `USD`), or it quotes an internal note (≥ 15 chars) of the related requests;
+  links must be http(s) and are dropped when label or URL matches `vault|bóveda` (lib/brief.ts rule) or SecretGuard.
+
+Whitelist (exactly the type fields):
+- Request: key, title, company short name, area, `requester` = requester's job title (else the area name; never the person's name),
+  size, first project key, problem, current process, expected result, hours per week and people (the requester's impact numbers the
+  type asks for, not logged hours), criteria texts, product, links, the project's task rows and decisions.
+- Project: key, name, company, area, status label, phase (Plan / Construcción / Entrega from the status, as lib/status.ts), request keys,
+  objective, criteria of all its requests with `done` = validated pass, product, links, task rows, decisions.
+- Task: key, title, project, origin request, column name, assignee names, description, subtasks, origin request criteria, product,
+  links, `issue` from `github_issue_number`; `pull_request` and `suggested_branch` null (the page adds them from `TaskGitHub` with
+  `withTaskGitHub`).
+- Product: name, `current_version`, stack, hosting; `data_source` = systems the (origin) request named, joined.
+- Links: linked GitHub repo (`Repositorio`) + `{repo}/blob/{tracked branch}/CLAUDE.md`, else project `repository_url` / product
+  `repository` when it is a URL; then Gestor docs (`ai.docs.edit`) of the project and the product with templates `project_sheet`,
+  `requirements`, `architecture`, `technical_manual`, `user_manual` (never `prompts`: it carries model costs), project docs first.
+- Task rows: board order, column name, `PR #n` / `Issue #n` / null.
+- Decisions: rows of the project's "Registro de decisiones" (`| Fecha | Decisión | Motivo |`) → "Decisión. Motivo: motivo", max 20;
+  a decisions document with visibility `it` is never read.
+- Never read: vault items, cost rates, time entries, project costs, estimates, task estimate hours, product monthly cost, area hour
+  value, request/task comments, internal notes. The leak test seeds all of them and asserts none of their values appear in the
+  json-encoded briefs of the four pages.
+
+Decisions:
+- `brief_omitted.time_and_costs` = the project has time entries, costs, estimates or task estimate hours; `internal_notes` = internal
+  notes of the project's requests.
+- Unsafe text is dropped whole (no partial masking), so a brief never carries half a secret.
+
+Notes for design:
+- No type changes needed. `RequestBriefInput.requester` carries a job title / area (privacy), not a person's name.
+- `TaskBriefInput.pull_request` is always null from the server; the drawer and the task page already merge the task's PR from
+  `TaskGitHub` (`withTaskGitHub`), so no "related PR" of another task is sent.
 
 ## Open questions (for Jhon)
 - GitHub organization name, App registration (app id, private key, webhook secret go to `.env`).

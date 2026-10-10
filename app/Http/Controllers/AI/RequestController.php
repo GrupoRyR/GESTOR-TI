@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\AI;
 
+use App\Domain\Ai\Brief\BriefInputs;
 use App\Domain\Ai\DuplicateFinder;
 use App\Domain\Ai\FirstResponse;
 use App\Domain\Ai\Roadmap;
@@ -45,6 +46,7 @@ class RequestController extends Controller
         private readonly DuplicateFinder $duplicates,
         private readonly TriagePresenter $triage,
         private readonly FirstResponse $firstResponse,
+        private readonly BriefInputs $briefs,
     ) {}
 
     public function mine(Request $http): Response
@@ -133,6 +135,8 @@ class RequestController extends Controller
                 'answered_at' => $request->first_responded_at?->toIso8601String(),
             ],
             'first_response_business_days' => $this->firstResponse->businessDays(),
+            'brief' => $brief = $this->briefs->forRequest($request, $user),
+            'brief_state' => $brief === null ? null : BriefInputs::state($http),
             'now' => now()->toIso8601String(),
             'merge_candidates' => Inertia::optional(fn () => InboxController::mergeCandidates((string) $http->query('q', ''), $request)),
         ]);

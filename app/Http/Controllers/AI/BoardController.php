@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AI;
 
 use App\Domain\Ai\Board;
 use App\Domain\Ai\BoardPeople;
+use App\Domain\Ai\Brief\BriefInputs;
 use App\Domain\Ai\Week;
 use App\Domain\GitHub\TaskActivity;
 use App\Http\Controllers\Controller;
@@ -34,9 +35,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   Stage D: `selected_task_github` (App\Domain\GitHub\TaskActivity, lazy
  *   like `selected_task`) and `issue_created` (flashed once by
  *   `ai.tasks.issue.store`, always sent).
+ *   `selected_task_brief` / `selected_task_brief_state` (App\Domain\Ai\Brief\BriefInputs,
+ *   lazy like `selected_task`; null without `ai.manage`).
  * - `Ai/Tasks/Show` (`ai.tasks.show`, phone): the task detail and the
  *   hours the viewer logged today on the project; Stage D `github`
- *   (`TaskGitHub`, null without `ai.manage`).
+ *   (`TaskGitHub`, null without `ai.manage`) and `brief` / `brief_state`.
  * - `ai.tasks.attachments.show`: signed link of a task file, authorized
  *   again (view).
  *
@@ -48,6 +51,7 @@ class BoardController extends Controller
         private readonly ProjectPresenter $projects,
         private readonly BoardPeople $people,
         private readonly TaskActivity $github,
+        private readonly BriefInputs $briefs,
     ) {}
 
     public function board(Request $http, AiProject $project): Response
@@ -89,6 +93,8 @@ class BoardController extends Controller
             'labels' => array_values($labels),
             'selected_task' => fn () => $this->selected($http, $project, $timer),
             'selected_task_github' => fn () => $this->selectedGitHub($http, $project),
+            'selected_task_brief' => fn () => $this->selectedBrief($http, $project),
+            'selected_task_brief_state' => fn () => $this->selectedBrief($http, $project) === null ? null : BriefInputs::state($http),
             'running_timer' => TimerPresenter::running($timer),
             'issue_created' => Inertia::always(fn () => $http->session()->get(GitHubController::ISSUE_CREATED)),
             'now' => now()->toIso8601String(),
@@ -108,6 +114,8 @@ class BoardController extends Controller
                 ->whereDate('date', Week::today()->toDateString())
                 ->sum('hours'), 2)) ?? 0,
             'github' => $this->github->for($task, $project, $user, $http->session()->get('errors')),
+            'brief' => $brief = $this->briefs->forTask($task, $project, $user),
+            'brief_state' => $brief === null ? null : BriefInputs::state($http),
             'now' => now()->toIso8601String(),
         ]);
     }
@@ -142,10 +150,29 @@ class BoardController extends Controller
      */
     private function selectedGitHub(Request $http, AiProject $project): ?array
     {
-        $key = $http->query('tarea');
-        $task = is_string($key) && $key !== '' ? $project->tasks()->where('key', $key)->first() : null;
+        $task = $this->selectedTask($http, $project);
 
         return $task === null ? null : $this->github->for($task, $project, $this->user($http), $http->session()->get('errors'));
+    }
+
+    /**
+     * `TaskBriefInput` of the `?tarea=` task; null when the drawer is closed
+     * or without `ai.manage`.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function selectedBrief(Request $http, AiProject $project): ?array
+    {
+        $task = $this->selectedTask($http, $project);
+
+        return $task === null ? null : $this->briefs->forTask($task, $project, $this->user($http));
+    }
+
+    private function selectedTask(Request $http, AiProject $project): ?AiTask
+    {
+        $key = $http->query('tarea');
+
+        return is_string($key) && $key !== '' ? $project->tasks()->where('key', $key)->first() : null;
     }
 
     private function user(Request $http): User
