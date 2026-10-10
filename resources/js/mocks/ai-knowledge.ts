@@ -5,6 +5,8 @@
  * only page copy (notes, search snippets, repository sample) lives here.
  * Stage C adds the product form (C-ProductForm, Toma Pedidos SAP) and the
  * incident drawer (C-IncidentForm, "Los pedidos no sincronizan con SAP B1").
+ * Stage D adds the GitHub section (D-ProductGitHub), the repo link dialog
+ * (D-RepoLink, Cámaras) and the repository read from GitHub (no sample).
  */
 import type { DocSummary, Product, ProductDetail, ProductState } from '@/types/ai';
 import type {
@@ -45,6 +47,8 @@ import {
     TODAY,
     VERSIONS_VISUALIZADOR,
 } from './ai-fixtures';
+import { PRODUCT_GITHUB_QUIET, PRODUCT_GITHUB_VISUALIZADOR, repoLinkCamaras } from './ai-github';
+import { LINK_VISUALIZADOR } from './github-fixtures';
 import { SEGUREX, sharedFor, type MockUserKey, type MockVariant } from './shared';
 
 // ---- shared pieces ------------------------------------------------------------
@@ -147,6 +151,8 @@ const productJhon: ShowPage = {
         'GIA-151': 'Diego Restrepo · llegó con el botón “Pedir mejora”',
     },
     incident_form: incidentSetup(VISUALIZADOR.owner),
+    github: PRODUCT_GITHUB_VISUALIZADOR,
+    repo_link: null,
     now: '2026-10-07T09:53:00-05:00',
 };
 
@@ -245,6 +251,19 @@ const CAMARAS: ProductDetail = {
     requests_from_button_this_month: 0,
 };
 
+/** Cámaras: repo exists on GitHub but is not linked; Jhon may link it. */
+const productCamaras: ShowPage = {
+    ...productJhon,
+    product: CAMARAS,
+    hours_note: null,
+    cost_note: 'Corre en un equipo local: sin costo de hosting',
+    request_notes: {},
+    incident_form: incidentSetup(CAMARAS.owner),
+    github: null,
+    repo_link: repoLinkCamaras(false),
+    now: NOW_ISO,
+};
+
 // ---- Docs ---------------------------------------------------------------------
 
 const EDITORS: Record<number, DocListItem['updated_by']> = { 2: PEOPLE.diego, 5: PEOPLE.leonardo, 15: PEOPLE.leonardo };
@@ -325,8 +344,7 @@ Arquitectura en [docs/arquitectura.md](#) y cómo publicar en [docs/despliegue.m
 
 const REPO_SAMPLE: RepoState = {
     connected: true,
-    sample: true,
-    name: '[REPOSITORIO]',
+    name: LINK_VISUALIZADOR.repo.full_name,
     branch: 'main',
     fetched_at: '2026-10-07T06:40:00-05:00',
     files: [
@@ -343,7 +361,7 @@ const REPO_SAMPLE: RepoState = {
         markdown: README,
         updated_at: '2026-09-22',
         release: 'versión 3.1.0',
-        github_url: '[REPOSITORIO]/blob/main/README.md',
+        github_url: `${LINK_VISUALIZADOR.repo.url}/blob/main/README.md`,
     },
 };
 
@@ -474,8 +492,23 @@ export const variants: Record<
     },
     'product-development': {
         page: 'Ai/Products/Show',
-        label: 'Producto · Cámaras, en desarrollo y sin datos',
-        props: { ...productJhon, product: CAMARAS, hours_note: null, cost_note: 'Corre en un equipo local: sin costo de hosting', request_notes: {}, incident_form: incidentSetup(CAMARAS.owner) },
+        label: 'Producto · Cámaras, en desarrollo y sin repositorio',
+        props: productCamaras,
+    },
+    'product-github-link-dialog': {
+        page: 'Ai/Products/Show',
+        label: 'Producto · vincular repositorio (Cámaras)',
+        props: { ...productCamaras, repo_link: repoLinkCamaras(true) },
+    },
+    'product-github-no-permission': {
+        page: 'Ai/Products/Show',
+        label: 'Producto · sin repositorio ni permiso de GitHub',
+        props: { ...productCamaras, ...without('leonardo', 'ai.github.manage', 'ai.costs.view'), repo_link: null },
+    },
+    'product-github-quiet': {
+        page: 'Ai/Products/Show',
+        label: 'Producto · GitHub sin CI, PR ni releases',
+        props: { ...productJhon, github: PRODUCT_GITHUB_QUIET },
     },
     'product-incident': {
         page: 'Ai/Products/Show',
@@ -553,7 +586,7 @@ export const variants: Record<
         label: 'Historial · una sola versión',
         props: { ...docsHistory, doc: docById(16), versions: [{ version: 1, summary: 'Primera versión.', author: PEOPLE.jhon, created_at: '2026-09-05T10:00:00-05:00', current: true }], compare: null },
     },
-    'docs-repo': { page: 'Ai/Docs/Repo', label: 'Repositorio · muestra (se conecta en la etapa D)', props: docsRepo },
+    'docs-repo': { page: 'Ai/Docs/Repo', label: 'Repositorio · Visualizador leído de GitHub', props: docsRepo },
     'docs-repo-off': {
         page: 'Ai/Docs/Repo',
         label: 'Repositorio · sin conectar',

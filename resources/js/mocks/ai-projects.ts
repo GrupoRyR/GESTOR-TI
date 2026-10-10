@@ -3,6 +3,8 @@
  * costs), Leonardo Herrera, a viewer without `ai.costs.view` and the
  * Contabilidad user who must answer a requirement. Entities come from
  * ai-fixtures; only page copy (activity, report text, task detail) lives here.
+ * Stage D adds the GitHub block of tasks (create issue #57 for T4, PR #41 on
+ * T3), the board chips and the repo link dialog of the summary.
  */
 import type { PersonRef, Project, Requirement, Task, TaskDetail } from '@/types/ai';
 import type {
@@ -41,6 +43,7 @@ import {
     tasksOf,
     WIP_LIMIT,
 } from './ai-fixtures';
+import { ISSUE_CREATED_T4, repoLinkProject, TASK_GITHUB_T3, TASK_GITHUB_T4, TASK_GITHUB_T4_CREATED } from './ai-github';
 import { DERIVADOS, SEGUREX, sharedFor, type MockUserKey, type MockVariant } from './shared';
 
 // ---- shared pieces ------------------------------------------------------------
@@ -195,6 +198,23 @@ const T7_DETAIL: TaskDetail = {
     time_by_person: [],
     attachments: [],
     started_at: null,
+};
+
+/** T3 "Endpoint de zonas": in review because PR #41 mentions GIA-139. */
+const T3_DETAIL: TaskDetail = {
+    ...tasksOf('P-07').find((task) => task.key === 'T3')!,
+    description: 'Endpoint que devuelve las zonas de cada asesor para el filtro, cruzando la vista de SAP B1 con la lista de zonas que mandó Diego.',
+    subtasks: [
+        { id: 31, title: 'Leer la lista de zonas y asesores', done: true },
+        { id: 32, title: 'Endpoint /zonas por asesor', done: true },
+        { id: 33, title: 'Pruebas automáticas del endpoint', done: true },
+        { id: 34, title: 'Abrir el PR con GIA-139 en el título', done: true },
+    ],
+    criteria: CRITERIA_P07.filter((criterion) => criterion.id === 12),
+    comments: [],
+    time_by_person: [{ person: PEOPLE.leonardo, hours: 7.5 }],
+    attachments: [],
+    started_at: '2026-10-05',
 };
 
 type BoardPage = PageProps<ProjectsBoardProps>;
@@ -389,6 +409,9 @@ const leonardoNoCosts = withoutCosts('leonardo');
 
 const blockedOnly: Task[] = P07_TASKS.filter((task) => task.blocked_by !== null);
 
+/** After "Crear issue": T4 carries issue #57. */
+const P07_WITH_ISSUE_57: Task[] = P07_TASKS.map((task) => (task.key === 'T4' ? { ...task, github: { issue: { number: 57, state: 'open' }, pr: null, ci: null } } : task));
+
 export const variants: Record<
     string,
     | MockVariant<IndexPage>
@@ -432,10 +455,39 @@ export const variants: Record<
         props: { ...summaryJhon, ...leonardoNoCosts, project: hideCost(P07) },
     },
     'summary-on-time': { page: 'Ai/Projects/Show', label: 'Resumen · P-06 a tiempo, en pruebas', props: summaryP06 },
+    'summary-unlinked': {
+        page: 'Ai/Projects/Show',
+        label: 'Resumen · sin repositorio (muestra con P-06)',
+        props: { ...summaryP06, project: { ...P06, repository: null }, repo_link: repoLinkProject(false) },
+    },
+    'summary-link-dialog': {
+        page: 'Ai/Projects/Show',
+        label: 'Resumen · vincular repositorio del proyecto',
+        props: { ...summaryP06, project: { ...P06, repository: null }, repo_link: repoLinkProject(true) },
+    },
 
     // Board
     board: { page: 'Ai/Projects/Board', label: 'Tablero · P-07 con cronómetro', props: boardJhon },
-    'board-task': { page: 'Ai/Projects/Board', label: 'Tablero · detalle de T4 abierto', props: { ...boardJhon, selected_task: T4_DETAIL } },
+    'board-task': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · detalle de T4 abierto (sin issue)',
+        props: { ...boardJhon, selected_task: T4_DETAIL, selected_task_github: TASK_GITHUB_T4 },
+    },
+    'board-task-issue-dialog': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · crear issue de T4',
+        props: { ...boardJhon, selected_task: T4_DETAIL, selected_task_github: { ...TASK_GITHUB_T4, issue_form: { ...TASK_GITHUB_T4.issue_form!, open: true } } },
+    },
+    'board-issue-created': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · después de crear el issue #57',
+        props: { ...boardJhon, tasks: P07_WITH_ISSUE_57, issue_created: ISSUE_CREATED_T4 },
+    },
+    'board-task-pr': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · detalle de T3 con el PR #41',
+        props: { ...boardJhon, selected_task: T3_DETAIL, selected_task_github: TASK_GITHUB_T3 },
+    },
     'board-task-blocked': { page: 'Ai/Projects/Board', label: 'Tablero · detalle de T7 bloqueada', props: { ...boardJhon, selected_task: T7_DETAIL } },
     'board-blocked': {
         page: 'Ai/Projects/Board',
@@ -455,6 +507,26 @@ export const variants: Record<
 
     // Task page
     task: { page: 'Ai/Tasks/Show', label: 'Tarea en celular · T4 con cronómetro', props: taskT4 },
+    'task-issue-dialog': {
+        page: 'Ai/Tasks/Show',
+        label: 'Tarea · crear issue en GitHub (T4)',
+        props: { ...taskT4, github: { ...TASK_GITHUB_T4, issue_form: { ...TASK_GITHUB_T4.issue_form!, open: true } } },
+    },
+    'task-issue-created': {
+        page: 'Ai/Tasks/Show',
+        label: 'Tarea · issue #57 recién creado',
+        props: {
+            ...taskT4,
+            ...sharedFor('jhon', { flash: { success: `Issue #57 creado en ${TASK_GITHUB_T4.repo!.full_name}.` } }),
+            task: { ...T4_DETAIL, github: { issue: { number: 57, state: 'open' }, pr: null, ci: null } },
+            github: TASK_GITHUB_T4_CREATED,
+        },
+    },
+    'task-pr': {
+        page: 'Ai/Tasks/Show',
+        label: 'Tarea en celular · T3 en revisión por el PR #41',
+        props: { ...taskT4, ...sharedFor('leonardo'), task: T3_DETAIL, today_project_hours: 0, github: TASK_GITHUB_T3 },
+    },
     'task-stopped': {
         page: 'Ai/Tasks/Show',
         label: 'Tarea en celular · T7 bloqueada, sin cronómetro',

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { SubtaskList } from '@/Components/ai/projects/TaskParts';
 import { columnLabel } from '@/Components/ai/KanbanColumn';
 import { Elapsed } from '@/Components/ai/TimerButton';
+import { TaskGitHubBlock, TaskGitHubHistory, TaskPullRequestCard } from '@/Components/github/TaskGitHubParts';
 import { Avatar } from '@/Components/ui/Avatar';
 import { Button } from '@/Components/ui/Button';
 import { Icon } from '@/Components/ui/Icon';
@@ -14,9 +15,14 @@ import { formatHours } from '@/lib/timer';
 import type { TasksShowProps } from '@/types/pages/ai-projects';
 import type { PageProps } from '@/types/shared';
 
-/** B-TaskPhone: the task with its stopwatch as the hero, subtasks and a quick comment. Centered column on desktop. */
+/**
+ * B-TaskPhone: the task with its stopwatch as the hero, subtasks and a quick
+ * comment. Stage D adds the PR card and history (D-GitHubPhone) or the issue
+ * block with "Crear issue en GitHub". Centered column on desktop.
+ */
 export default function TasksShow(props: PageProps<TasksShowProps>) {
     const { project, task, today_project_hours, auth } = props;
+    const github = props.github ?? null;
     const now = new Date(props.now);
     const running = task.timer?.running === true && task.timer.started_at !== null;
     const mine = !task.timer || task.timer.person_id === auth.user.id;
@@ -75,6 +81,17 @@ export default function TasksShow(props: PageProps<TasksShowProps>) {
                         </p>
                     ) : null}
                 </div>
+
+                {github?.pull_request ? <TaskPullRequestCard github={github} now={props.now} /> : null}
+                {github && !github.pull_request ? (
+                    <section aria-labelledby="task-github" className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-4">
+                        <h2 id="task-github" className="text-sm font-bold">
+                            GitHub
+                        </h2>
+                        <TaskGitHubBlock github={github} task={task} projectKey={project.key} now={props.now} />
+                    </section>
+                ) : null}
+                {github?.pull_request ? <TaskGitHubHistory github={github} now={props.now} /> : null}
 
                 {task.column !== 'done' ? (
                     <section

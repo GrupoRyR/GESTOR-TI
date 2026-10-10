@@ -47,6 +47,13 @@
  * - `ai.projects.report.send`      POST   `{ project: key }` body `ReportPayload`    "Enviar ahora"
  * - `ai.projects.report.schedule`  PUT    `{ project: key }` body `ReportPayload`    "Programar"
  * - `ai.projects.docs`             GET    `{ project: key }`                        ProjectLayout tab
+ * - `ai.projects.repository.store` POST  `{ project: key }` body `RepoLinkPayload`  "Vincular" in the repo dialog of the
+ *                                         summary (Stage D, see ai-github.ts)
+ * - `ai.tasks.issue.store`         POST   `{ project: key, task: key }` body `IssuePayload`  "Crear issue" (board drawer and
+ *                                         task page). Back to the same page: the task page gets flash success, the board gets
+ *                                         `issue_created` (toast) instead. The drawer partial reload becomes `only: ['selected_task',
+ *                                         'selected_task_github']`.
+ * - `ai.products.show`             GET    `{ product: slug }`                       "Ver actividad en GitHub" on the summary
  * - `ai.requests.show`             GET    `{ request: key }`                        linked request card, header
  * - `admin.costs.index`            GET    —                                         "Tarifas en Administración"
  * - `home`, `ai.requests.mine`     GET    —                                         Respond page (requester mode)
@@ -57,6 +64,8 @@
  *                     "Tiempo y costo". Without it the server sends `null` and the UI shows hours and dates only;
  *                     `Ai/Projects/Costs` renders NoPermission. Report recipients without it never get the internal version.
  * - Requesters never see costs, rates or internal notes: `RequirementForRecipient` carries none.
+ * - `ai.github.manage` linking the repository and creating issues (Stage D). Without it `repo_link` and
+ *                     `TaskGitHub.issue_form` are null and the buttons are hidden; GitHub data shows to `ai.manage`.
  */
 import type { RunningTimer } from '@/types/pages/ai-triage';
 import type {
@@ -72,6 +81,8 @@ import type {
     TimeEntry,
 } from '@/types/ai';
 import type { ProjectHeader } from '@/Layouts/ProjectLayout';
+import type { GitHubIssue } from '@/types/github';
+import type { RepoLinkSetup, TaskGitHub } from '@/types/pages/ai-github';
 
 export type { ProjectHeader, RunningTimer };
 
@@ -134,6 +145,8 @@ export interface ProjectsShowProps {
     next_step: string | null;
     /** Bogotá date (YYYY-MM-DD). */
     today: string;
+    /** Stage D · "Vincular repositorio" when `project.repository` is null; null or omitted without `ai.github.manage`. */
+    repo_link?: RepoLinkSetup | null;
     now: string;
 }
 
@@ -173,6 +186,10 @@ export interface ProjectsBoardProps {
     selected_task: TaskDetail | null;
     /** The viewer's running timer (any project), for the phone bar. */
     running_timer: RunningTimer | null;
+    /** Stage D · GitHub block of the drawer task (issue, PR, create issue). Sent with `selected_task`; null when closed. */
+    selected_task_github?: TaskGitHub | null;
+    /** Stage D · right after "Crear issue": toast with the link and "nuevo" on the card. Null or omitted otherwise. */
+    issue_created?: { task_key: string; issue: GitHubIssue; repo_full_name: string } | null;
     now: string;
 }
 
@@ -183,6 +200,8 @@ export interface TasksShowProps {
     task: TaskDetail;
     /** Hours the viewer logged today in this project, without the running timer. */
     today_project_hours: number;
+    /** Stage D · PR card, history and "Crear issue en GitHub" (D-GitHubPhone). Null or omitted = no GitHub block. */
+    github?: TaskGitHub | null;
     now: string;
 }
 

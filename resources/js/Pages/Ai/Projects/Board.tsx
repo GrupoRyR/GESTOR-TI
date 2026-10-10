@@ -6,6 +6,7 @@ import { FilterSelect } from '@/Components/ai/triage/InboxParts';
 import { KanbanCard } from '@/Components/ai/KanbanCard';
 import { columnLabel, KANBAN_COLUMNS, KanbanColumn } from '@/Components/ai/KanbanColumn';
 import { Elapsed } from '@/Components/ai/TimerButton';
+import { ExternalLink } from '@/Components/github/ExternalLink';
 import { Button } from '@/Components/ui/Button';
 import { Dialog } from '@/Components/ui/Dialog';
 import { Drawer } from '@/Components/ui/Drawer';
@@ -104,6 +105,9 @@ function AddTaskDialog({ projectKey, column, onClose }: { projectKey: string; co
 /** B-Kanban + B-TaskDetail + B-KanbanPhone: drag cards between columns (or "Mover a…"), filters, timers and the task drawer. */
 export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
     const { project, filters, people, labels, selected_task, running_timer, column_limits, total_tasks, blocked_total, auth } = props;
+    const selectedGitHub = props.selected_task_github ?? null;
+    const issueCreated = props.issue_created ?? null;
+    const requestKey = project.request_keys[0] ?? null;
     const [tasks, setTasks] = useState<Task[]>(props.tasks);
     const [dragging, setDragging] = useState<string | null>(null);
     const [over, setOver] = useState<KanbanColumnKey | null>(null);
@@ -139,12 +143,12 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
 
     const open = (task: Task) => {
         setClosedKey(null);
-        router.get(boardUrl, { ...toQuery(filters), tarea: task.key }, { only: ['selected_task'], preserveState: true, preserveScroll: true });
+        router.get(boardUrl, { ...toQuery(filters), tarea: task.key }, { only: ['selected_task', 'selected_task_github'], preserveState: true, preserveScroll: true });
     };
 
     const close = () => {
         if (selected_task) setClosedKey(selected_task.key);
-        router.get(boardUrl, toQuery(filters), { only: ['selected_task'], preserveState: true, preserveScroll: true, replace: true });
+        router.get(boardUrl, toQuery(filters), { only: ['selected_task', 'selected_task_github'], preserveState: true, preserveScroll: true, replace: true });
     };
 
     const startTimer = (task: Pick<Task, 'key'>) => router.post(route('ai.timer.start', { project: project.key, task: task.key }), {}, { preserveScroll: true });
@@ -191,6 +195,8 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
                     setOver(null);
                 }}
                 dragging={dragging === task.key}
+                requestKey={requestKey}
+                newIssue={issueCreated?.task_key === task.key}
             />
         ));
 
@@ -216,6 +222,17 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
             {running_timer ? <RunningTimerBar timer={running_timer} now={props.now} onStop={stopTimer} /> : null}
 
             <div className="flex flex-col gap-4">
+                {issueCreated ? (
+                    <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card border border-line bg-surface px-4 py-2 text-sm">
+                        <Icon name="check-circle" size={18} className="shrink-0 text-status-active" />
+                        <span className="min-w-0 flex-1">
+                            <b className="tabular">Issue #{issueCreated.issue.number}</b> creado en {issueCreated.repo_full_name}
+                        </span>
+                        <ExternalLink href={issueCreated.issue.url} className="text-[13px]">
+                            Ver en GitHub
+                        </ExternalLink>
+                    </div>
+                ) : null}
                 <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
                     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0 md:pb-0">
                         <FilterSelect
@@ -338,6 +355,8 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
                         viewerId={auth.user.id}
                         onTimerStart={() => startTimer(drawerTask)}
                         onTimerStop={stopTimer}
+                        github={selectedGitHub}
+                        issueIsNew={issueCreated?.task_key === drawerTask.key}
                     />
                 ) : null}
             </Drawer>

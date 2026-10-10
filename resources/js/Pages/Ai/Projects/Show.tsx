@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { BudgetBars, CostsLock, PersonLine, ReapprovalBanner } from '@/Components/ai/projects/ProjectParts';
 import { reapprovalReasons, reapprovalSentence, requirementState } from '@/Components/ai/projects/projects';
 import { columnLabel } from '@/Components/ai/KanbanColumn';
+import { RepoLinkDialog } from '@/Components/github/RepoLinkDialog';
 import { Avatar } from '@/Components/ui/Avatar';
 import { Button } from '@/Components/ui/Button';
 import { CompanyMark } from '@/Components/ui/CompanyMark';
@@ -66,6 +67,8 @@ export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
     const canViewCosts = can(auth.user, 'ai.costs.view');
     const company = companies.find((item) => item.id === project.company_id);
     const [requesting, setRequesting] = useState(false);
+    const repoLink = can(auth.user, 'ai.github.manage') ? (props.repo_link ?? null) : null;
+    const [linkOpen, setLinkOpen] = useState(repoLink?.open ?? false);
     const { budget } = project;
     const reasons = reapprovalReasons(budget, reapproval_threshold);
     const needsReapproval = reasons.length > 0 || budget.needs_reapproval;
@@ -272,21 +275,40 @@ export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
                                     <a
                                         href={project.repository.url}
                                         target="_blank"
-                                        rel="noreferrer"
+                                        rel="noopener noreferrer"
                                         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-bold break-all text-fg underline-offset-2 hover:underline"
                                     >
                                         <Icon name="code" size={16} />
                                         {project.repository.url.replace(/^https?:\/\//, '')}
                                         <Icon name="external" size={13} />
+                                        <span className="sr-only"> (abre en GitHub)</span>
                                     </a>
                                     <p className="text-[13px] text-fg-muted">
                                         Rama {project.repository.branch} · {project.repository.open_prs}{' '}
                                         {project.repository.open_prs === 1 ? 'PR abierto' : 'PR abiertos'} · último cambio {formatRelative(project.repository.last_change_at, now)}
                                     </p>
-                                    <p className="text-xs text-fg-muted">Las acciones con GitHub llegan en la etapa D.</p>
+                                    {project.product_slug ? (
+                                        <Link
+                                            href={`${route('ai.products.show', { product: project.product_slug })}#github`}
+                                            className="inline-flex min-h-11 items-center gap-1.5 self-start text-[13px] font-bold text-fg underline-offset-[3px] hover:underline"
+                                        >
+                                            Ver actividad en GitHub
+                                        </Link>
+                                    ) : null}
                                 </>
                             ) : (
-                                <p className="text-sm text-fg-muted">Sin repositorio vinculado. Se vincula en la etapa D.</p>
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm text-fg-muted">
+                                        {repoLink
+                                            ? 'Sin repositorio vinculado. Vincúlalo para crear issues desde las tareas y recibir PR, CI y releases.'
+                                            : 'Sin repositorio vinculado. Pídele a quien administra GitHub que lo vincule.'}
+                                    </p>
+                                    {repoLink ? (
+                                        <Button variant="dark" icon="link" aria-haspopup="dialog" onClick={() => setLinkOpen(true)} className="self-start">
+                                            Vincular repositorio
+                                        </Button>
+                                    ) : null}
+                                </div>
                             )}
                         </Card>
 
@@ -360,6 +382,15 @@ export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
                 </div>
 
             </div>
+            {repoLink && !project.repository ? (
+                <RepoLinkDialog
+                    setup={repoLink}
+                    open={linkOpen}
+                    onClose={() => setLinkOpen(false)}
+                    action={route('ai.projects.repository.store', { project: project.key })}
+                    now={props.now}
+                />
+            ) : null}
         </ProjectLayout>
     );
 }

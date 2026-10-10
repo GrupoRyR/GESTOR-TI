@@ -1,6 +1,8 @@
 import { Link } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import { IncidentDrawer } from '@/Components/ai/products/IncidentDrawer';
+import { ProductGitHubEmpty, ProductGitHubSection } from '@/Components/github/ProductGitHubSection';
+import { RepoLinkDialog } from '@/Components/github/RepoLinkDialog';
 import { CostsLockNote, Placeholderable, ProductStateChip, RatingSquares } from '@/Components/ai/products/ProductParts';
 import { requestsBreakdown } from '@/Components/ai/products/products';
 import { Button, buttonClasses } from '@/Components/ui/Button';
@@ -195,9 +197,16 @@ function DocRow({ doc, now }: { doc: DocSummary; now: string }) {
     );
 }
 
-/** Ficha de producto: metadata, results, health placeholder, versions, open requests, docs and "Pedir mejora". */
+/**
+ * Ficha de producto: metadata, results, GitHub activity (Stage D) or the
+ * "Vincular repositorio" dialog, health placeholder, versions, open
+ * requests, docs and "Pedir mejora".
+ */
 export default function ProductsShow(props: PageProps<ProductsShowProps>) {
     const { product, health, incidents, hours_note, cost_note, request_notes, incident_form, errors = {}, now, companies, auth } = props;
+    const github = props.github ?? null;
+    const repoLink = can(auth.user, 'ai.github.manage') ? (props.repo_link ?? null) : null;
+    const [linkOpen, setLinkOpen] = useState(repoLink?.open ?? false);
     const company = companies.find((item) => item.id === product.company_id);
     // The drawer opens client-side; `ai.products.incidents.create` and a failed store arrive with it open.
     const [incidentOpen, setIncidentOpen] = useState(incident_form.open);
@@ -219,12 +228,16 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
         },
         {
             term: 'Repositorio',
-            value: product.repository ? (
+            value: github ? (
+                <a href="#github" className="font-semibold break-all text-fg underline underline-offset-2">
+                    {github.link.repo.name}
+                </a>
+            ) : product.repository ? (
                 <a href={product.repository} target="_blank" rel="noopener noreferrer" className="font-semibold break-all text-fg underline underline-offset-2">
                     <Placeholderable text={product.repository} />
                 </a>
             ) : (
-                'Sin repositorio'
+                'Sin vincular'
             ),
         },
         { term: 'Stack', value: `${product.stack} · ${product.host}` },
@@ -282,7 +295,23 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
                     </dl>
                 </section>
 
-                <section aria-label="Resultados del producto" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <nav aria-label="Secciones del producto" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    {[
+                        { label: 'Resumen', href: '#resumen' },
+                        { label: 'GitHub', href: '#github' },
+                        { label: 'Documentos del repositorio', href: route('ai.docs.repo', { product: product.slug }) },
+                    ].map((item) => (
+                        <a
+                            key={item.label}
+                            href={item.href}
+                            className="inline-flex h-11 shrink-0 items-center rounded-chip border border-line-strong bg-surface px-3.5 text-[13px] font-semibold whitespace-nowrap text-fg no-underline hover:bg-subtle"
+                        >
+                            {item.label}
+                        </a>
+                    ))}
+                </nav>
+
+                <section id="resumen" aria-label="Resultados del producto" className="grid scroll-mt-24 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <StatTile
                         label="Calificación"
                         value={product.rating ? `${decimal(product.rating.average)} de 5` : 'Sin calificar'}
@@ -313,6 +342,12 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
                     <StatTile label="Solicitudes abiertas" value={String(product.requests.length)} note={requestsBreakdown(product.requests)} />
                 </section>
 
+                {github ? (
+                    <ProductGitHubSection github={github} productSlug={product.slug} now={now} />
+                ) : (
+                    <ProductGitHubEmpty canLink={repoLink !== null} onLink={() => setLinkOpen(true)} />
+                )}
+
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
                     <div className="flex min-w-0 flex-col gap-4">
                         <HealthBlock health={health} now={now} />
@@ -334,7 +369,16 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
                                 {product.versions.map((version) => (
                                     <li key={version.tag} className="grid gap-x-4 gap-y-2 border-t border-line px-5 py-3.5 sm:grid-cols-[110px_minmax(0,1fr)]">
                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-col sm:items-start">
-                                            <b className="tabular">{version.tag}</b>
+                                            {github ? (
+                                                <Link
+                                                    href={route('ai.releases.show', { product: product.slug, release: version.tag })}
+                                                    className="tabular flex min-h-11 items-center font-bold text-fg underline-offset-[3px] hover:underline sm:min-h-0"
+                                                >
+                                                    {version.tag}
+                                                </Link>
+                                            ) : (
+                                                <b className="tabular">{version.tag}</b>
+                                            )}
                                             <span className="text-[13px] text-fg-muted">{formatShortDate(version.date)}</span>
                                             {version.current ? (
                                                 <Chip tone="green" icon="check" size="sm">
@@ -437,6 +481,16 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
                 monitoringOff={!health.enabled}
                 serverErrors={errors}
             />
+            {repoLink ? (
+                <RepoLinkDialog
+                    setup={repoLink}
+                    open={linkOpen}
+                    onClose={() => setLinkOpen(false)}
+                    action={route('ai.products.repository.store', { product: product.slug })}
+                    serverErrors={repoLink.open ? errors : undefined}
+                    now={now}
+                />
+            ) : null}
         </GestorLayout>
     );
 }
