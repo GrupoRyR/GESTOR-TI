@@ -64,6 +64,13 @@ Schedule::command('ai:vault-reminders')
     ->timezone('America/Bogota')
     ->withoutOverlapping();
 
+// Asistente TI: knowledge cards past their review date (6 months after the
+// last review) reach the knowledge managers, one digest each.
+Schedule::command('assistant:knowledge-review-reminders')
+    ->weeklyOn(1, '08:00')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

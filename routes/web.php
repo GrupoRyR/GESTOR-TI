@@ -35,6 +35,8 @@ use App\Http\Controllers\AI\TriageController;
 use App\Http\Controllers\AI\ValueController;
 use App\Http\Controllers\AI\VaultController;
 use App\Http\Controllers\AI\WeekController;
+use App\Http\Controllers\Assistant\KnowledgeController;
+use App\Http\Controllers\Assistant\StageCPlaceholderController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\Auth\SessionController;
@@ -340,8 +342,32 @@ Route::middleware(['module:employees', 'auth'])->prefix('employees')->name('empl
         ->name('accesses.reveal');
 });
 
+// Asistente TI (Stage C, types/pages/assistant-*.ts).
 Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assistant.')->group(function () {
+    // TEMPORARY until C3 (assistant engine + `Assistant/Chat`).
     Route::inertia('/', 'Assistant/Index')->name('index');
+
+    // Knowledge base (C1, types/pages/assistant-knowledge.ts). List and card:
+    // `assistant.use` or `assistant.knowledge.manage` (KnowledgeItemPolicy),
+    // only visible cards; writing: `assistant.knowledge.manage`. `{card}` is
+    // the key (K-031).
+    Route::get('/knowledge', [KnowledgeController::class, 'index'])->name('knowledge.index');
+
+    Route::middleware('can:assistant.knowledge.manage')->group(function () {
+        Route::get('/knowledge/create', [KnowledgeController::class, 'create'])->name('knowledge.create');
+        Route::post('/knowledge', [KnowledgeController::class, 'store'])->name('knowledge.store');
+        Route::get('/knowledge/{card}/edit', [KnowledgeController::class, 'edit'])->name('knowledge.edit');
+        Route::put('/knowledge/{card}', [KnowledgeController::class, 'update'])->name('knowledge.update');
+        Route::delete('/knowledge/{card}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
+        Route::post('/knowledge/{card}/review', [KnowledgeController::class, 'review'])->name('knowledge.review');
+
+        // TEMPORARY until C2 (curation): AssistantLayout tabs.
+        Route::get('/import', StageCPlaceholderController::class)->name('import.create');
+        Route::get('/drafts', StageCPlaceholderController::class)->name('drafts.index');
+        Route::get('/unanswered', StageCPlaceholderController::class)->name('unanswered.index');
+    });
+
+    Route::get('/knowledge/{card}', [KnowledgeController::class, 'show'])->name('knowledge.show');
 });
 
 Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->group(function () {

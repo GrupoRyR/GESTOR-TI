@@ -110,6 +110,13 @@ return [
             'channels' => ['mail', 'telegram', 'database'],
         ],
 
+        // Asistente TI (Stage C).
+        'assistant.knowledge.review' => [
+            'label' => 'Fichas por revisar',
+            'hint' => 'Cada lunes, las fichas de la base de conocimiento que llevan 6 meses sin revisión',
+            'channels' => ['mail', 'database'],
+        ],
+
     ],
 
 ];
