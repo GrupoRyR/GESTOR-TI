@@ -122,7 +122,7 @@ Server steps (D7 deploy doc):
 - Subscribe to events: Issues, Pull request, Release, Workflow runs, Push (installation events are always sent to the app). Permissions: Actions read (workflow_run).
 - After installing: `php artisan github:sync` once; the cron `schedule:run` + database queue processes the events.
 
-### D3 · Repos, issues, repo creation, GitHub props, repo docs — done
+### D3 · Repos, issues, repo creation, GitHub props, repo docs — done (`c1a01d5`)
 - Route: delegated (writer trigger: 3 actions, 6 domain classes, presenter, controller, 3 form requests, 5 controllers wired, migration; 5 test files + 5 updated).
 - Test-first: 20 new tests (`tests/Feature/GitHub/{RepositoryLinkTest,RepositoryCreateTest,TaskGitHubTest,ProductGitHubTest}`, 2 new in
   `tests/Feature/Ai/Knowledge/DocumentsTest`) plus prop-key updates in `ProductPagesTest`, `ProductIncidentsTest`, `ProjectPagesTest`. RED observed by
