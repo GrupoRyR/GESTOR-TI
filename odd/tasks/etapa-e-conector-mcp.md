@@ -47,7 +47,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - follow-up from E2: the task controller uses `CreateTask`/`UpdateTask`/`AddProgressNote` (one copy of the rules).
   - Route: delegated.
 - [x] E2c · Merge design PR #34 (`787f5f6`): no conflicts; typecheck, 496 vitest and build green.
-- [ ] E3 · Personal tokens + `Profile/Mcp`:
+- [x] E3 · Personal tokens + `Profile/Mcp`:
   - `mcp_tokens` (hashed, scope, expiry, last used/client, revoked) and `mcp_calls` audit;
   - page + `profile.mcp.tokens.{store,destroy}`, `profile.mcp.test`;
   - `/mcp` accepting personal tokens or OAuth, 401/403 rules;
@@ -143,6 +143,49 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `vendor/bin/pint --test`: passed.
   - `php artisan schedule:list`: `15 3 * * * php artisan mcp:prune-clients`.
 - For E3 deploy doc: mention `mcp:revoke` for IT, and that the consent view changed (still flagged for design).
+
+### E3 · Personal tokens + Profile/Mcp — done
+- Route: delegated direct (writer trigger: 2+ non-trivial files).
+- Schema (`2026_10_31_00000{1,2}`):
+  - `mcp_tokens`: user, `name` (60), `scope` (`read` | `read_write`), `token_hash` (SHA-256, unique), `last_four`, `expires_at` (date: last calendar day in Bogotá the token works), `last_used_at`, `last_client`, `revoked_at`, `revoked_by`. Rows are never deleted. Name unique among the user's active tokens (not revoked, not past the date), case-insensitive, checked in `StoreMcpTokenRequest`.
+  - `mcp_calls`: user, `mcp_token_id` (nullable), `oauth_client_id` (nullable), `tool`, `target` ("GIA-139", "P-3 · T5", "“cartera”", "documento 12"), `result` (`ok` | `error` | `rejected` | `unauthorized`), `message` (160), `created_at`. Never the token value nor what the Gestor answered.
+  - Retention: `gestor.mcp.calls_retention_days` (180, `MCP_CALLS_RETENTION_DAYS`), `mcp:prune-calls` daily at 03:20 Bogotá. The page receives it as `activity.retention` ("180 días"), so the `[TIEMPO DE RETENCIÓN]` placeholder is filled by the prop.
+- Token format: `gti_mcp_` + 40 url-safe characters from `random_bytes(32)` (base64url). Lookup by the SHA-256 (unique index) plus `hash_equals`. `McpToken::issue()` is the only place the value exists.
+- Routes (`web` + `auth`, controller `App\Http\Controllers\Profile\McpConnectorController`):
+  - `profile.mcp` GET `/profile/mcp` (`?token={id}|all`): `selected_token` and `activity` are closures (partial reload `only: ['activity','selected_token']`). Another person's or a malformed id: 404.
+  - `profile.mcp.tokens.store` POST: flashes `{id, value}` encrypted (`Crypt`) and redirects to `profile.mcp`; the next GET decrypts it, checks the hash and sends `created_token` once.
+  - `profile.mcp.tokens.destroy` DELETE `{token}`: revokes (`revoked_at`, `revoked_by`), idempotent, keeps the calls. Another person's token: 404.
+  - `profile.mcp.test` POST (`throttle:6,1`): stores `connection_test` in the session and redirects back (keeps `?token=` from the referer).
+  - Every response: `Inertia::encryptHistory()` on the GET and `Cache-Control: no-store, no-cache, private, max-age=0` on all four.
+  - Without `ai.mcp.use`: GET renders `tokens: []`, `activity`, `selected_token`, `connection_test`, `created_token` null, `mcp_holders` (active users holding the permission, by name). The other routes answer 403.
+  - `server`: `{ url: APP_URL + '/mcp', active: gestor.mcp.enabled }`.
+  - Audit (`auth` log, sensitive): `mcp_personal_token_created` (name, scope, expires_at) and `mcp_personal_token_revoked`. No value, no last four.
+- "Probar conexión" (`App\Support\Mcp\ConnectionTester`): POSTs an unauthenticated `initialize` to the server's own `/mcp` (10 s timeout, `gestor.mcp.connection_test_timeout`). No token is created or sent. `ok` = HTTP 401 with a `Bearer` challenge (reachable, Laravel answering, asking for auth), with `ms`. Failures: `mcp_not_found` (404, also when `MCP_ENABLED=false`), `mcp_http_{status}`, `mcp_timeout` (cURL 28), `mcp_tls` (cURL 35/51/58/60, SSL), `mcp_unreachable`.
+- Unified endpoint `POST /mcp` (moved from `/mcp/gestor-ia`, route name `mcp.gestor-ia` kept). Middleware order:
+  1. `AuthenticateMcp`: `MCP_ENABLED=false` → 404. A `gti_mcp_` bearer → personal token: unknown → 401; expired or revoked → 401 and an `unauthorized` call row ("token vencido" / "token revocado"); valid → `last_used_at`, and on `initialize` `last_client` from `clientInfo.name`. Any other bearer → Passport `api` guard. The caller is kept as `App\Support\Mcp\McpContext` (user, token or OAuth client). laravel/mcp adds the `WWW-Authenticate` challenge to every 401.
+  2. `throttle:mcp`: now per personal token, else per OAuth user (`McpContext::rateKey`). Before E3 it ran before auth and fell back to the IP.
+  3. `AuditMcpCalls`: one `mcp_calls` row per `tools/call`, also for refusals below. Writes keep their `ai` activity entries with origin `api`.
+  4. `EnforceMcpScope`: a `read` token calling `crear_tarea`, `actualizar_tarea`, `agregar_nota` or `adjuntar_documento` → HTTP 403 JSON-RPC `-32001` "Este token es de solo lectura: no puede usar …", logged `rejected` with reason "token de solo lectura" (the page shows "Rechazada · token de solo lectura"). `tools/list` also hides them (`WritesGestor::shouldRegister`), but the 403 does not depend on that.
+  5. `EnsureMcpAccess`: OAuth tokens still need `mcp:use`; every caller must be active and hold `ai.mcp.use`, else 403 (logged `rejected`).
+  - OAuth = `read_write`. Protected-resource metadata: `resource` = APP_URL + `/mcp` (`/.well-known/oauth-protected-resource/mcp`).
+- Tools: `agregar_nota_avance` renamed `agregar_nota` (class `AgregarNota`, server instructions). `ver_solicitud` no longer returns `costos` for anyone, and `SafeText` now omits any free text with a money amount for every viewer (user rule: never costs). Tool descriptions and instructions say so.
+- Page activity: calls of the user's personal tokens with the six `McpToolKey` tools (newest first, 100). `quien_soy` and OAuth calls (no token to show) are audited but not listed. `unauthorized` reads as `rejected` with its reason. `rejected_elsewhere`: rejected calls of the user's other tokens in the last 7 days. `summary` = target, plus "· N resultados" for searches.
+- Test-first: RED 112 tests, 42 passed, 45 failed, 25 errors (routes, models and middleware missing; `/mcp` 404). One exception: the `ver_solicitud` costs change and the SafeText money rule were written before that RED run, so their RED was not observed. GREEN 117/117 in `--filter='Mcp|Profile'`. New: `tests/Feature/Mcp/PersonalTokenServerTest.php` (16), `tests/Feature/Profile/McpConnectorPageTest.php` (16 including 5 data-provider cases). Updated: `McpTestCase` (`SERVER_PATH = '/mcp'`, `personalToken()`), `OAuthDiscoveryTest`, `RequestToolsTest`, `NoteAndDocumentToolsTest`.
+- Checks:
+  - `php artisan test --filter='Mcp|Profile'`: 117 passed.
+  - `php artisan test`: 1181 passed (baseline 1149, plus 32).
+  - `vendor/bin/pint --test`: passed.
+  - `npm run typecheck`: passed.
+  - `php artisan route:list --path=mcp`: 7 routes (`GET|DELETE /mcp` 405, `POST /mcp`, `profile.mcp`, `profile.mcp.test`, `profile.mcp.tokens.store`, `profile.mcp.tokens.destroy`).
+  - `route:cache` works. `schedule:list` shows `20 3 * * * mcp:prune-calls`.
+- Size: about 1,300 authored app lines (the `AgregarNota` rename counts twice) plus 630 test lines, over the ~400 heuristic. Tokens, the page, the endpoint auth and the audit all need each other to be testable end to end.
+- Env keys (server, optional): `MCP_ENABLED` (default true), `MCP_CALLS_RETENTION_DAYS` (default 180). Migrate: `mcp_tokens`, `mcp_calls`.
+- Design notes:
+  - `activity.retention` is sent ("180 días"), so the placeholder goes away.
+  - `last_client` is the raw MCP `clientInfo.name` (e.g. `claude-code`, `claude-ai`), not a friendly label like "Navegador y escritorio". Design may map known names.
+  - Calls through claude.ai OAuth are audited but not shown on the page, since `McpCall.token` is required. If design wants them, the type needs an OAuth variant.
+  - Revoking from the activity panel keeps `?token=` (from the referer), so the panel stays open.
+- Follow-ups outside the E3 surface: the `App\Actions\Ai\AddProgressNote` docblock still names `agregar_nota_avance`. There is no per-IP throttle before authentication on `/mcp`: unauthenticated requests cost one indexed lookup or one JWT check.
 
 ## Open questions (for Jhon)
 - "Gerente de TI" is not a role in `config/permissions.php` (only Súper Admin, Líder IA, approvers, Usuario final): today `ai.mcp.use` = Líder IA + Súper Admin. Create a "Gerente de TI" role or give it to a specific user?

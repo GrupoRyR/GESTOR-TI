@@ -3,6 +3,7 @@
 namespace Tests\Feature\Mcp;
 
 use App\Enums\Ai\CommentVisibility;
+use App\Mcp\Support\SafeText;
 use App\Models\AiCostRate;
 use App\Models\AiEstimate;
 use App\Models\AiTimeEntry;
@@ -24,14 +25,14 @@ class RequestToolsTest extends McpToolsTestCase
 
         $this->assertEqualsCanonicalizing([
             'quien_soy', 'buscar_solicitudes', 'ver_solicitud', 'crear_tarea', 'actualizar_tarea',
-            'agregar_nota_avance', 'adjuntar_documento',
+            'agregar_nota', 'adjuntar_documento',
         ], $tools->keys()->all());
 
         foreach (['quien_soy', 'buscar_solicitudes', 'ver_solicitud'] as $read) {
             $this->assertTrue($tools[$read]['annotations']['readOnlyHint'] ?? false, $read);
         }
 
-        foreach (['crear_tarea', 'actualizar_tarea', 'agregar_nota_avance', 'adjuntar_documento'] as $write) {
+        foreach (['crear_tarea', 'actualizar_tarea', 'agregar_nota', 'adjuntar_documento'] as $write) {
             $this->assertFalse($tools[$write]['annotations']['readOnlyHint'] ?? false, $write);
             $this->assertFalse($tools[$write]['annotations']['destructiveHint'] ?? true, $write);
         }
@@ -147,14 +148,21 @@ class RequestToolsTest extends McpToolsTestCase
         $this->assertStringContainsString('GIA-', $this->toolError($this->tool('ver_solicitud', ['clave' => 'hola'])));
     }
 
-    public function test_internal_notes_and_costs_follow_the_app_permissions(): void
+    public function test_internal_notes_follow_the_app_permissions_and_costs_never_leave(): void
     {
         $this->seedSensitiveData();
+        $this->assertTrue($this->jhon->can('ai.costs.view'));
+        $this->gia139->forceFill(['expected_result' => 'Ahorrar $ 4.500.000 al mes en horas de cartera.'])->save();
 
         $jhon = $this->toolResult($this->tool('ver_solicitud', ['clave' => 'GIA-139']));
         $this->assertSame(['Nota interna: el proveedor cobra demasiado'], array_column($jhon['notas_internas'], 'texto'));
-        $this->assertSame(62, $jhon['costos']['estimado']['hours_total']);
-        $this->assertSame(8_765_432, $jhon['costos']['estimado']['total_cost']);
+        // User rule (Stage E): never costs, even with `ai.costs.view`.
+        $this->assertArrayNotHasKey('costos', $jhon);
+        $this->assertSame(SafeText::OMITTED, $jhon['resultado_esperado']);
+        $raw = json_encode($jhon, JSON_UNESCAPED_UNICODE);
+        foreach (['8765432', '8.765.432', '8_765_432', '1234321', '1.234.321', '4.500.000', 'total_cost', 'external_costs', 'impacto_mensual'] as $cost) {
+            $this->assertStringNotContainsString($cost, $raw, $cost);
+        }
 
         $withoutCosts = $this->connectorUser('TI sin costos', ['ai.manage', 'companies.view_all']);
         $result = $this->toolResult($this->tool('ver_solicitud', ['clave' => 'GIA-139'], $withoutCosts));

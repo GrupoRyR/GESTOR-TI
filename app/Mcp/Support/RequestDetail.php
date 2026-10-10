@@ -2,7 +2,6 @@
 
 namespace App\Mcp\Support;
 
-use App\Domain\Ai\Money;
 use App\Domain\GitHub\RepoActivity;
 use App\Enums\Ai\CommentVisibility;
 use App\Models\AcceptanceCriterion;
@@ -12,7 +11,6 @@ use App\Models\AiRequest;
 use App\Models\AiRequestComment;
 use App\Models\AiTask;
 use App\Models\User;
-use App\Support\Ai\Presenters\ItDetailPresenter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
@@ -28,10 +26,10 @@ use Illuminate\Support\Facades\Gate;
  * - Documents of those projects and of the request's product that the
  *   viewer may open (AiDocumentPolicy::view), Markdown cut at
  *   DOCUMENT_CHARS.
- * - `costos` (monthly impact, latest estimate) only with `ai.costs.view`;
- *   the estimate never carries hourly rates (TriagePresenter).
  *
- * Never read: vault items, rates, time entries, salaries, task comments.
+ * Never read: vault items, credentials, rates, costs (estimates, monthly
+ * impact; user rule of Stage E, even with `ai.costs.view`), time entries,
+ * salaries, task comments.
  * Free text goes through SafeText.
  */
 final class RequestDetail
@@ -94,14 +92,6 @@ final class RequestDetail
         }
 
         $detail['documentos'] = $this->documents($request, $projects, $viewer, $text);
-
-        if ($viewer->can('ai.costs.view')) {
-            $money = Money::impactPerMonth($request);
-            $detail['costos'] = [
-                'impacto_mensual' => $money === null ? null : Money::cop($money).' al mes',
-                'estimado' => ItDetailPresenter::estimate($request, true),
-            ];
-        }
 
         return $detail;
     }

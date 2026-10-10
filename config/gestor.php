@@ -328,10 +328,18 @@ return [
     // MCP connector of the Gestor IA (Stage E): OAuth token lifetimes
     // (Passport, App\Providers\McpServiceProvider) and rate limits.
     'mcp' => [
+        // `POST /mcp` answers 404 and Profile/Mcp shows "aún no está activo"
+        // while false (MCP_ENABLED=false on a hosting not ready yet).
+        'enabled' => (bool) env('MCP_ENABLED', true),
         'access_token_minutes' => (int) env('MCP_ACCESS_TOKEN_MINUTES', 60),
         'refresh_token_days' => (int) env('MCP_REFRESH_TOKEN_DAYS', 30),
-        // Requests to /mcp/gestor-ia per user and minute.
+        // Requests to /mcp per personal token (else per OAuth user) and minute.
         'rate_limit_per_minute' => 120,
+        // Days `mcp_calls` are kept (`mcp:prune-calls`, daily); shown on
+        // Profile/Mcp as "Se guarda 180 días".
+        'calls_retention_days' => (int) env('MCP_CALLS_RETENTION_DAYS', 180),
+        // "Probar conexión": seconds to wait for the server's own /mcp.
+        'connection_test_timeout' => 10,
         // Discovery, /oauth/register and /oauth/token per IP and minute.
         'oauth_rate_limit_per_minute' => 30,
     ],

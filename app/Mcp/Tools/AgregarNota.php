@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Actions\Ai\AddProgressNote;
 use App\Mcp\Tools\Concerns\InteractsWithGestor;
+use App\Mcp\Tools\Concerns\WritesGestor;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
@@ -18,12 +19,13 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
  * task is given, else an entry of the project's activity feed.
  * AiProjectPolicy::manage; credentials refused.
  */
-#[Name('agregar_nota_avance')]
+#[Name('agregar_nota')]
 #[Description('Agrega una nota de avance a un proyecto del Gestor IA (P-n). Con tarea (T-n) queda como comentario de la tarea (hasta 5000 caracteres); sin tarea va al feed de actividad del proyecto (hasta 200 caracteres). Para notas largas del proyecto usa adjuntar_documento. No acepta contraseñas ni llaves.')]
 #[IsDestructive(false)]
-class AgregarNotaAvance extends Tool
+class AgregarNota extends Tool
 {
     use InteractsWithGestor;
+    use WritesGestor;
 
     public function handle(Request $request, AddProgressNote $notes): Response
     {

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Support\Mcp\LoopbackAwareAuthCodeGrant;
+use App\Support\Mcp\McpContext;
 use DateInterval;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -58,9 +59,10 @@ class McpServiceProvider extends ServiceProvider
         Passport::refreshTokensExpireIn(now()->addDays((int) config('gestor.mcp.refresh_token_days', 30)));
         Passport::authorizationView('mcp.authorize');
 
-        // MCP calls: per user (each may hit the database several times).
+        // MCP calls: per personal token, else per OAuth user (each call may
+        // hit the database several times). Runs after AuthenticateMcp.
         RateLimiter::for('mcp', fn (Request $request) => Limit::perMinute((int) config('gestor.mcp.rate_limit_per_minute', 120))
-            ->by('mcp:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+            ->by('mcp:'.(McpContext::of($request)?->rateKey() ?? 'ip:'.$request->ip())));
 
         // Discovery, client registration and token endpoint: per IP.
         RateLimiter::for('mcp-oauth', fn (Request $request) => Limit::perMinute((int) config('gestor.mcp.oauth_rate_limit_per_minute', 30))

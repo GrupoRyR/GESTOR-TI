@@ -6,6 +6,7 @@ use App\Actions\Ai\AddProgressNote;
 use App\Actions\Ai\CreateTask;
 use App\Domain\Ai\Board;
 use App\Mcp\Tools\Concerns\InteractsWithGestor;
+use App\Mcp\Tools\Concerns\WritesGestor;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -28,6 +29,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 class CrearTarea extends Tool
 {
     use InteractsWithGestor;
+    use WritesGestor;
 
     public function handle(Request $request, CreateTask $create): Response
     {

@@ -11,7 +11,7 @@ class OAuthDiscoveryTest extends McpTestCase
 {
     public function test_protected_resource_metadata_names_the_server_url(): void
     {
-        $this->getJson('/.well-known/oauth-protected-resource/mcp/gestor-ia')
+        $this->getJson('/.well-known/oauth-protected-resource/mcp')
             ->assertOk()
             ->assertJson([
                 'resource' => url(self::SERVER_PATH),
@@ -19,7 +19,7 @@ class OAuthDiscoveryTest extends McpTestCase
                 'scopes_supported' => ['mcp:use'],
             ]);
 
-        $this->assertSame(rtrim((string) config('app.url'), '/').'/mcp/gestor-ia', url(self::SERVER_PATH));
+        $this->assertSame(rtrim((string) config('app.url'), '/').'/mcp', url(self::SERVER_PATH));
     }
 
     public function test_authorization_server_metadata_advertises_pkce_and_registration(): void
@@ -43,7 +43,7 @@ class OAuthDiscoveryTest extends McpTestCase
 
         $response->assertUnauthorized();
         $this->assertSame(
-            'Bearer realm="mcp", resource_metadata="'.url('/.well-known/oauth-protected-resource/mcp/gestor-ia').'"',
+            'Bearer realm="mcp", resource_metadata="'.url('/.well-known/oauth-protected-resource/mcp').'"',
             $response->headers->get('WWW-Authenticate'),
         );
     }

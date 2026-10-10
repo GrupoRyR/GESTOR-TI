@@ -55,6 +55,7 @@ use App\Http\Controllers\Employees\EmployeeAccessController;
 use App\Http\Controllers\Employees\EmployeeController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Profile\McpConnectorController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Profile\TelegramLinkController;
 use App\Http\Controllers\SearchController;
@@ -107,6 +108,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile/telegram', [TelegramLinkController::class, 'create'])->name('profile.telegram.create');
     Route::post('/profile/telegram', [TelegramLinkController::class, 'store'])->name('profile.telegram.store');
     Route::delete('/profile/telegram', [TelegramLinkController::class, 'destroy'])->name('profile.telegram.destroy');
+
+    // "Conector para Claude" (`Profile/Mcp`): `ai.mcp.use`, own tokens only
+    // (the controller answers 403/404; the GET shows the no-access state).
+    Route::get('/profile/mcp', [McpConnectorController::class, 'show'])->name('profile.mcp');
+    Route::post('/profile/mcp/tokens', [McpConnectorController::class, 'store'])->name('profile.mcp.tokens.store');
+    Route::delete('/profile/mcp/tokens/{token}', [McpConnectorController::class, 'destroy'])->whereNumber('token')->name('profile.mcp.tokens.destroy');
+    Route::post('/profile/mcp/test', [McpConnectorController::class, 'test'])->middleware('throttle:6,1')->name('profile.mcp.test');
 });
 
 // Module routes: each group is gated by `module:{key}` (404 when the module

@@ -6,6 +6,7 @@ use App\Actions\Ai\AddProgressNote;
 use App\Actions\Ai\UpdateTask;
 use App\Domain\Ai\Board;
 use App\Mcp\Tools\Concerns\InteractsWithGestor;
+use App\Mcp\Tools\Concerns\WritesGestor;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 class ActualizarTarea extends Tool
 {
     use InteractsWithGestor;
+    use WritesGestor;
 
     private const FIELDS = ['titulo', 'descripcion', 'columna', 'responsable'];
 

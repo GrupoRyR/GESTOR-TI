@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\AuditMcpCalls;
+use App\Http\Middleware\AuthenticateMcp;
+use App\Http\Middleware\EnforceMcpScope;
 use App\Http\Middleware\EnsureMcpAccess;
 use App\Http\Middleware\EnsureMcpConsent;
 use App\Mcp\Servers\GestorIaServer;
@@ -22,7 +25,8 @@ use Laravel\Passport\Http\Controllers\DenyAuthorizationController;
 |     (Mcp::oauthRoutes, redirect URIs limited by config/mcp.php);
 |   - POST /oauth/token (form-urlencoded, PKCE S256);
 |   - /oauth/authorize: existing web login, consent screen, approve, deny;
-|   - the server itself, behind the user's bearer token and `ai.mcp.use`.
+|   - the server itself at /mcp, behind the user's bearer token (personal
+|     token or OAuth) and `ai.mcp.use`.
 |
 */
 
@@ -44,6 +48,9 @@ Route::delete('/oauth/authorize', [DenyAuthorizationController::class, 'deny'])
     ->middleware(['web', 'auth'])
     ->name('passport.authorizations.deny');
 
-Mcp::web('/mcp/gestor-ia', GestorIaServer::class)
-    ->middleware(['throttle:mcp', 'auth:api', EnsureMcpAccess::class])
+// Unified endpoint (Stage E3): personal tokens `gti_mcp_…` (Profile/Mcp,
+// Claude Code) or OAuth (claude.ai). Order: authenticate, rate limit per
+// token or user, audit `tools/call`, read-only scope, `ai.mcp.use`.
+Mcp::web('/mcp', GestorIaServer::class)
+    ->middleware([AuthenticateMcp::class, 'throttle:mcp', AuditMcpCalls::class, EnforceMcpScope::class, EnsureMcpAccess::class])
     ->name('mcp.gestor-ia');

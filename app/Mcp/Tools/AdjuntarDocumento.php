@@ -5,6 +5,7 @@ namespace App\Mcp\Tools;
 use App\Actions\Ai\Documents;
 use App\Domain\Ai\DocumentTemplates;
 use App\Mcp\Tools\Concerns\InteractsWithGestor;
+use App\Mcp\Tools\Concerns\WritesGestor;
 use App\Models\AiDocument;
 use App\Models\AiProduct;
 use App\Models\User;
@@ -33,6 +34,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 class AdjuntarDocumento extends Tool
 {
     use InteractsWithGestor;
+    use WritesGestor;
 
     public const DEFAULT_MAX_CHARS = 100000;
 

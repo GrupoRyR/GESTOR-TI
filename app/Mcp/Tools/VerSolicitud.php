@@ -20,7 +20,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
  * Unknown, out-of-scope and forbidden keys all read "No encontré…".
  */
 #[Name('ver_solicitud')]
-#[Description('Muestra una solicitud del Gestor IA por su clave (GIA-n): problema, proceso actual, resultado esperado, criterios de aceptación, evaluación (tamaño y prioridad), proyecto y tareas vinculadas con sus enlaces de GitHub, comentarios públicos y la documentación en Markdown. Las notas internas y los costos solo aparecen si el usuario puede verlos en la aplicación. Nunca incluye la bóveda ni credenciales.')]
+#[Description('Muestra una solicitud del Gestor IA por su clave (GIA-n): problema, proceso actual, resultado esperado, criterios de aceptación, evaluación (tamaño y prioridad), proyecto y tareas vinculadas con sus enlaces de GitHub, comentarios públicos y la documentación en Markdown. Las notas internas solo aparecen si el usuario puede verlas en la aplicación. Nunca incluye la bóveda, credenciales, tarifas, costos ni salarios.')]
 #[IsReadOnly]
 #[IsIdempotent]
 class VerSolicitud extends Tool

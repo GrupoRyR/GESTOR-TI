@@ -78,6 +78,12 @@ Schedule::command('mcp:prune-clients')
     ->timezone('America/Bogota')
     ->withoutOverlapping();
 
+// MCP connector: call log older than `gestor.mcp.calls_retention_days`.
+Schedule::command('mcp:prune-calls')
+    ->dailyAt('03:20')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

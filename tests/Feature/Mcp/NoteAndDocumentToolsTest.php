@@ -8,14 +8,14 @@ use App\Models\AiTaskComment;
 use Spatie\Activitylog\Models\Activity;
 
 /**
- * `agregar_nota_avance` (project feed or task comment) and
+ * `agregar_nota` (project feed or task comment) and
  * `adjuntar_documento` (App\Actions\Ai\Documents, with a revision).
  */
 class NoteAndDocumentToolsTest extends McpToolsTestCase
 {
     public function test_a_task_note_is_a_task_comment_with_its_feed_entry(): void
     {
-        $result = $this->toolResult($this->tool('agregar_nota_avance', [
+        $result = $this->toolResult($this->tool('agregar_nota', [
             'proyecto' => $this->project->key,
             'tarea' => $this->t1->key,
             'nota' => 'Quedó lista la consulta por asesor; falta probar con datos reales.',
@@ -37,7 +37,7 @@ class NoteAndDocumentToolsTest extends McpToolsTestCase
 
     public function test_a_project_note_goes_to_the_activity_feed(): void
     {
-        $result = $this->toolResult($this->tool('agregar_nota_avance', [
+        $result = $this->toolResult($this->tool('agregar_nota', [
             'proyecto' => $this->project->key,
             'nota' => 'Demo con cartera el viernes.',
         ]));
@@ -52,17 +52,17 @@ class NoteAndDocumentToolsTest extends McpToolsTestCase
 
     public function test_notes_are_validated_and_refuse_credentials(): void
     {
-        $this->assertStringContainsString('200', $this->toolError($this->tool('agregar_nota_avance', [
+        $this->assertStringContainsString('200', $this->toolError($this->tool('agregar_nota', [
             'proyecto' => $this->project->key, 'nota' => str_repeat('a', 201),
         ])));
-        $this->assertStringContainsString('nota', $this->toolError($this->tool('agregar_nota_avance', ['proyecto' => $this->project->key])));
-        $this->assertStringContainsString('bóveda', $this->toolError($this->tool('agregar_nota_avance', [
+        $this->assertStringContainsString('nota', $this->toolError($this->tool('agregar_nota', ['proyecto' => $this->project->key])));
+        $this->assertStringContainsString('bóveda', $this->toolError($this->tool('agregar_nota', [
             'proyecto' => $this->project->key, 'tarea' => $this->t1->key, 'nota' => 'La clave es contraseña: Cartera2026!',
         ])));
         $this->assertSame(0, AiTaskComment::query()->count());
 
         $viewer = $this->connectorUser('Conector lector', ['companies.view_all', 'ai.requests.create']);
-        $this->assertStringContainsString('permiso', $this->toolError($this->tool('agregar_nota_avance', [
+        $this->assertStringContainsString('permiso', $this->toolError($this->tool('agregar_nota', [
             'proyecto' => $this->project->key, 'nota' => 'Hola',
         ], $viewer)));
         $this->assertSame(0, Activity::query()->where('event', 'mcp_progress_note')->count());

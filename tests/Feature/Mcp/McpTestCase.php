@@ -3,6 +3,7 @@
 namespace Tests\Feature\Mcp;
 
 use App\Models\Company;
+use App\Models\McpToken;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +20,7 @@ abstract class McpTestCase extends TestCase
 {
     use RefreshDatabase;
 
-    public const SERVER_PATH = '/mcp/gestor-ia';
+    public const SERVER_PATH = '/mcp';
 
     public const CLAUDE_CALLBACK = 'https://claude.ai/api/mcp/auth_callback';
 
@@ -169,6 +170,8 @@ abstract class McpTestCase extends TestCase
         $headers = ['Accept' => 'application/json, text/event-stream'];
 
         if ($token !== null) {
+            // Each bearer call authenticates on its own, as in production.
+            $this->app['auth']->forgetGuards();
             $headers['Authorization'] = 'Bearer '.$token;
         }
 
@@ -178,6 +181,17 @@ abstract class McpTestCase extends TestCase
             'method' => $method,
             'params' => $params,
         ], $headers);
+    }
+
+    /**
+     * A personal token (`gti_mcp_…`) issued through the model, as the
+     * Profile/Mcp page does.
+     *
+     * @return array{token: McpToken, value: string}
+     */
+    protected function personalToken(User $user, string $scope = McpToken::SCOPE_READ_WRITE, int $days = 90, ?string $name = null): array
+    {
+        return McpToken::issue($user, $name ?? 'Claude · '.Str::random(6), $scope, $days);
     }
 
     protected function initialize(?string $token = null): TestResponse
