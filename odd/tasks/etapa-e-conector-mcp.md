@@ -114,7 +114,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `vendor/bin/pint --test`: passed.
 - Size: about 1,250 authored app lines plus 700 test lines, over the ~400 heuristic: six tools with their visibility rules and leak tests belong together.
 
-### E2b · Security review fixes — done
+### E2b · Security review fixes — done (`c273ceb`)
 - Route: delegated direct (writer trigger: 2+ non-trivial files).
 - PKCE (medium): `LoopbackAwareAuthCodeGrant::validateAuthorizationRequest` runs the parent first (unknown client or redirect keep their errors), then refuses with `invalid_request` when there is no `code_challenge` (public and confidential clients) or when `code_challenge_method` is not exactly `S256` (the parent stores `plain` when the method is missing). The hint is Spanish/English. No auth code can be bound to a `plain` challenge, so league's registered PlainVerifier is unreachable at the token endpoint. Confirmed that Claude always sends `code_challenge_method=S256` on every authorization request (https://claude.com/docs/connectors/building/authentication, "PKCE and requested scopes"); `laravel/mcp` metadata already advertises only `S256`.
 - Consent screen (low): `App\Support\Mcp\ConsentRedirect` derives the redirect host from `redirect_uri` (or the client's only registered URI). The screen shows "Volverá a: claude.ai", or for loopback "Volverá a: localhost (una aplicación en tu equipo, como Claude Code)" plus "Autoriza solo si acabas de conectar Claude Code en este equipo." (the same docs page says to show the host and warn on loopback). Wording changed to "Para retirar el acceso, pide a TI que lo revoque; también se corta si pierdes el permiso."
