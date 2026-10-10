@@ -1,0 +1,24 @@
+<!-- subject: [{{ request_key }}] Tu solicitud está {{ status_text }} -->
+<!-- from: {{ company_sender }} -->
+Tu solicitud pasó a {{ current_phase }}
+
+{{ request_key }} · {{ status_label }}
+{{ request_title }}
+
+DÓNDE ESTÁ
+<!-- @foreach phases as phase -->
+{{ phase.glyph }} {{ phase.label }}<!-- @if phase.note --> · {{ phase.note }}<!-- @endif -->
+<!-- @endforeach -->
+
+QUÉ SIGUE
+{{ next_step_text }}
+<!-- @if roadmap_position -->
+Si se aprueba, queda en el puesto {{ roadmap_position }} de la hoja de ruta de {{ roadmap_area }}.
+<!-- @endif -->
+
+Ver mi solicitud: {{ action_url }}
+
+--
+Gestor TI · Grupo RYR · {{ company_name }}
+Recibes este correo porque pediste esta solicitud y te avisamos cada vez que cambia de estado. Lo envía {{ company_sender }}.
+Cambiar mis avisos: {{ preferences_url }}

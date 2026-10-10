@@ -1,0 +1,309 @@
+{
+    "shared": {
+        "preferences_url": "https://[DOMINIO DEL GESTOR]/perfil/avisos"
+    },
+    "companies": {
+        "segurex": {
+            "company_name": "Segurex",
+            "company_sender": "segurex.info@segurex.com",
+            "brand_color": "#C4470F",
+            "logo_url": "https://[DOMINIO DEL GESTOR]/brand/logo-segurex.png",
+            "logo_dark_url": "https://[DOMINIO DEL GESTOR]/brand/logo-segurex-dark.png",
+            "logo_width": 175
+        },
+        "derivados": {
+            "company_name": "Derivados",
+            "company_sender": "derivados.info@derivadoscol.com",
+            "brand_color": "#183F94",
+            "logo_url": "https://[DOMINIO DEL GESTOR]/brand/logo-derivados.png",
+            "logo_dark_url": "https://[DOMINIO DEL GESTOR]/brand/logo-derivados-dark.png",
+            "logo_width": 154
+        }
+    },
+    "templates": {
+        "new-request": {
+            "label": "Nueva solicitud (a TI)",
+            "company": "segurex",
+            "to": "Jhon Castro <[CORREO DE JHON]>",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-149",
+                "request_key": "GIA-149",
+                "request_title": "Reporte de comisiones en Excel",
+                "area_name": "Ventas",
+                "requester_name": "Juan Pérez",
+                "time_spent_today": "Sin dato",
+                "first_response_due": "hoy 5:00 p. m."
+            }
+        },
+        "request-received": {
+            "label": "Recibimos tu solicitud",
+            "company": "segurex",
+            "to": "Juan Pérez <[CORREO DE JUAN]>",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-149",
+                "request_key": "GIA-149",
+                "request_title": "Reporte de comisiones en Excel",
+                "review_due_date": "martes 13 oct"
+            }
+        },
+        "status-changed": {
+            "label": "Cambio de estado",
+            "company": "derivados",
+            "to": "Andrés Méndez <[CORREO DE ANDRÉS]>",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-146",
+                "request_key": "GIA-146",
+                "request_title": "Portafolio de productos: exportar fichas técnicas en PDF",
+                "status_label": "Pendiente de aprobación",
+                "status_text": "pendiente de aprobación",
+                "status_glyph": "◐",
+                "status_family": "amber",
+                "status_bg": "#FFF4DB",
+                "status_fg": "#7A4F00",
+                "current_phase": "aprobación",
+                "phases": [
+                    {
+                        "state": "done",
+                        "glyph": "✓",
+                        "label": "Evaluación · hecha",
+                        "note": "TI la evaluó y la dejó lista.",
+                        "dot_bg": "#17191C",
+                        "dot_fg": "#FFFFFF",
+                        "dot_border": "#17191C",
+                        "color": "#17191C"
+                    },
+                    {
+                        "state": "current",
+                        "glyph": "◐",
+                        "label": "Aprobación · aquí está ahora",
+                        "note": "Esperando a un aprobador de proyectos.",
+                        "dot_bg": "#FFF4DB",
+                        "dot_fg": "#7A4F00",
+                        "dot_border": "#FFF4DB",
+                        "color": "#7A4F00"
+                    },
+                    {
+                        "state": "pending",
+                        "glyph": "",
+                        "label": "Plan · pendiente",
+                        "note": "",
+                        "dot_bg": "#FFFFFF",
+                        "dot_fg": "#5E6168",
+                        "dot_border": "#D6D6D0",
+                        "color": "#5E6168"
+                    },
+                    {
+                        "state": "pending",
+                        "glyph": "",
+                        "label": "Construcción · pendiente",
+                        "note": "",
+                        "dot_bg": "#FFFFFF",
+                        "dot_fg": "#5E6168",
+                        "dot_border": "#D6D6D0",
+                        "color": "#5E6168"
+                    },
+                    {
+                        "state": "pending",
+                        "glyph": "",
+                        "label": "Entrega · pendiente",
+                        "note": "",
+                        "dot_bg": "#FFFFFF",
+                        "dot_fg": "#5E6168",
+                        "dot_border": "#D6D6D0",
+                        "color": "#5E6168"
+                    }
+                ],
+                "next_step_text": "Gerencia decide si entra a la hoja de ruta. No tienes que hacer nada; te avisamos por correo.",
+                "roadmap_position": 3,
+                "roadmap_area": "Compras"
+            }
+        },
+        "it-question": {
+            "label": "Pregunta de TI",
+            "company": "derivados",
+            "to": "Andrés Méndez <[CORREO DE ANDRÉS]>",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-150",
+                "request_key": "GIA-150",
+                "request_title": "Comparar precios de proveedores en el Portafolio",
+                "asker_name": "Jhon Castro",
+                "asked_at": "hoy, 9:14 a. m.",
+                "question_text": "¿Qué proveedores necesitas comparar y cada cuánto?",
+                "reply_by_email": true
+            }
+        },
+        "delivered": {
+            "label": "Entrega en producción",
+            "company": "derivados",
+            "to": "Andrés Méndez <[CORREO DE ANDRÉS]>",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar",
+                "request_key": "GIA-118",
+                "request_title": "Buscador por referencia",
+                "requester_first_name": "Andrés",
+                "product_name": "Portafolio de productos",
+                "release_version": "1.8.2",
+                "released_on": "viernes 2 oct",
+                "change_title": "Buscar por referencia",
+                "change_paragraphs": [
+                    "Ahora puedes encontrar un producto escribiendo su referencia en el buscador, aunque escribas solo una parte. Ya no hace falta recorrer las categorías una por una.",
+                    "Los resultados aparecen mientras escribes."
+                ],
+                "rating_url_1": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=1",
+                "rating_url_2": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=2",
+                "rating_url_3": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=3",
+                "rating_url_4": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=4",
+                "rating_url_5": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=5"
+            }
+        },
+        "requirement": {
+            "label": "Requerimiento",
+            "company": "derivados",
+            "to": "[RESPONSABLE MERCADEO]",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/requerimientos/[ID DEL REQUERIMIENTO]",
+                "project_key": "P-05",
+                "request_key": "GIA-131",
+                "request_title": "Portafolio: conectar la API de WooCommerce",
+                "area_name": "Ventas",
+                "requirement_title": "la API de WooCommerce",
+                "requested_by_name": "Jhon Castro",
+                "is_overdue": true,
+                "days_waiting": 6,
+                "due_date": "jueves 1 oct",
+                "due_note": "venció hace 6 días",
+                "due_summary": "venció el 1 oct",
+                "blocked_task": "T2 · Conectar la API de WooCommerce",
+                "needs": [
+                    "Las credenciales de la API de WooCommerce de la tienda: clave y secreto, con permiso de solo lectura de productos y pedidos.",
+                    "La documentación o el nombre del plugin que usan hoy, si hay uno."
+                ],
+                "asks_for_secrets": true,
+                "reminder_text": "Este es el tercero"
+            }
+        },
+        "project-report": {
+            "label": "Informe de proyecto",
+            "company": "segurex",
+            "to": "Jhon Castro, Edward Ramanan",
+            "data": {
+                "action_url": "https://[DOMINIO DEL GESTOR]/proyectos/P-07/informe",
+                "can_view_costs": true,
+                "project_key": "P-07",
+                "project_name": "Visualizador de cartera",
+                "project_title": "Visualizador de cartera · filtros",
+                "request_key": "GIA-139",
+                "requested_by": "Gerencia de cartera",
+                "report_date": "miércoles 7 oct",
+                "report_date_short": "7 oct",
+                "status_label": "En desarrollo",
+                "status_glyph": "◐",
+                "status_family": "blue",
+                "status_bg": "#E8EEFA",
+                "status_fg": "#1E4FA8",
+                "summary": "Avanza en alcance: ya hay filtros por asesor y por zona validados. Va tarde: la entrega proyectada es el 14 nov, 14 días después de lo previsto.",
+                "summary_with_costs": "Avanza en alcance: ya hay filtros por asesor y por zona validados. Va tarde: la entrega proyectada es el 14 nov y el costo ya pasó el 80 % del presupuesto.",
+                "phases": [
+                    {
+                        "state": "done",
+                        "glyph": "✓",
+                        "label": "Evaluación",
+                        "bar_color": "#17191C",
+                        "color": "#17191C",
+                        "weight": "700"
+                    },
+                    {
+                        "state": "done",
+                        "glyph": "✓",
+                        "label": "Aprobación",
+                        "bar_color": "#17191C",
+                        "color": "#17191C",
+                        "weight": "700"
+                    },
+                    {
+                        "state": "done",
+                        "glyph": "✓",
+                        "label": "Plan",
+                        "bar_color": "#17191C",
+                        "color": "#17191C",
+                        "weight": "700"
+                    },
+                    {
+                        "state": "current",
+                        "glyph": "◐",
+                        "label": "Construcción (ahora)",
+                        "bar_color": "#1E4FA8",
+                        "color": "#1E4FA8",
+                        "weight": "700"
+                    },
+                    {
+                        "state": "pending",
+                        "glyph": "○",
+                        "label": "Entrega",
+                        "bar_color": "#E5E5E0",
+                        "color": "#5E6168",
+                        "weight": "500"
+                    }
+                ],
+                "tasks_done": 2,
+                "tasks_total": 9,
+                "tasks_percent": 22,
+                "criteria_met": 2,
+                "criteria_total": 5,
+                "criteria_percent": 40,
+                "criteria_met_marks": "✓✓",
+                "criteria_pending_marks": "○○○",
+                "done_items": [
+                    "El filtro por zona quedó listo y está en revisión.",
+                    "La consulta por asesor ya trae datos de SAP en el ambiente de pruebas.",
+                    "Gerencia de cartera validó los filtros por asesor y por zona."
+                ],
+                "next_items": [
+                    "Agrupar la cartera por rango de días vencidos.",
+                    "Pruebas con la cartera real junto con 3 asesores."
+                ],
+                "risks": [
+                    {
+                        "title": "Fecha en riesgo.",
+                        "text": "La entrega proyectada es el 14 nov, 14 días después de lo aprobado (31 oct)."
+                    },
+                    {
+                        "title": "Esperamos un dato.",
+                        "text": "Contabilidad debe dar el acceso de lectura a la vista de cartera en SAP antes del viernes 9 oct; sin eso, el total vencido por rango de días queda en pausa."
+                    }
+                ],
+                "hours_used": 92,
+                "hours_budget": 120,
+                "hours_left": 28,
+                "hours_percent": 77,
+                "cost_used": "$ 14.200.000",
+                "cost_budget": "$ 16.000.000",
+                "cost_percent": 89,
+                "cost_bar_color": "#B26B00",
+                "cost_alert": true,
+                "projected_date": "14 nov",
+                "approved_date": "31 oct",
+                "days_late": 14,
+                "cost_reapproval_limit": "$ 19.200.000",
+                "approvers_and": "Jhon Castro y a Edward Ramanan",
+                "approvers_or": "Jhon Castro o Edward Ramanan"
+            },
+            "without_costs": {
+                "to": "Gerencia de cartera",
+                "data": {
+                    "can_view_costs": false,
+                    "risks": [
+                        {
+                            "title": "Fecha en riesgo.",
+                            "text": "La entrega proyectada es el 14 nov, 14 días después de lo previsto (31 oct)."
+                        },
+                        {
+                            "title": "Esperamos un dato.",
+                            "text": "Contabilidad debe dar el acceso de lectura a la vista de cartera en SAP antes del viernes 9 oct; sin eso, el total vencido por rango de días queda en pausa."
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

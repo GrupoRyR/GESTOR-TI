@@ -5,6 +5,7 @@
  */
 import type { ComponentType } from 'react';
 import { ANDINA, DERIVADOS, SEGUREX } from '@/mocks/shared';
+import samples from '../resources/emails/samples.json';
 import { buildCatalog, pageNameFromPath } from './lib/catalog';
 
 export type PageModule = { default: ComponentType<Record<string, unknown>> };
@@ -12,7 +13,10 @@ export type PageModule = { default: ComponentType<Record<string, unknown>> };
 const pageLoaders = import.meta.glob<PageModule>('@/Pages/**/*.tsx');
 const mockModules = import.meta.glob('@/mocks/*.ts', { eager: true });
 
-export const catalog = buildCatalog(Object.keys(pageLoaders), mockModules);
+/** Email templates (labels only; the shell loads the files itself). */
+const emailTemplates = Object.entries(samples.templates).map(([key, entry]) => ({ key, label: entry.label }));
+
+export const catalog = buildCatalog(Object.keys(pageLoaders), mockModules, emailTemplates);
 
 /** Inertia component name → lazy module loader. */
 export const pageLoaderByName = new Map<string, () => Promise<PageModule>>(

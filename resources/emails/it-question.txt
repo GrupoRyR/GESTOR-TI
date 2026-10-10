@@ -1,0 +1,21 @@
+<!-- subject: [{{ request_key }}] TI tiene una pregunta sobre tu solicitud -->
+<!-- from: {{ company_sender }} -->
+TI tiene una pregunta sobre tu solicitud
+
+{{ request_key }} · Necesita información
+{{ request_title }}
+
+{{ asker_name }} · TI · {{ asked_at }}
+"{{ question_text }}"
+
+Mientras no respondas, la solicitud espera en Necesita información.
+
+Responder: {{ action_url }}
+<!-- @optional reply_by_email -->
+También puedes responder este correo: tu respuesta llega a la conversación de {{ request_key }}.
+<!-- @endoptional -->
+
+--
+Gestor TI · Grupo RYR · {{ company_name }}
+Recibes este correo porque pediste esta solicitud y TI necesita un dato tuyo. Lo envía {{ company_sender }}.
+Cambiar mis avisos: {{ preferences_url }}

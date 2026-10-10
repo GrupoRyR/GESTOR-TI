@@ -12,7 +12,7 @@ import { Icon } from '@/Components/ui/Icon';
 import { SegmentedControl } from '@/Components/ui/SegmentedControl';
 import { BRAND_COMPANIES, catalog } from './catalogData';
 import { isGuestProps } from './lib/brandOverride';
-import { DESIGN_SYSTEM_PAGE, resolveSelection, typesFileFor } from './lib/catalog';
+import { DESIGN_SYSTEM_PAGE, EMAILS_PAGE, resolveSelection, typesFileFor } from './lib/catalog';
 import {
     BRANDS,
     frameHash,
@@ -26,6 +26,7 @@ import {
     type Viewport,
 } from './lib/hashState';
 import { describeNavigation, isNavigationMessage } from './lib/navigation';
+import { EmailPreview } from './shell/EmailPreview';
 import { PropsPanel } from './shell/PropsPanel';
 import { Sidebar } from './shell/Sidebar';
 import { Stage } from './shell/Stage';
@@ -122,7 +123,7 @@ function Gallery() {
 
     const selectVariant = useCallback(
         (id: string) => {
-            const page = id.startsWith(`${DESIGN_SYSTEM_PAGE}:`) ? DESIGN_SYSTEM_PAGE : null;
+            const page = [DESIGN_SYSTEM_PAGE, EMAILS_PAGE].find((name) => id.startsWith(`${name}:`)) ?? null;
             update({ variant: id, page });
             setDrawerOpen(false);
         },
@@ -139,6 +140,7 @@ function Gallery() {
     const props = selection.variant?.props ?? null;
     const guest = isGuestProps(props);
     const isDesignSystem = selection.page === DESIGN_SYSTEM_PAGE;
+    const isEmails = selection.page === EMAILS_PAGE;
     const json = useMemo(() => JSON.stringify(props ?? {}, null, 2), [props]);
     const brandLabel = BRANDS[state.brand];
     const brandNote =
@@ -201,51 +203,61 @@ function Gallery() {
                             Pantallas
                         </button>
                     )}
-                    <SegmentedControl label="Tamaño de pantalla" size="sm" options={VIEWPORT_OPTIONS} value={state.vp} onChange={(vp) => update({ vp })} />
+                    {isEmails ? null : (
+                        <SegmentedControl label="Tamaño de pantalla" size="sm" options={VIEWPORT_OPTIONS} value={state.vp} onChange={(vp) => update({ vp })} />
+                    )}
                     <SegmentedControl label="Tema" size="sm" options={THEME_OPTIONS} value={state.theme} onChange={(theme) => update({ theme })} />
-                    <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-soft">
-                        Marca
-                        <span className="relative">
-                            <select
-                                value={state.brand}
-                                onChange={(event) => update({ brand: event.target.value as BrandChoice })}
-                                className="h-[38px] appearance-none rounded-chip border border-line-strong bg-surface pr-8 pl-3 text-[13px] font-semibold text-fg"
+                    {isEmails ? null : (
+                        <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-soft">
+                            Marca
+                            <span className="relative">
+                                <select
+                                    value={state.brand}
+                                    onChange={(event) => update({ brand: event.target.value as BrandChoice })}
+                                    className="h-[38px] appearance-none rounded-chip border border-line-strong bg-surface pr-8 pl-3 text-[13px] font-semibold text-fg"
+                                >
+                                    {BRAND_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <Icon name="chevron-down" size={16} className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-fg-muted" />
+                            </span>
+                        </label>
+                    )}
+                    {isEmails ? null : (
+                        <div className="ml-auto flex items-center gap-2">
+                            <button
+                                type="button"
+                                aria-pressed={state.props}
+                                onClick={() => update({ props: !state.props })}
+                                className="inline-flex h-[38px] items-center gap-1.5 rounded-chip border border-line-strong px-3 text-[13px] font-semibold text-fg hover:bg-subtle aria-pressed:border-fg aria-pressed:bg-fg aria-pressed:text-on-fg"
                             >
-                                {BRAND_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <Icon name="chevron-down" size={16} className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-fg-muted" />
-                        </span>
-                    </label>
-                    <div className="ml-auto flex items-center gap-2">
-                        <button
-                            type="button"
-                            aria-pressed={state.props}
-                            onClick={() => update({ props: !state.props })}
-                            className="inline-flex h-[38px] items-center gap-1.5 rounded-chip border border-line-strong px-3 text-[13px] font-semibold text-fg hover:bg-subtle aria-pressed:border-fg aria-pressed:bg-fg aria-pressed:text-on-fg"
-                        >
-                            <Icon name="code" size={16} />
-                            Ver props
-                        </button>
-                        <a
-                            href={`frame.html#${hashForFrame}`}
-                            target="_blank"
-                            rel="noopener"
-                            className="inline-flex h-[38px] items-center gap-1.5 rounded-chip px-3 text-[13px] font-semibold text-fg-soft hover:bg-subtle hover:text-fg"
-                        >
-                            <Icon name="external" size={16} />
-                            Abrir solo
-                            <span className="sr-only">(se abre en otra pestaña)</span>
-                        </a>
-                    </div>
+                                <Icon name="code" size={16} />
+                                Ver props
+                            </button>
+                            <a
+                                href={`frame.html#${hashForFrame}`}
+                                target="_blank"
+                                rel="noopener"
+                                className="inline-flex h-[38px] items-center gap-1.5 rounded-chip px-3 text-[13px] font-semibold text-fg-soft hover:bg-subtle hover:text-fg"
+                            >
+                                <Icon name="external" size={16} />
+                                Abrir solo
+                                <span className="sr-only">(se abre en otra pestaña)</span>
+                            </a>
+                        </div>
+                    )}
                 </header>
 
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-line bg-surface px-4 py-2.5">
                     <h1 className="font-mono text-[15px] font-bold text-fg">
-                        {isDesignSystem ? 'ui-preview/DesignSystem.tsx' : selection.page}
+                        {isDesignSystem
+                            ? 'ui-preview/DesignSystem.tsx'
+                            : isEmails
+                              ? `resources/emails/${selection.variant?.key ?? ''}.html`
+                              : selection.page}
                     </h1>
                     <p className="text-sm text-fg-soft">
                         {selection.variant?.label ?? (selection.missingVariant !== undefined ? 'Ejemplo inexistente' : 'Sin ejemplos')}
@@ -257,16 +269,20 @@ function Gallery() {
                     ) : null}
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-                    <Stage viewport={state.vp} frameHash={hashForFrame} title={frameTitle} />
-                    {state.props ? (
-                        <PropsPanel
-                            json={isDesignSystem ? '// El sistema de diseño usa datos internos; no recibe props.' : json}
-                            brandNote={brandNote}
-                            onClose={() => update({ props: false })}
-                        />
-                    ) : null}
-                </div>
+                {isEmails ? (
+                    <EmailPreview template={selection.variant?.key ?? ''} />
+                ) : (
+                    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+                        <Stage viewport={state.vp} frameHash={hashForFrame} title={frameTitle} />
+                        {state.props ? (
+                            <PropsPanel
+                                json={isDesignSystem ? '// El sistema de diseño usa datos internos; no recibe props.' : json}
+                                brandNote={brandNote}
+                                onClose={() => update({ props: false })}
+                            />
+                        ) : null}
+                    </div>
+                )}
             </div>
 
             <div aria-live="polite" role="status" className="pointer-events-none fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
