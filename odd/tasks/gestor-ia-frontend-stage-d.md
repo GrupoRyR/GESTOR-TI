@@ -68,7 +68,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
   - The suggestions inside `Ai/Requests/Show` (IT view): summary, duplicate, criteria, size.
   - The duplicate comparison `Ai/Requests/Compare`.
   - The states (generating, error, off for admins, too short, stale) and phone.
-- [ ] T5 Handoff. Route: inline.
+- [x] T5 Handoff. Route: inline.
   - `docs/design/stage-d-contract.md`.
   - A gallery check.
   - The PR.
@@ -91,6 +91,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
 - T2 `d39aa41` Admin/Integrations/GitHub, repo link dialog (product + project), product GitHub section, create issue (task page + board), PR card/history, Ai/Releases/Show with notes suggestion + notify; helpers repoLink/releaseNotice/taskGitHub/githubAdmin test-first — 454 tests. Writer swept all variants 390/1440 (+834) light/dark with Playwright; parent re-ran typecheck + tests. Follow-up: .md-prose heading sizes too large.
 - T3 `ccfd5f0` BriefPanel wired on request IT view, task page, board drawer, project summary (+ CLAUDE.md tab, create repo route ai.projects.repository.create); .md-prose moved into @layer components with relative headings — 466 tests. Writer checked variants 390/1440; parent re-ran typecheck + tests.
 - T4 `6e50930` suggestions in request IT view (summary, AI duplicates filtered against rule-based ones, criteria form, size), Ai/Requests/Compare, states, phone sticky bar; new route ai.requests.criteria.update — 476 tests. Writer checked variants; parent re-ran typecheck, tests, build.
+- T5 inline: `docs/design/stage-d-contract.md`; parent spot-checked request suggestions (1440 light) in the gallery; PR stacked on Stage C.
 
 ## Next step
-T5 handoff.
+Jhon reviews the gallery; merge the stacked PRs in order (#8, #10, #11, this one).
