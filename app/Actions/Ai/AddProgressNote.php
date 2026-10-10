@@ -56,9 +56,19 @@ class AddProgressNote
             return $project->recordActivity('comment', "nota de avance: {$note}", $actor);
         }
 
-        return DB::transaction(function () use ($project, $task, $note, $actor): AiTaskComment {
+        return $this->commentOnTask($project, $task, $note, $actor);
+    }
+
+    /**
+     * The board's "Comentar" write, also used by TaskController::comment
+     * (which validates the body itself): the trimmed comment plus
+     * "comentó en T3 Título" in the project's activity feed.
+     */
+    public function commentOnTask(AiProject $project, AiTask $task, string $body, User $actor): AiTaskComment
+    {
+        return DB::transaction(function () use ($project, $task, $body, $actor): AiTaskComment {
             /** @var AiTaskComment $comment */
-            $comment = $task->comments()->create(['user_id' => $actor->id, 'body' => $note]);
+            $comment = $task->comments()->create(['user_id' => $actor->id, 'body' => trim($body)]);
             $project->recordActivity('comment', "comentó en {$task->key} {$task->title}", $actor);
 
             return $comment;

@@ -71,6 +71,13 @@ Schedule::command('assistant:knowledge-review-reminders')
     ->timezone('America/Bogota')
     ->withoutOverlapping();
 
+// MCP connector: OAuth clients registered (DCR) more than 24 h ago that
+// never got a token. Claude registers one per fresh connection.
+Schedule::command('mcp:prune-clients')
+    ->dailyAt('03:15')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

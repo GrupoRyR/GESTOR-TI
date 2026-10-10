@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\AI;
 
+use App\Actions\Ai\AddProgressNote;
+use App\Actions\Ai\CreateTask;
 use App\Actions\Ai\MoveTask;
+use App\Actions\Ai\UpdateTask;
 use App\Domain\Ai\Board;
 use App\Domain\Ai\BoardPeople;
 use App\Http\Controllers\Controller;
@@ -12,7 +15,6 @@ use App\Models\AiTask;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -28,6 +30,10 @@ use Illuminate\Validation\Rule;
  *   Assignees must be on the board's people list (team + IT).
  * - Subtasks (`ai.subtasks.store|toggle`), comments, one file per upload
  *   (`ai.tasks.attachments.store`, private disk, request file rules).
+ *
+ * Creating, editing and commenting share their writes with the MCP tools
+ * (App\Actions\Ai\CreateTask, UpdateTask, AddProgressNote::commentOnTask);
+ * the request validation stays here.
  */
 class TaskController extends Controller
 {
@@ -35,7 +41,7 @@ class TaskController extends Controller
 
     public function __construct(private readonly BoardPeople $people) {}
 
-    public function store(Request $http, AiProject $project): RedirectResponse
+    public function store(Request $http, AiProject $project, CreateTask $create): RedirectResponse
     {
         Gate::authorize('manage', $project);
         $data = $http->validate([
@@ -43,15 +49,7 @@ class TaskController extends Controller
             'column' => ['required', Rule::in(Board::keys())],
         ], ['title.required' => 'Escribe el nombre de la tarea.']);
 
-        $task = AiTask::create([
-            'ai_project_id' => $project->id,
-            'ai_project_column_id' => $project->column($data['column'])->id,
-            'title' => trim($data['title']),
-            'labels' => [],
-            'created_by_id' => $this->user($http)->id,
-        ]);
-
-        $project->recordActivity('task', "creó {$task->key} {$task->title}", $this->user($http));
+        $task = $create->handle($project, $data['column'], $data['title'], $this->user($http));
 
         return back()->with('success', "{$task->key} quedó en el tablero.");
     }
@@ -69,7 +67,7 @@ class TaskController extends Controller
         return back();
     }
 
-    public function update(Request $http, AiProject $project, AiTask $task, MoveTask $move): RedirectResponse
+    public function update(Request $http, AiProject $project, AiTask $task, UpdateTask $updateTask): RedirectResponse
     {
         Gate::authorize('manage', $project);
         $people = $this->people->ids($project);
@@ -87,49 +85,22 @@ class TaskController extends Controller
             'title.required' => 'La tarea necesita un nombre.',
         ]);
 
-        DB::transaction(function () use ($task, $data): void {
-            if (array_key_exists('title', $data)) {
-                $task->title = trim($data['title']);
-            }
-
-            if (array_key_exists('description', $data)) {
-                $task->description = $data['description'];
-            }
-
-            if (array_key_exists('due_at', $data)) {
-                $task->due_date = $data['due_at'];
-            }
-
-            if (array_key_exists('labels', $data)) {
-                $task->labels = collect($data['labels'])
-                    ->map(fn ($label) => trim((string) $label))
-                    ->filter(fn (string $label) => $label !== '')
-                    ->unique()
-                    ->values()
-                    ->all();
-            }
-
-            $task->save();
-
-            if (array_key_exists('assignee_ids', $data)) {
-                $task->assignees()->sync(array_values(array_unique(array_map('intval', $data['assignee_ids']))));
-            }
-        });
-
-        if (isset($data['column']) && $data['column'] !== $task->column?->key) {
-            $move->handle($task, $data['column'], null, $this->user($http));
+        if (array_key_exists('due_at', $data)) {
+            $data['due_date'] = $data['due_at'];
+            unset($data['due_at']);
         }
+
+        $updateTask->handle($task, $data, $this->user($http));
 
         return back();
     }
 
-    public function comment(Request $http, AiProject $project, AiTask $task): RedirectResponse
+    public function comment(Request $http, AiProject $project, AiTask $task, AddProgressNote $notes): RedirectResponse
     {
         Gate::authorize('manage', $project);
         $data = $http->validate(['body' => ['required', 'string', 'max:'.self::TEXT_MAX]], ['body.required' => 'Escribe el comentario.']);
 
-        $task->comments()->create(['user_id' => $this->user($http)->id, 'body' => trim($data['body'])]);
-        $project->recordActivity('comment', "comentó en {$task->key} {$task->title}", $this->user($http));
+        $notes->commentOnTask($project, $task, $data['body'], $this->user($http));
 
         return back();
     }

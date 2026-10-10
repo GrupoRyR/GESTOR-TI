@@ -31,7 +31,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `buscar_solicitudes`, `ver_solicitud` (with docs and criteria), `crear_tarea`, `actualizar_tarea`, `agregar_nota_avance`, `adjuntar_documento`.
   - Company scope, policies, audit and whitelist leak tests.
   - Route: delegated.
-- [ ] E2b · Security review fixes (independent read-only review of `fc9fc3b`: no blocker/high):
+- [x] E2b · Security review fixes (independent read-only review of `fc9fc3b`: no blocker/high):
   - medium: require PKCE `S256` (league accepts `plain` and defaults to it when the method is missing);
   - low: show the redirect host on the consent screen;
   - low: prune DCR clients that never received a token;
@@ -113,6 +113,21 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `php artisan test`: 1138 passed (baseline 1112, plus 26).
   - `vendor/bin/pint --test`: passed.
 - Size: about 1,250 authored app lines plus 700 test lines, over the ~400 heuristic: six tools with their visibility rules and leak tests belong together.
+
+### E2b · Security review fixes — done
+- Route: delegated direct (writer trigger: 2+ non-trivial files).
+- PKCE (medium): `LoopbackAwareAuthCodeGrant::validateAuthorizationRequest` runs the parent first (unknown client or redirect keep their errors), then refuses with `invalid_request` when there is no `code_challenge` (public and confidential clients) or when `code_challenge_method` is not exactly `S256` (the parent stores `plain` when the method is missing). The hint is Spanish/English. No auth code can be bound to a `plain` challenge, so league's registered PlainVerifier is unreachable at the token endpoint. Confirmed that Claude always sends `code_challenge_method=S256` on every authorization request (https://claude.com/docs/connectors/building/authentication, "PKCE and requested scopes"); `laravel/mcp` metadata already advertises only `S256`.
+- Consent screen (low): `App\Support\Mcp\ConsentRedirect` derives the redirect host from `redirect_uri` (or the client's only registered URI). The screen shows "Volverá a: claude.ai", or for loopback "Volverá a: localhost (una aplicación en tu equipo, como Claude Code)" plus "Autoriza solo si acabas de conectar Claude Code en este equipo." (the same docs page says to show the host and warn on loopback). Wording changed to "Para retirar el acceso, pide a TI que lo revoque; también se corta si pierdes el permiso."
+- DCR growth (low): `php artisan mcp:prune-clients` deletes clients without owner (DCR) created more than 24 h ago with no tokens and no auth codes. Scheduled daily at 03:15 Bogotá (`routes/console.php`, `withoutOverlapping`).
+- Revoke (low): `php artisan mcp:revoke {email} {--client=}` revokes the user's access tokens, their refresh tokens and pending auth codes (all clients, or one `client_id`). Passport serves only the connector, so every OAuth token of the user is an MCP token. Revoked tokens also stop Passport's auto-approval, so Claude asks for consent again. Audited `auth` log (sensitive), event `mcp_access_revoked`, subject the user, properties `source: console`, `client_id`, `tokens`, `auth_codes` (origin stamped `system` by AuditOrigin). Unknown email: error, no audit.
+- Follow-up from E2: `TaskController::store|update|comment` now call `CreateTask`, `UpdateTask` and `AddProgressNote::commentOnTask` (new public method holding the comment + "comentó en …" write; `handle` keeps its MCP guards: empty, length, SecretGuard). The web comment keeps its own validation and does not gain SecretGuard, so board behavior is unchanged. `due_at` is mapped to the action's `due_date`.
+- Test-first: `tests/Feature/Mcp/OAuthHardeningTest.php`, RED 11 tests, 1 passed (S256 flow), 6 failed, 4 errors (commands missing). GREEN 11/11. Existing task tests unchanged and green.
+- Checks:
+  - `php artisan test --filter='Mcp|Task'`: 107 passed.
+  - `php artisan test`: 1149 passed (baseline 1138, plus 11).
+  - `vendor/bin/pint --test`: passed.
+  - `php artisan schedule:list`: `15 3 * * * php artisan mcp:prune-clients`.
+- For E3 deploy doc: mention `mcp:revoke` for IT, and that the consent view changed (still flagged for design).
 
 ## Open questions (for Jhon)
 - "Gerente de TI" is not a role in `config/permissions.php` (only Súper Admin, Líder IA, approvers, Usuario final): today `ai.mcp.use` = Líder IA + Súper Admin. Create a "Gerente de TI" role or give it to a specific user?

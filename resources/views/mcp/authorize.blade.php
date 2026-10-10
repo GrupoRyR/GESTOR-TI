@@ -3,10 +3,21 @@
 
 @section('title', 'Autorizar '.$client->name)
 
+@php($redirect = \App\Support\Mcp\ConsentRedirect::for($request->query('redirect_uri'), $client))
+
 @section('content')
     <h1>¿Autorizar a {{ $client->name }}?</h1>
 
     <p>{{ $client->name }} quiere conectarse al Gestor IA con tu cuenta ({{ $user->name }}).</p>
+
+    @if ($redirect)
+        @if ($redirect->loopback)
+            <p><strong>Volverá a: {{ $redirect->host }} (una aplicación en tu equipo, como Claude Code)</strong></p>
+            <p>Autoriza solo si acabas de conectar Claude Code en este equipo.</p>
+        @else
+            <p><strong>Volverá a: {{ $redirect->host }}</strong></p>
+        @endif
+    @endif
 
     <p>Podrá:</p>
     <ul>
@@ -17,7 +28,7 @@
         @endforelse
     </ul>
 
-    <p>Solo verá lo que tú ves en el Gestor IA. Puedes retirar el acceso cuando quieras.</p>
+    <p>Solo verá lo que tú ves en el Gestor IA. Para retirar el acceso, pide a TI que lo revoque; también se corta si pierdes el permiso.</p>
 
     <div class="actions">
         <form method="post" action="{{ route('passport.authorizations.deny') }}">
