@@ -63,7 +63,7 @@ Notes for design:
   has no label for `administration` (shows the raw scope): add one ("administración").
 - Retry of a non-failed event flashes error "Este evento ya no está fallido."; success flashes "Evento enviado a reprocesar." / "GitHub quedó desconectado. Los eventos y los vínculos se conservan."
 
-### D2 · Webhook endpoint and processing — done
+### D2 · Webhook endpoint and processing — done (`5bcf2c1`)
 - Route: delegated (writer trigger: controller, job, processor, 6 handlers, linker, migration, models, command; 2 test files + 6 fixtures).
 - Test-first: 29 new tests (`tests/Feature/GitHub/{WebhookEndpointTest,ProcessGitHubEventTest}`, fixtures `tests/Fixtures/github/*.json`) written first and observed RED
   (28 of 29 failing: route 404, events stayed `pending`, `github:sync` missing), then GREEN.
