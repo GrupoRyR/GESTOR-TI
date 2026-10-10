@@ -67,4 +67,5 @@ Placeholders still open: Edward's job title, Telegram bot name, AI monthly cap, 
 - Stage D approved and coded 2026-10-09 (branch `claude/diseno-gestor-ia-etapa-d`, contract `docs/design/stage-d-contract.md`, task log `odd/tasks/gestor-ia-frontend-stage-d.md`).
 - **Stage E · Conector MCP**: mockups published 2026-10-10 on canvas page "Etapa E · Conector MCP" (7 boards, brief `docs/design/briefs/stage-e-mockups-brief.md`), waiting for Jhon's approval. The connector is a personal setting under Perfil.
 - Stage E approved and coded 2026-10-10 (branch `claude/diseno-gestor-ia-etapa-e`, contract `docs/design/stage-e-contract.md`).
-- Then, plus email templates (HTML/CSS for Blade) and the mini design-system manual (§5.5 of the design prompt).
+- **Email templates**: mockups published 2026-10-10 on canvas page "Plantillas de correo" (11 boards M-*, brief `docs/design/briefs/email-mockups-brief.md`), waiting for Jhon's approval. Stacked PR chain to merge in order: #8, #10, #11, #20, #34.
+- Then the email template code (HTML/CSS for Blade) and the mini design-system manual (§5.5 of the design prompt).
