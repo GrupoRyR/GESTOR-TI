@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Laravel\Passport\Contracts\OAuthenticatable;
+use Laravel\Passport\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -34,13 +36,23 @@ use Spatie\Permission\Traits\HasRoles;
  * @property ?Carbon $last_login_at
  * @property int $failed_login_attempts
  * @property ?Carbon $locked_until
+ *
+ * OAuth tokens (Passport, `api` guard) authenticate the Gestor IA MCP
+ * connector only (Stage E).
  */
 #[Fillable(['name', 'email', 'password', 'avatar_url', 'github_login'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
+
+    /**
+     * Roles and permissions always live on the `web` guard, also while a
+     * request is authenticated through `api` (MCP bearer tokens), where
+     * spatie would otherwise look them up for the `api` guard.
+     */
+    protected $guard_name = 'web';
 
     use HasRoles {
         HasRoles::givePermissionTo as protected grantPermissions;

@@ -325,4 +325,15 @@ return [
         'credential_seconds' => 60,
     ],
 
+    // MCP connector of the Gestor IA (Stage E): OAuth token lifetimes
+    // (Passport, App\Providers\McpServiceProvider) and rate limits.
+    'mcp' => [
+        'access_token_minutes' => (int) env('MCP_ACCESS_TOKEN_MINUTES', 60),
+        'refresh_token_days' => (int) env('MCP_REFRESH_TOKEN_DAYS', 30),
+        // Requests to /mcp/gestor-ia per user and minute.
+        'rate_limit_per_minute' => 120,
+        // Discovery, /oauth/register and /oauth/token per IP and minute.
+        'oauth_rate_limit_per_minute' => 30,
+    ],
+
 ];

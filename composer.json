@@ -11,6 +11,8 @@
         "inertiajs/inertia-laravel": "^3.5",
         "laravel/ai": "^1.2",
         "laravel/framework": "^13.17",
+        "laravel/mcp": "^1.0",
+        "laravel/passport": "^13.9",
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
         "openspout/openspout": "^5.3",
