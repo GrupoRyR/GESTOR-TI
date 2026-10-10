@@ -198,4 +198,5 @@ Open questions for Jhon:
 Remaining TEMPORARY routes: `ai.reviews.store` (weekly review, `StageBPlaceholderController`) and `employees.create` (manual employee creation, redirects with a notice).
 
 ## Next step
-Push slices `stage-c/*` and open PRs; then Stage D.
+Stacked PRs opened 2026-10-10 on GrupoRyR/GESTOR-TI (on top of #19): #21 `stage-c/01-design-merge` → #22 `02-knowledge-base` → #23 `03-curation` → #24 `04-assistant-engine` → #25 `05-telegram-assistant` → #26 `06-pending-forms`.
+Pending for design: `VaultItemForm.tsx` delete must send `{ confirm_name }` (server requires the exact name). Then Stage D (design PR #20 `claude/diseno-gestor-ia-etapa-d`).
