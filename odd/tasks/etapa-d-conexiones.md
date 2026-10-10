@@ -303,7 +303,7 @@ Notes for design:
 - `TaskBriefInput.pull_request` is always null from the server; the drawer and the task page already merge the task's PR from
   `TaskGitHub` (`withTaskGitHub`), so no "related PR" of another task is sent.
 
-### D6 · AI suggestions — done
+### D6 · AI suggestions — done (`0ad97ae`)
 - Commit: the `feat(ai)` commit that adds this block (code, tests and this evidence in one work unit).
 - Route: delegated (writer trigger: migration, model, factory, 5 domain classes, job, presenter, controller, 4 controllers/actions wired, routes, config; 6 test files + 1 updated).
 - Test-first: 29 new tests (`tests/Feature/Ai/Suggestions/{SuggestionRoutesTest,SuggestionPagesTest,SuggestionFormsTest,SuggestionInputTest,ReleaseNotesSuggestionTest}`)
