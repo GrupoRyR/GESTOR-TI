@@ -1,0 +1,381 @@
+/**
+ * Gestor IA · project pages (boards B11–B17). Desktop-first except the task
+ * page, the time entry and the requirement answer, which are phone-first.
+ *
+ * Inertia components and their props:
+ * - `Ai/Projects/Index`         ProjectsIndexProps        project list (filters, WIP, mini budget bar with costs)
+ * - `Ai/Projects/Show`          ProjectsShowProps         B-ProjectSummary (ProjectLayout tab "summary")
+ * - `Ai/Projects/Board`         ProjectsBoardProps        B-Kanban + B-TaskDetail drawer + B-KanbanPhone (tab "board")
+ * - `Ai/Tasks/Show`             TasksShowProps            B-TaskPhone (timer hero, subtasks, quick comment)
+ * - `Ai/Projects/Requirements`  ProjectsRequirementsProps B-Requirements (tab "requirements")
+ * - `Ai/Requirements/Respond`   RequirementsRespondProps  B-RequirementRespond, for the person who must answer (requester mode)
+ * - `Ai/Projects/Costs`         ProjectsCostsProps        B-ProjectCosts (tab "costs"; whole page needs `ai.costs.view`)
+ * - `Ai/TimeEntries/Create`     TimeEntriesCreateProps    B-TimeEntryPhone
+ * - `Ai/Projects/Report`        ProjectsReportProps       B-ProjectReport (tab "report")
+ *
+ * Ziggy routes used:
+ * - `ai.projects.index`            GET    query `{ status?: ProjectStatus, company_id? }` (null filters omitted)
+ * - `ai.projects.show`             GET    `{ project: key }`                        row link, "Resumen" tab, breadcrumbs
+ * - `ai.projects.reapproval.store` POST   `{ project: key }`                        "Pedir nueva aprobación" (sends to the approvers)
+ * - `ai.projects.board`            GET    `{ project: key }` query `{ assignee_id?, label?, blocked?: 1, tarea?: task key }`
+ *                                         filters use `router.get` (preserveState); clicking a card is a partial reload
+ *                                         `only: ['selected_task']` with `{ tarea: key }` (the URL keeps `?tarea=T4`).
+ * - `ai.tasks.move`                PUT    `{ project: key, task: key }` body `{ column: KanbanColumnKey, position: number }` (1-based)
+ *                                         drag and drop, and the keyboard "Mover a…" menu (position = end of the column)
+ * - `ai.tasks.store`               POST   `{ project: key }` body `{ title: string, column: KanbanColumnKey }`  "Agregar tarea"
+ * - `ai.tasks.update`              PUT    `{ project: key, task: key }` body `TaskUpdatePayload` (only the changed fields)
+ * - `ai.tasks.show`                GET    `{ project: key, task: key }`             phone task page; "Abrir en página" in the drawer
+ * - `ai.subtasks.toggle`           PATCH  `{ project: key, task: key, subtask: id }` body `{ done: boolean }`
+ * - `ai.subtasks.store`            POST   `{ project: key, task: key }` body `{ title: string }`  "Agregar subtarea"
+ * - `ai.tasks.comments.store`      POST   `{ project: key, task: key }` body `{ body: string }`
+ * - `ai.tasks.attachments.store`   POST   `{ project: key, task: key }` multipart `{ file: File }`  "Adjuntar archivo"
+ * - `ai.timer.start`               POST   `{ project: key, task: key }`             "Iniciar" (same contract as Mi semana)
+ * - `ai.timer.stop`                POST   —                                         "Parar" (stops the viewer's running timer)
+ * - `ai.projects.requirements`     GET    `{ project: key }` query `{ scope?: 'all' }`  "Todos mis proyectos" (omitted = only this one)
+ * - `ai.requirements.store`        POST   `{ project: key }` body `RequirementStorePayload`  "Enviar requerimiento"
+ * - `ai.requirements.remind`       POST   `{ requirement: id }`                     "Recordar" (same as Mi semana)
+ * - `ai.requirements.respond`      GET    `{ requirement: id }`                     link in the e-mail / Telegram notice
+ * - `ai.requirements.answer`       POST   `{ requirement: id }` multipart `{ answer: string, attachment: File | null }`
+ * - `ai.requirements.reassign`     POST   `{ requirement: id }` body `{ user_id: number, note: string | null }`  "No me corresponde"
+ * - `ai.projects.costs`            GET    `{ project: key }` query `{ week?: 'YYYY-MM-DD' }` (Monday of the week; omitted = this week)
+ * - `ai.projects.costs.export`     GET    `{ project: key }` query `{ week: 'YYYY-MM-DD' }`  "Exportar" (Excel of the hours log)
+ * - `ai.time-entries.create`       GET    query `{ project?: key, task?: key }`     "Agregar horas a mano" (drawer, phone)
+ * - `ai.time-entries.store`        POST   `{ project: key }` body `TimeEntryPayload`  "Agregar horas" dialog and phone page
+ * - `ai.costs.store`               POST   `{ project: key }` multipart `CostPayload`  "Agregar costo"
+ * - `ai.projects.report`           GET    `{ project: key }`
+ * - `ai.projects.report.pdf`       GET    `{ project: key }` query `{ version: ReportVersion }`  "Descargar PDF"
+ * - `ai.projects.report.send`      POST   `{ project: key }` body `ReportPayload`    "Enviar ahora"
+ * - `ai.projects.report.schedule`  PUT    `{ project: key }` body `ReportPayload`    "Programar"
+ * - `ai.projects.docs`             GET    `{ project: key }`                        ProjectLayout tab
+ * - `ai.requests.show`             GET    `{ request: key }`                        linked request card, header
+ * - `admin.costs.index`            GET    —                                         "Tarifas en Administración"
+ * - `home`, `ai.requests.mine`     GET    —                                         Respond page (requester mode)
+ *
+ * Permissions:
+ * - `ai.manage`       every page here except `Ai/Requirements/Respond` (any signed-in recipient).
+ * - `ai.costs.view`   money: `ProjectBudget.cost`, `ProjectListItem.budget.cost`, the costs page, the report's
+ *                     "Tiempo y costo". Without it the server sends `null` and the UI shows hours and dates only;
+ *                     `Ai/Projects/Costs` renders NoPermission. Report recipients without it never get the internal version.
+ * - Requesters never see costs, rates or internal notes: `RequirementForRecipient` carries none.
+ */
+import type { RunningTimer } from '@/types/pages/ai-triage';
+import type {
+    KanbanColumnKey,
+    PersonRef,
+    Project,
+    ProjectCost,
+    ProjectStatus,
+    RequestSummary,
+    Requirement,
+    Task,
+    TaskDetail,
+    TimeEntry,
+} from '@/types/ai';
+import type { ProjectHeader } from '@/Layouts/ProjectLayout';
+
+export type { ProjectHeader, RunningTimer };
+
+export type WipCount = { in_development: number; limit: number };
+
+export type TaskRef = Pick<Task, 'key' | 'title'>;
+
+// ---- Index ------------------------------------------------------------------
+
+/** Row of the project list. `budget.cost` is null without `ai.costs.view`. */
+export type ProjectListItem = Pick<
+    Project,
+    'key' | 'name' | 'status' | 'company_id' | 'area' | 'request_keys' | 'team' | 'budget' | 'tasks_by_column' | 'blocked_tasks' | 'open_requirements'
+>;
+
+export interface ProjectFilters {
+    status: ProjectStatus | null;
+    /** Only used in "Todas". */
+    company_id: number | null;
+}
+
+export interface ProjectsIndexProps {
+    /** Active first (en desarrollo, en pruebas, planificada), then the rest. */
+    projects: ProjectListItem[];
+    filters: ProjectFilters;
+    wip: WipCount;
+    /** Server time (ISO). */
+    now: string;
+}
+
+// ---- Summary ----------------------------------------------------------------
+
+export type ActivityKind = 'task' | 'github' | 'requirement' | 'budget' | 'comment';
+
+export interface ProjectActivity {
+    id: number;
+    kind: ActivityKind;
+    /** Null for system events ("Aviso del 80 %…"). */
+    actor: PersonRef | null;
+    /** Server-written sentence without the actor: "movió T3 Endpoint de zonas a En revisión". */
+    text: string;
+    at: string;
+}
+
+export interface ProjectsShowProps {
+    project: Project;
+    /** Request that started the project, with who approved it. */
+    origin_request: (RequestSummary & { approved_by: PersonRef | null; approved_at: string | null }) | null;
+    /** Pending and overdue requirements of this project, soonest first. */
+    open_requirements: Requirement[];
+    /** Newest first, at most 6. */
+    activity: ProjectActivity[];
+    /** Holders of `ai.projects.approve`, named in the re-approval banner. */
+    approvers: PersonRef[];
+    /** Re-approval threshold from Administración (0.2 = 20 %). */
+    reapproval_threshold: number;
+    /** Set once someone asked for the new approval (the banner then says it is waiting). */
+    reapproval_requested_at: string | null;
+    /** "Sigue Entrega, con pruebas de Gerencia de cartera." Null when there is nothing to add. */
+    next_step: string | null;
+    /** Bogotá date (YYYY-MM-DD). */
+    today: string;
+    now: string;
+}
+
+// ---- Board ------------------------------------------------------------------
+
+export interface BoardFilters {
+    assignee_id: number | null;
+    label: string | null;
+    blocked: boolean;
+}
+
+export interface TaskUpdatePayload {
+    column?: KanbanColumnKey;
+    assignee_ids?: number[];
+    due_at?: string | null;
+    labels?: string[];
+    title?: string;
+    description?: string;
+}
+
+export interface ProjectsBoardProps {
+    project: ProjectHeader;
+    /** Tasks after the filters, every column. */
+    tasks: Task[];
+    /** Total tasks without filters ("9 tareas"). */
+    total_tasks: number;
+    /** Blocked tasks without filters (count on the "Solo bloqueadas" chip). */
+    blocked_total: number;
+    /** WIP limit per column; Stage B only limits "En progreso" (3). */
+    column_limits: Partial<Record<KanbanColumnKey, number>>;
+    filters: BoardFilters;
+    /** People for the "Responsable" filter and the drawer's assignee picker. */
+    people: PersonRef[];
+    /** Labels in use in the project. */
+    labels: string[];
+    /** Task of `?tarea=` with its detail; null when the drawer is closed. */
+    selected_task: TaskDetail | null;
+    /** The viewer's running timer (any project), for the phone bar. */
+    running_timer: RunningTimer | null;
+    now: string;
+}
+
+// ---- Task page (phone) ------------------------------------------------------
+
+export interface TasksShowProps {
+    project: Pick<Project, 'key' | 'name' | 'company_id'>;
+    task: TaskDetail;
+    /** Hours the viewer logged today in this project, without the running timer. */
+    today_project_hours: number;
+    now: string;
+}
+
+// ---- Requirements -----------------------------------------------------------
+
+/** Someone a requirement can go to. */
+export interface RecipientOption {
+    person: PersonRef;
+    area_name: string;
+    company_id: number;
+}
+
+export interface RequirementStorePayload {
+    /** "Qué necesitas". */
+    what: string;
+    recipient_id: number | null;
+    due_date: string;
+    /** Task key in the chosen project; null = blocks nothing. */
+    blocks_task: string | null;
+}
+
+export type RequirementScope = 'project' | 'all';
+
+export interface ProjectsRequirementsProps {
+    project: ProjectHeader;
+    /** Sorted by due date; `scope: 'all'` adds the other projects of the viewer. */
+    requirements: Requirement[];
+    scope: RequirementScope;
+    /** Projects the viewer works on (segment label "P-07 y P-05", form "Proyecto"), with their open tasks. */
+    my_projects: (Pick<Project, 'key' | 'name'> & { tasks: TaskRef[] })[];
+    recipients: RecipientOption[];
+    /** Reminder cadence in days (configured; 2). */
+    reminder_every_days: number;
+    today: string;
+    now: string;
+}
+
+// ---- Respond (person who must answer) ---------------------------------------
+
+/** What the recipient sees: no costs, no internal notes, no task names. */
+export interface RequirementForRecipient {
+    id: number;
+    title: string;
+    detail: string | null;
+    due_date: string;
+    status: Requirement['status'];
+    requested_by: PersonRef;
+    project: {
+        name: string;
+        /** Plain-language "why": "Es la herramienta que pidió la Gerencia de cartera…". */
+        context: string;
+    };
+    answered_at: string | null;
+    answer: string | null;
+    answer_attachment: { name: string; size: number } | null;
+}
+
+export interface RequirementsRespondProps {
+    requirement: RequirementForRecipient;
+    /** Coworkers the viewer can pass it to; `suggested` first. */
+    reassign_candidates: RecipientOption[];
+    /** Person IT thinks can answer when the viewer cannot; null when none. */
+    suggested_user_id: number | null;
+    /** Max upload in MB (10). */
+    max_upload_mb: number;
+    today: string;
+    now: string;
+}
+
+// ---- Time and costs ---------------------------------------------------------
+
+export interface HoursCurve {
+    plan: { date: string; value: number }[];
+    actual: { date: string; value: number }[];
+    projection: { date: string; value: number }[];
+}
+
+export interface TimeEntryPayload {
+    task_key: string | null;
+    date: string;
+    hours: number;
+    note: string;
+}
+
+export interface CostPayload {
+    type: ProjectCost['type'] | '';
+    concept: string;
+    recurrence: Exclude<ProjectCost['recurrence'], 'computed'>;
+    amount: number | null;
+    date: string;
+    attachment: File | null;
+}
+
+export interface ProjectsCostsProps {
+    project: ProjectHeader;
+    /** Always with `cost` here (the page needs `ai.costs.view`). */
+    budget: Project['budget'];
+    curve: HoursCurve;
+    /** Hours the open tasks still need (team estimate). */
+    remaining_hours: number;
+    /** Hours logged in the last `recent_weeks` weeks, for the pace. */
+    recent_hours: number;
+    recent_weeks: number;
+    /** "porque el equipo reparte el tiempo con P-05 y P-06"; null when nothing to explain. */
+    pace_note: string | null;
+    /** Monday–Sunday shown in the log. */
+    week: { from: string; to: string };
+    /** Entries of that week, newest first. */
+    entries: TimeEntry[];
+    /** Whole-project hours per person. */
+    total_by_person: { person: PersonRef; hours: number }[];
+    /** Timers running right now on this project (not in the log until stopped). */
+    running_timers: { person: PersonRef; task_key: string; started_at: string }[];
+    costs: ProjectCost[];
+    /** Open tasks for the "Agregar horas" dialog. */
+    tasks: TaskRef[];
+    /** Telegram example: "/horas GIA-139 2 conexión con SAP". */
+    telegram_example: string;
+    today: string;
+    now: string;
+}
+
+export interface TimeEntriesCreateProps {
+    projects: (Pick<Project, 'key' | 'name'> & { tasks: TaskRef[] })[];
+    /** Preselected from `?project=&task=`. */
+    defaults: { project_key: string | null; task_key: string | null };
+    /** Request key used in the Telegram example of the selected project. */
+    telegram_keys: Record<string, string>;
+    today: string;
+    now: string;
+}
+
+// ---- Report -----------------------------------------------------------------
+
+export type ReportVersion = 'internal' | 'requester';
+
+export type ReportSection = 'status' | 'done' | 'next' | 'blockers' | 'budget';
+
+export interface ReportRecipient {
+    person: PersonRef;
+    /** "Líder IA", "Aprobador · Gerencia", "Solicitante · Cartera". */
+    role_label: string;
+    can_view_costs: boolean;
+    /** Gets "Tiempo y costo" (ignored without `can_view_costs`). */
+    include_costs: boolean;
+}
+
+export interface ReportSchedule {
+    periodicity: 'manual' | 'weekly';
+    /** 1 = lunes … 7 = domingo. */
+    weekday: number;
+    /** "07:00". */
+    time: string;
+    last_sent_at: string | null;
+    next_send_at: string | null;
+}
+
+/** Content of the report as of `as_of`; the e-mail and the PDF use the same data. */
+export interface ReportContent {
+    as_of: string;
+    company_id: number;
+    project: Pick<Project, 'key' | 'name' | 'status'>;
+    requester_name: string;
+    request_key: string | null;
+    tasks: { done: number; total: number };
+    criteria: { done: number; total: number };
+    done: string[];
+    next: string[];
+    blockers: string[];
+    /** Null without `ai.costs.view` (the requester version never shows it). */
+    budget: Project['budget'] | null;
+    project_url: string;
+    sender_email: string;
+}
+
+export interface ReportPayload {
+    recipients: { user_id: number; include_costs: boolean }[];
+    periodicity: ReportSchedule['periodicity'];
+    weekday: number;
+    time: string;
+    sections: ReportSection[];
+    version: ReportVersion;
+}
+
+export interface ProjectsReportProps {
+    project: ProjectHeader;
+    recipients: ReportRecipient[];
+    /** People who can be added (followers, area owners). */
+    recipient_candidates: ReportRecipient[];
+    schedule: ReportSchedule;
+    sections: ReportSection[];
+    content: ReportContent;
+    pdf: { pages: number; size: number };
+    now: string;
+}
+

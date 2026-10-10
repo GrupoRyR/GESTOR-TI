@@ -32,6 +32,8 @@ export interface DataTableProps<T> {
     empty?: ReactNode;
     /** Minimum width before the wrapper scrolls sideways (default 720 px). */
     minWidth?: number;
+    /** `compact` tightens column gaps and side padding for wide, dense tables (inbox). */
+    density?: 'regular' | 'compact';
     className?: string;
 }
 
@@ -41,7 +43,7 @@ const ALIGN = { start: 'justify-self-start text-left', center: 'justify-self-cen
  * Dense data grid (ARIA table roles on CSS grid): 40 px header on the subtle
  * surface, rows of at least 56 px. Scrolls horizontally on narrow screens.
  */
-export function DataTable<T>({ columns, rows, rowKey, rowHref, isCurrentRow, label, empty, minWidth = 720, className }: DataTableProps<T>) {
+export function DataTable<T>({ columns, rows, rowKey, rowHref, isCurrentRow, label, empty, minWidth = 720, density = 'regular', className }: DataTableProps<T>) {
     const template: CSSProperties = {
         gridTemplateColumns: columns.map((column) => column.width ?? 'minmax(0, 1fr)').join(' '),
     };
@@ -49,7 +51,7 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, isCurrentRow, lab
         0,
         columns.findIndex((column) => column.rowLink),
     );
-    const rowClasses = 'grid items-center gap-x-4 px-5';
+    const rowClasses = density === 'compact' ? 'grid items-center gap-x-3 px-4' : 'grid items-center gap-x-4 px-5';
 
     return (
         <div className={cx('overflow-x-auto', className)}>

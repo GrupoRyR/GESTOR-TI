@@ -121,3 +121,34 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
 export function formatCOP(amount: number): string {
     return currency.format(Math.round(amount));
 }
+
+const longDateParts = new Intl.DateTimeFormat(LOCALE, {
+    timeZone: TIME_ZONE,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+});
+
+/** Plain `YYYY-MM-DD` dates are calendar days, not UTC midnight. */
+function toCalendarDate(iso: string): Date {
+    return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? toDate(`${iso}T12:00:00-05:00`) : toDate(iso);
+}
+
+/** "martes 13 de octubre" — for promises like "a más tardar el …". */
+export function formatLongDate(iso: string): string {
+    const parts = longDateParts.formatToParts(toCalendarDate(iso));
+    return `${part(parts, 'weekday')} ${part(parts, 'day')} de ${part(parts, 'month')}`;
+}
+
+/** "26 sep" — dates inside the current year; accepts `YYYY-MM-DD` too. */
+export function formatShortDate(iso: string): string {
+    const parts = dateParts.formatToParts(toCalendarDate(iso));
+    return `${part(parts, 'day')} ${part(parts, 'month').replace(/\.$/, '').replace(/^sept$/, 'sep')}`;
+}
+
+/** "313 KB", "2,5 MB" (binary units, as file pickers show them). */
+export function formatFileSize(bytes: number): string {
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`;
+    return `${(kb / 1024).toLocaleString(LOCALE, { maximumFractionDigits: 1 })} MB`;
+}

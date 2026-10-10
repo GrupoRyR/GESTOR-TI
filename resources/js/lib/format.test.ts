@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCOP, formatDate, formatDateTime, formatRelative, formatTime } from './format';
+import { formatCOP, formatDate, formatDateTime, formatFileSize, formatLongDate, formatRelative, formatShortDate, formatTime } from './format';
 
 // Intl output uses narrow no-break spaces in some places; normalize them so
 // assertions read naturally.
@@ -71,5 +71,29 @@ describe('formatCOP', () => {
     it('formats zero and negatives', () => {
         expect(norm(formatCOP(0))).toBe('$ 0');
         expect(norm(formatCOP(-350000))).toBe('-$ 350.000');
+    });
+});
+
+describe('formatLongDate', () => {
+    it('spells weekday, day and month in Bogotá time', () => {
+        expect(formatLongDate('2026-10-13T17:00:00-05:00')).toBe('martes 13 de octubre');
+        // 02:00 UTC on Oct 8 is still Wednesday Oct 7 in Bogotá.
+        expect(formatLongDate('2026-10-08T02:00:00Z')).toBe('miércoles 7 de octubre');
+    });
+});
+
+describe('formatShortDate', () => {
+    it('drops the year: "26 sep"', () => {
+        expect(formatShortDate('2026-09-26T10:00:00-05:00')).toBe('26 sep');
+        expect(formatShortDate('2026-10-31')).toBe('31 oct');
+    });
+});
+
+describe('formatFileSize', () => {
+    it('uses KB under a megabyte and MB with one decimal above', () => {
+        expect(formatFileSize(320_000)).toBe('313 KB');
+        expect(formatFileSize(48_000)).toBe('47 KB');
+        expect(formatFileSize(500)).toBe('1 KB');
+        expect(formatFileSize(2_621_440)).toBe('2,5 MB');
     });
 });
