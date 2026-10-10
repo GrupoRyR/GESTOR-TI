@@ -13,8 +13,9 @@ use App\Models\AiRequestApproval;
 use App\Models\User;
 use App\Services\Telegram\TelegramClient;
 use App\Telegram\Contracts\CallbackHandler;
+use App\Telegram\Contracts\PendingReplyHandler;
+use App\Telegram\PendingReplies;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -35,12 +36,15 @@ use Illuminate\Validation\ValidationException;
  *   RecordApprovalDecision) and edits the original message (no buttons).
  * - ❌ needs a reason (a rejection always carries a comment): the bot asks
  *   for it and the next plain-text message of that chat within 15 minutes
- *   is the reason (`handleReason()`, called by UpdateHandler); `/cancelar`
+ *   is the reason (`handleReply()`, App\Telegram\PendingReplies kind
+ *   `approval-reason`, called by UpdateHandler before anything else); `/cancelar`
  *   drops it. The web page remains the alternative.
  */
-class ApprovalCallbackHandler implements CallbackHandler
+class ApprovalCallbackHandler implements CallbackHandler, PendingReplyHandler
 {
     public const PREFIX = 'ai-approval';
+
+    public const REPLY_KIND = 'approval-reason';
 
     public const APPROVE = 'approve';
 
@@ -54,6 +58,7 @@ class ApprovalCallbackHandler implements CallbackHandler
     public function __construct(
         private readonly TelegramClient $client,
         private readonly RecordApprovalDecision $decisions,
+        private readonly PendingReplies $replies,
     ) {}
 
     public static function data(int $approvalId, string $action): string
@@ -61,11 +66,6 @@ class ApprovalCallbackHandler implements CallbackHandler
         $code = $action === self::REJECT ? 'r' : 'a';
 
         return self::PREFIX.':'.$approvalId.':'.$code.':'.self::signature($approvalId, $code);
-    }
-
-    public static function reasonCacheKey(string $chatId): string
-    {
-        return 'telegram:approval-reason:'.$chatId;
     }
 
     public function handle(User $user, string $payload, array $callbackQuery): ?string
@@ -103,11 +103,11 @@ class ApprovalCallbackHandler implements CallbackHandler
         }
 
         if ($parts[1] === 'r') {
-            Cache::put(self::reasonCacheKey($chatId), [
+            $this->replies->put($chatId, self::REPLY_KIND, [
                 'approval_id' => $approval->id,
                 'message_id' => is_int($messageId) ? $messageId : null,
                 'text' => $original,
-            ], now()->addMinutes(self::REASON_MINUTES));
+            ], self::REASON_MINUTES);
 
             $this->client->sendMessage($chatId, "Escribe en un mensaje el motivo para rechazar {$request->key}. Si no quieres rechazarla, escribe ".self::CANCEL_COMMAND.'.');
 
@@ -127,32 +127,24 @@ class ApprovalCallbackHandler implements CallbackHandler
 
     /**
      * The next plain-text message of the chat after ❌: the rejection reason.
-     * Returns false when nothing waits for a reason in that chat.
+     * Returns false when the approval is gone or not theirs.
      */
-    public function handleReason(User $user, string $chatId, string $text): bool
+    public function handleReply(User $user, string $chatId, string $text, array $pending): bool
     {
-        $pending = Cache::get(self::reasonCacheKey($chatId));
-
-        if (! is_array($pending)) {
-            return false;
-        }
-
         if (strtolower(trim($text)) === self::CANCEL_COMMAND) {
-            Cache::forget(self::reasonCacheKey($chatId));
+            $this->replies->forget($chatId);
             $this->client->sendMessage($chatId, 'Listo, no se rechazó. La aprobación sigue pendiente.');
 
             return true;
         }
 
         $approval = $this->approval((int) ($pending['approval_id'] ?? 0));
+        $this->replies->forget($chatId);
 
         if ($approval === null || (int) $approval->user_id !== $user->id) {
-            Cache::forget(self::reasonCacheKey($chatId));
-
             return false;
         }
 
-        Cache::forget(self::reasonCacheKey($chatId));
         $key = $approval->request?->key;
 
         if (! $this->stillPending($approval)) {

@@ -45,11 +45,14 @@ class TelegramClient
     }
 
     /**
+     * Without `$inlineKeyboard` the message loses its buttons.
+     *
      * @param  list<list<array<string, string>>>  $inlineKeyboard
+     * @param  array<string, mixed>  $options  extra editMessageText fields (parse_mode, …)
      */
-    public function editMessageText(string|int $chatId, int $messageId, string $text, array $inlineKeyboard = []): bool
+    public function editMessageText(string|int $chatId, int $messageId, string $text, array $inlineKeyboard = [], array $options = []): bool
     {
-        $payload = ['chat_id' => (string) $chatId, 'message_id' => $messageId, 'text' => $text];
+        $payload = ['chat_id' => (string) $chatId, 'message_id' => $messageId, 'text' => $text] + $options;
 
         if ($inlineKeyboard !== []) {
             $payload['reply_markup'] = ['inline_keyboard' => $inlineKeyboard];
@@ -113,19 +116,29 @@ class TelegramClient
      * delivery, PROMPT §6.8.2). The deletion is a delayed job on the
      * database queue, run by the cron-driven worker: it happens on the first
      * worker run after the delay, so the precision is about one minute.
+     * When the delete fails, the message is edited to `$fallbackText`;
+     * with `$accessId` the outcome is audited (App\Jobs\DeleteTelegramMessage).
      *
+     * @param  array<string, mixed>  $options  extra sendMessage fields (parse_mode, …)
      * @return ?array<string, mixed> the sent Message
      */
-    public function sendEphemeral(string|int $chatId, string $text, int $seconds = 60): ?array
-    {
-        $message = $this->sendMessage($chatId, $text, [], ['protect_content' => true]);
+    public function sendEphemeral(
+        string|int $chatId,
+        string $text,
+        int $seconds = 60,
+        array $options = [],
+        ?string $fallbackText = null,
+        ?int $accessId = null,
+        ?int $causerId = null,
+    ): ?array {
+        $message = $this->sendMessage($chatId, $text, [], ['protect_content' => true] + $options);
         $messageId = $message['message_id'] ?? null;
 
         if (! is_int($messageId)) {
             return null;
         }
 
-        DeleteTelegramMessage::dispatch((string) $chatId, $messageId)->delay(now()->addSeconds($seconds));
+        DeleteTelegramMessage::dispatch((string) $chatId, $messageId, $fallbackText, $accessId, $causerId)->delay(now()->addSeconds($seconds));
 
         return $message;
     }

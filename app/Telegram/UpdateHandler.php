@@ -3,12 +3,17 @@
 namespace App\Telegram;
 
 use App\Models\TelegramLink;
+use App\Models\User;
 use App\Services\Telegram\TelegramClient;
 use App\Support\Audit\AuditOrigin;
 use App\Support\Integrations\IntegrationsOverview;
 use App\Support\Settings;
+use App\Telegram\Assistant\TelegramAssistant;
 use App\Telegram\Commands\HoursCommand;
+use App\Telegram\Commands\LearnCommand;
+use App\Telegram\Contracts\PendingReplyHandler;
 use App\Telegram\Handlers\ApprovalCallbackHandler;
+use App\Telegram\Handlers\LearnCallbackHandler;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -21,11 +26,14 @@ use Illuminate\Support\Facades\Log;
  *
  * - `/start {token}` links the private chat to the user that generated the
  *   token (single use, 30 min).
+ * - First, a pending reply (App\Telegram\PendingReplies): the reason of a
+ *   ❌ Rechazar (ApprovalCallbackHandler) or of a discarded `/aprender`
+ *   draft (LearnCallbackHandler) pressed just before, and `/cancelar`.
  * - `/horas GIA-123 2 conexión con SAP`: logs hours (App\Telegram\Commands\HoursCommand).
- * - `/start` without token and any other command or text: help message,
- *   except the reason of a ❌ Rechazar pressed just before (and `/cancelar`),
- *   which ApprovalCallbackHandler takes.
- *   (The Asistente TI takes over plain text in Stage C.)
+ * - `/aprender …` of a linked chat: a knowledge draft (App\Telegram\Commands\LearnCommand).
+ * - Plain text of a linked chat: a question for the Asistente TI
+ *   (App\Telegram\Assistant\TelegramAssistant).
+ * - `/start` without token, any other command and unlinked chats: help.
  * - `callback_query`: routed through `CallbackRegistry` for linked chats.
  *
  * Nothing about unlinked chats is stored (only logs). The time of the last
@@ -47,6 +55,18 @@ class UpdateHandler implements ShouldQueue
     public const INVALID_TOKEN_TEXT = 'El enlace no es válido o ya venció. Genera uno nuevo desde «Perfil y notificaciones» en el Gestor TI.';
 
     public const CHAT_TAKEN_TEXT = 'Este chat ya está vinculado a otra cuenta del Gestor TI. Desvincúlala primero desde esa cuenta.';
+
+    public const CANCEL_COMMAND = '/cancelar';
+
+    /**
+     * Pending reply kind (App\Telegram\PendingReplies) => handler.
+     *
+     * @var array<string, class-string<PendingReplyHandler>>
+     */
+    public const REPLY_HANDLERS = [
+        ApprovalCallbackHandler::REPLY_KIND => ApprovalCallbackHandler::class,
+        LearnCallbackHandler::REPLY_KIND => LearnCallbackHandler::class,
+    ];
 
     /**
      * @param  array<string, mixed>  $update  raw Telegram Update
@@ -110,8 +130,9 @@ class UpdateHandler implements ShouldQueue
 
         [$command, $argument] = $this->parseCommand($text);
 
-        // The reason of a ❌ Rechazar pressed just before (or /cancelar).
-        if (($command === null || $command === ApprovalCallbackHandler::CANCEL_COMMAND) && $this->handlePendingReason((string) $chatId, $text)) {
+        // The answer to a question the bot just asked (a ❌ Rechazar or
+        // Descartar reason, or /cancelar) wins over everything else.
+        if (($command === null || $command === self::CANCEL_COMMAND) && $this->handlePendingReply((string) $chatId, $text)) {
             return;
         }
 
@@ -127,18 +148,47 @@ class UpdateHandler implements ShouldQueue
             return;
         }
 
+        $user = TelegramLink::findLinkedChat((string) $chatId)?->user;
+        $user = $user instanceof User && $user->active ? $user : null;
+
+        if ($user !== null && $command === LearnCommand::COMMAND) {
+            app(LearnCommand::class)->handle($user, (string) $chatId, $argument);
+
+            return;
+        }
+
+        // Plain text of a linked person: a question for the Asistente TI.
+        if ($user !== null && $command === null && $text !== '') {
+            app(TelegramAssistant::class)->ask($user, (string) $chatId, $text);
+
+            return;
+        }
+
         $client->sendMessage($chatId, self::HELP_TEXT);
     }
 
-    private function handlePendingReason(string $chatId, string $text): bool
+    private function handlePendingReply(string $chatId, string $text): bool
     {
-        if (! Cache::has(ApprovalCallbackHandler::reasonCacheKey($chatId))) {
+        $replies = app(PendingReplies::class);
+        $pending = $replies->get($chatId);
+
+        if ($pending === null) {
             return false;
         }
 
-        $link = TelegramLink::findLinkedChat($chatId);
+        $handler = self::REPLY_HANDLERS[$pending['kind']] ?? null;
+        $user = TelegramLink::findLinkedChat($chatId)?->user;
 
-        return $link?->user !== null && app(ApprovalCallbackHandler::class)->handleReason($link->user, $chatId, $text);
+        if ($handler === null || $user === null) {
+            $replies->forget($chatId);
+
+            return false;
+        }
+
+        /** @var PendingReplyHandler $instance */
+        $instance = app($handler);
+
+        return $instance->handleReply($user, $chatId, $text, $pending['data']);
     }
 
     /**

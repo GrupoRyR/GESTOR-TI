@@ -7,6 +7,8 @@ use App\Domain\Assistant\Tools\SearchRequestsTool;
 use App\Domain\Assistant\Tools\ShowCardTool;
 use App\Domain\Assistant\Tools\ShowProductTool;
 use App\Telegram\Handlers\ApprovalCallbackHandler;
+use App\Telegram\Handlers\CredentialCallbackHandler;
+use App\Telegram\Handlers\LearnCallbackHandler;
 
 /*
 |--------------------------------------------------------------------------
@@ -291,9 +293,21 @@ return [
         // callback_data prefix => handler class (App\Telegram\Contracts\CallbackHandler).
         // callback_data is `{prefix}:{payload}` (max 64 bytes, Telegram limit).
         // `ai-approval`: ✅ Aprobar / ❌ Rechazar of project approvals (B4).
+        // `learn`: Aprobar / Descartar of a `/aprender` draft (C4).
+        // `cred`: person choice of a password delivery (C4).
         'callbacks' => [
             'ai-approval' => ApprovalCallbackHandler::class,
+            LearnCallbackHandler::PREFIX => LearnCallbackHandler::class,
+            CredentialCallbackHandler::PREFIX => CredentialCallbackHandler::class,
         ],
+
+        // Asistente TI questions and `/aprender` per chat and minute (each
+        // may call the AI provider), like the app chat.
+        'assistant_per_minute' => 20,
+
+        // A password sent by the bot deletes itself after this many seconds
+        // (PROMPT 6.8.2; the cron-driven worker gives ~1 minute of precision).
+        'credential_seconds' => 60,
     ],
 
 ];

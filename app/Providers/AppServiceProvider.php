@@ -11,6 +11,7 @@ use App\Notifications\Channels\TelegramChannel;
 use App\Services\Ai\AiRuntime;
 use App\Support\Audit\AuditOrigin;
 use App\Support\Tenancy\CurrentCompany;
+use App\Telegram\Assistant\TypingIndicator;
 use App\Telegram\CallbackRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -36,6 +37,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Telegram callback_data prefix => handler (Stage B registers approvals).
         $this->app->singleton(CallbackRegistry::class);
+
+        // "escribiendo…" of the Telegram assistant, repeated between AI steps.
+        $this->app->singleton(TypingIndicator::class);
 
         // `/aprender` parser: the AI one while the provider is ready (key set,
         // under the monthly cap), else the C2 heuristic (decided per use).

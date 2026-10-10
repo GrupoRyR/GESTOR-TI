@@ -108,6 +108,22 @@ class TelegramApprovalTest extends TriageTestCase
         Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/editMessageText') && str_contains($r['text'], 'Rechazaste'));
     }
 
+    public function test_the_rejection_reason_wins_over_the_assistant(): void
+    {
+        // Edward may also ask the Asistente TI: the reason must not reach it.
+        $this->edward->givePermissionTo('assistant.use');
+        config(['services.deepseek.api_key' => 'test-deepseek-key']);
+        Http::preventStrayRequests();
+
+        $this->press('555', ApprovalCallbackHandler::data($this->row->id, 'reject'));
+        $this->message('555', '¿Por qué no cerramos P-07 primero?');
+
+        $this->assertSame(RequestStatus::Rejected, $this->pending->fresh()->status);
+        $this->assertSame('¿Por qué no cerramos P-07 primero?', $this->row->fresh()->comment);
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'deepseek'));
+        Http::assertNotSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/sendChatAction'));
+    }
+
     public function test_cancel_keeps_the_approval_pending(): void
     {
         $this->press('555', ApprovalCallbackHandler::data($this->row->id, 'reject'));
