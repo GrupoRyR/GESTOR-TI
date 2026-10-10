@@ -128,3 +128,37 @@ export const VAULT_ACTIONS: Record<VaultAction, { label: string; icon: IconName 
     deleted: { label: 'Borró', icon: 'x' },
     blocked: { label: 'Intento bloqueado', icon: 'blocked' },
 };
+
+// ---- edit form ----------------------------------------------------------------
+
+/** Rotation choices of the edit form (null = "No rotar"). */
+export const ROTATION_OPTIONS: (number | null)[] = [30, 60, 90, 180, null];
+
+/** Days before the next rotation when the holder gets the Telegram reminder. */
+export const ROTATION_REMINDER_DAYS = 7;
+
+/** "Escribe el nombre para confirmar": exact, case-sensitive; only surrounding spaces are ignored. */
+export function deleteConfirmMatches(typed: string, name: string): boolean {
+    return name !== '' && typed.trim() === name;
+}
+
+/** Calendar date (YYYY-MM-DD) `days` after `base`; null without rotation or base. */
+export function nextRotation(base: string | null, days: number | null): string | null {
+    if (base === null || days === null || days <= 0) return null;
+    const date = new Date((dayNumber(base) + days) * DAY);
+    return date.toISOString().slice(0, 10);
+}
+
+/** The rotation restarts today when a new value is saved (or when the item never rotated). */
+export function rotationBase({ lastRotatedAt, today, valueChanged }: { lastRotatedAt: string | null; today: string; valueChanged: boolean }): string {
+    return valueChanged || lastRotatedAt === null ? today : lastRotatedAt.slice(0, 10);
+}
+
+/** "19 oct · en 12 días", "8 oct · mañana", "Sin rotación". */
+export function nextRotationText(next: string | null, today: string): string {
+    if (next === null) return 'Sin rotación';
+    const state = rotationState({ expires_at: next, expiry_note: null }, today);
+    const days = state.days ?? 0;
+    const when = days < 0 ? state.sentence.toLowerCase() : days === 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
+    return `${state.date} · ${when}`;
+}

@@ -7,6 +7,8 @@
  * - `Ai/Value/Index`   ValueIndexProps   B-Value + B-ValuePhone (GestorLayout tab "value"); empty state per B-States
  * - `Ai/Vault/Index`   VaultIndexProps   B-VaultLocked + B-VaultOpen + B-VaultPhone (tab "vault")
  * - `Ai/Vault/Denied`  VaultDeniedProps  B-VaultDenied (anyone without `ai.vault.access` who opens the vault URL)
+ * - `Ai/Vault/Edit`    VaultEditProps    C-VaultItemForm (tab "vault"), always inside the dark protected zone
+ * - `Ai/Vault/Create`  VaultCreateProps  same form for "Nueva credencial" (reuse of C-VaultItemForm, not a separate board)
  *
  * Ziggy routes used:
  * - `ai.value.index`     GET   query `{ period?: ValuePeriod, company_id?, area_id? }` filters via `router.get`
@@ -24,7 +26,18 @@
  *                                `Inertia::encryptHistory()` and no-store caching; the UI wipes the prop after 30 s.
  * - `ai.vault.copied`    POST  `{ item: id }`                       after "Copiar" (logs the copy and alerts by Telegram;
  *                                partial `only: ['access_log']`). The value itself is never sent back.
- * - `ai.vault.edit`      GET   `{ item: id }`                       "Cambiar valor" (PENDING: form not designed yet)
+ * - `ai.vault.edit`      GET   `{ item: id }`                       "Cambiar valor" → `Ai/Vault/Edit`
+ * - `ai.vault.update`    PUT   `{ item: id }` body `VaultItemPayload`  "Guardar cambios"; an empty `value` keeps the current
+ *                                one. Back to `ai.vault.index` with `{ item }`.
+ * - `ai.vault.destroy`   DELETE `{ item: id }`                      "Eliminar credencial" (after typing the exact name and
+ *                                a ConfirmDialog). Back to `ai.vault.index`.
+ * - `ai.vault.create`    GET   —                                    "Nueva credencial" (open vault) → `Ai/Vault/Create`
+ * - `ai.vault.store`     POST  body `VaultItemPayload`              "Guardar credencial"; `value` is required here.
+ *   Edit, create, update, store and destroy need `ai.vault.access` AND an open vault session. Without the session
+ *   the server redirects to `ai.vault.index` (locked view) with `{ item }`; without the permission it renders
+ *   `Ai/Vault/Denied`. Every response carries `Inertia::encryptHistory()` and `Cache-Control: no-store`, logs a
+ *   `changed` / `created` / `deleted` access and alerts the holder by Telegram (never with the value). The form
+ *   never receives the current value: `value` always starts empty.
  * - `ai.index`           GET   —                                    Denied: "Volver al Gestor IA"
  * - `assistant.index`    GET   —                                    Denied: ask for a credential through the Asistente
  *
@@ -39,7 +52,8 @@
  */
 import type { ValuePeriod } from '@/Components/ai/value/value';
 import type { VaultSessionState } from '@/Components/ai/vault/vault';
-import type { AreaRef, PersonRef, ValueMetrics, VaultAccessLog, VaultItem, VaultRevealed } from '@/types/ai';
+import type { AreaRef, PersonRef, ValueMetrics, VaultAccessLog, VaultEnvironment, VaultItem, VaultRevealed, VaultSecretType } from '@/types/ai';
+import type { FormErrors } from '@/types/shared';
 
 export type { ValuePeriod, VaultSessionState };
 
@@ -108,4 +122,56 @@ export interface VaultDeniedProps {
     holder_name: string;
     /** The blocked attempt that was just logged. */
     attempt: { person: PersonRef; at: string };
+}
+
+// ---- Vault item form --------------------------------------------------------------
+
+/** Body of `ai.vault.update` / `ai.vault.store`. Error keys are the field names. */
+export interface VaultItemPayload {
+    name: string;
+    /** Product or project name ("Gestor TI"). */
+    product: string;
+    environment: VaultEnvironment;
+    type: VaultSecretType;
+    /** Empty for API keys and tokens. */
+    username: string;
+    /** New secret. Update: empty = keep the current one. Store: required. Never echoed back by the server. */
+    value: string;
+    /** Null = "No rotar". */
+    rotation_days: number | null;
+    /** Stored in plain text (not encrypted like the value). */
+    notes: string;
+}
+
+/** "Proyecto" choices: product plus environment ("Gestor TI · producción"). */
+export interface VaultProjectOption {
+    product: string;
+    environment: VaultEnvironment;
+}
+
+interface VaultFormBase {
+    /** Always open here (the server redirects to the locked index otherwise). */
+    session: Extract<VaultSessionState, { state: 'open' }>;
+    projects: VaultProjectOption[];
+    holder_name: string;
+    /** Changes alert the holder by Telegram (shown as a note). */
+    telegram_alerts: boolean;
+    /** Bogotá date (YYYY-MM-DD), base of the next rotation date. */
+    today: string;
+    now: string;
+    errors?: FormErrors;
+}
+
+export interface VaultEditProps extends VaultFormBase {
+    /** Metadata only; the value never comes to this page. */
+    item: VaultItem;
+    /** Last time the value changed (YYYY-MM-DD or ISO); the next rotation counts from here. Null = never rotated. */
+    last_rotated_at: string | null;
+    /** Design preview only (gallery): text already typed in the delete confirmation. The server never sends it. */
+    preview_delete_confirm?: string;
+}
+
+export interface VaultCreateProps extends VaultFormBase {
+    /** Preselected project (`?product=&environment=`); null = first option. */
+    defaults: VaultProjectOption | null;
 }

@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { IncidentDrawer } from '@/Components/ai/products/IncidentDrawer';
 import { CostsLockNote, Placeholderable, ProductStateChip, RatingSquares } from '@/Components/ai/products/ProductParts';
 import { requestsBreakdown } from '@/Components/ai/products/products';
 import { Button, buttonClasses } from '@/Components/ui/Button';
@@ -104,12 +105,12 @@ function HealthBlock({ health, now }: { health: ProductHealth; now: string }) {
     );
 }
 
-function Incidents({ incidents, slug }: { incidents: ProductIncident[]; slug: string }) {
+function Incidents({ incidents, onRegister }: { incidents: ProductIncident[]; onRegister: () => void }) {
     return (
         <Card
             title="Incidentes"
             actions={
-                <Button variant="secondary" href={route('ai.products.incidents.create', { product: slug })}>
+                <Button variant="secondary" aria-haspopup="dialog" onClick={onRegister}>
                     Registrar incidente
                 </Button>
             }
@@ -196,8 +197,10 @@ function DocRow({ doc, now }: { doc: DocSummary; now: string }) {
 
 /** Ficha de producto: metadata, results, health placeholder, versions, open requests, docs and "Pedir mejora". */
 export default function ProductsShow(props: PageProps<ProductsShowProps>) {
-    const { product, health, incidents, hours_note, cost_note, request_notes, now, companies, auth } = props;
+    const { product, health, incidents, hours_note, cost_note, request_notes, incident_form, errors = {}, now, companies, auth } = props;
     const company = companies.find((item) => item.id === product.company_id);
+    // The drawer opens client-side; `ai.products.incidents.create` and a failed store arrive with it open.
+    const [incidentOpen, setIncidentOpen] = useState(incident_form.open);
     const canViewCosts = can(auth.user, 'ai.costs.view');
     const improveHref = route('ai.requests.create', { producto: product.slug });
 
@@ -357,7 +360,7 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
                             </ol>
                         </Card>
 
-                        <Incidents incidents={incidents} slug={product.slug} />
+                        <Incidents incidents={incidents} onRegister={() => setIncidentOpen(true)} />
                     </div>
 
                     <div className="flex min-w-0 flex-col gap-4">
@@ -425,6 +428,15 @@ export default function ProductsShow(props: PageProps<ProductsShowProps>) {
                     </div>
                 </div>
             </div>
+            <IncidentDrawer
+                open={incidentOpen}
+                onClose={() => setIncidentOpen(false)}
+                productSlug={product.slug}
+                productLine={[product.name, product.version, company?.short_name].filter(Boolean).join(' · ')}
+                setup={incident_form}
+                monitoringOff={!health.enabled}
+                serverErrors={errors}
+            />
         </GestorLayout>
     );
 }

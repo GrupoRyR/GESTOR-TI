@@ -356,6 +356,12 @@ export interface ProjectCost {
 
 export type ProductState = 'production' | 'pilot' | 'development' | 'retired';
 
+/** "Tipo de app" in the product form. */
+export type ProductKind = 'web' | 'robot' | 'integration' | 'mobile';
+
+/** Impact of a manually registered incident (C-IncidentForm). */
+export type IncidentImpact = 'low' | 'medium' | 'high' | 'critical';
+
 export interface ProductVersion {
     tag: string;
     date: string;

@@ -66,6 +66,12 @@ function bogotaDayNumber(date: Date): number {
     return Math.round(Date.UTC(year, month - 1, day) / DAY);
 }
 
+/** Bogotá calendar date of an instant as `YYYY-MM-DD` (for grouping by day). */
+export function bogotaDateKey(iso: string): string {
+    const { year, month, day } = bogota(toDate(iso));
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 /** "7 oct 2026" */
 export function formatDate(iso: string): string {
     const parts = dateParts.formatToParts(toDate(iso));
