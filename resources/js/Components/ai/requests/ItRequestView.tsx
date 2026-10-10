@@ -1,11 +1,16 @@
 import { Link } from '@inertiajs/react';
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { RequestActionDialogs, useRequestActions, type RequestAction } from '@/Components/ai/requests/actions/RequestActionDialogs';
 import { EvaluationPanel, URGENCY_LABELS } from '@/Components/ai/requests/EvaluationPanel';
 import { InternalNotes } from '@/Components/ai/requests/InternalNotes';
 import { RequestConversation } from '@/Components/ai/requests/RequestConversation';
+import { CriteriaSection, DuplicateSuggestions, SuggestionsStrip, SummarySuggestion, useSuggestionActions } from '@/Components/ai/requests/RequestSuggestions';
 import { dueState, firstName, teamHours } from '@/Components/ai/triage/triage';
 import { DUE_TO_SEMAPHORE } from '@/Components/ai/triage/FirstResponse';
+import { BriefPanel } from '@/Components/brief/BriefPanel';
+import { BriefTrigger } from '@/Components/brief/BriefTrigger';
+import { AiOffNote } from '@/Components/suggestions/AiOffNote';
+import { countSuggestions, suggestionsMode, visibleDuplicateSuggestions } from '@/Components/suggestions/requestSuggestions';
 import { Button } from '@/Components/ui/Button';
 import { CompanyMark } from '@/Components/ui/CompanyMark';
 import { Icon } from '@/Components/ui/Icon';
@@ -14,6 +19,7 @@ import { Semaphore } from '@/Components/ui/Semaphore';
 import { StatusChip } from '@/Components/ui/StatusChip';
 import { cx } from '@/Components/ui/utils';
 import { GestorLayout } from '@/Layouts/GestorLayout';
+import { briefFileName, buildRequestBrief, type BriefSectionKey } from '@/lib/brief';
 import { can } from '@/lib/can';
 import { formatFileSize, formatLongDate, formatShortDate, formatTime } from '@/lib/format';
 import { route } from '@/lib/route';
@@ -117,6 +123,7 @@ function ConversationTabs({ props }: { props: Props }) {
  * Request detail for IT (holders of `ai.manage`): what the requester asked,
  * a duplicate warning, public conversation and internal notes in tabs, and
  * the evaluation panel with every action (dialogs shared with the inbox).
+ * Stage D: "Brief para Claude" in the header when the server sends `brief`.
  */
 export function ItRequestView(props: Props) {
     const { request, evaluation, duplicates, area_hour_value, first_response, companies, auth, now } = props;
@@ -130,6 +137,31 @@ export function ItRequestView(props: Props) {
     const { answers } = request;
     const open = (action: RequestAction, mergeInto: string | null = null) => actions.open(action, [request], mergeInto);
     const createdWeekday = formatLongDate(request.created_at).split(' ')[0];
+    const brief = props.brief ?? null;
+    const briefState = props.brief_state ?? null;
+    const [briefOpen, setBriefOpen] = useState(brief !== null && briefState?.open === true);
+    const buildBrief = useCallback((sections: BriefSectionKey[]) => (brief ? buildRequestBrief(brief, sections) : ''), [brief]);
+
+    // Stage D · AI suggestions (only `ai.manage`; never applied by themselves).
+    const aiMode = can(auth.user, 'ai.manage') ? suggestionsMode(props.ai_availability) : 'none';
+    const suggestions = aiMode === 'blocks' ? (props.suggestions ?? null) : null;
+    const suggestionActions = useSuggestionActions(request.key);
+    const ruleKeys = duplicates.map((item) => item.key);
+    const aiDuplicates = suggestions ? visibleDuplicateSuggestions(suggestions.duplicates, ruleKeys) : [];
+    const suggestionCount = countSuggestions(suggestions, ruleKeys);
+    const nothingSuggested =
+        aiMode === 'blocks' &&
+        (suggestions === null || (suggestions.summary === null && suggestions.duplicates.length === 0 && suggestions.criteria === null && suggestions.size === null));
+    const provider = suggestions?.summary?.provider ?? suggestions?.criteria?.provider ?? suggestions?.size?.provider ?? 'DeepSeek';
+    const sizeSuggestion = suggestions?.size ?? null;
+    const showCriteria = aiMode !== 'none' || request.criteria.length > 0;
+    const evaluationFormId = useId();
+    const mergeInto = props.merge_into ?? null;
+    useEffect(() => {
+        // `?unir=GIA-121` from the comparison page: the usual MergeDialog, preselected.
+        if (mergeInto) actions.open('merge', [request], mergeInto);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mergeInto]);
 
     return (
         <GestorLayout
@@ -172,8 +204,20 @@ export function ItRequestView(props: Props) {
                             </>
                         ) : null}
                     </p>
+                    {brief ? (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                            <BriefTrigger expanded={briefOpen} onOpen={() => setBriefOpen(true)} />
+                        </div>
+                    ) : null}
                     <PhaseRail status={request.status} variant="full" className="max-w-[560px]" />
                 </header>
+
+                {aiMode === 'blocks' ? (
+                    <SuggestionsStrip count={suggestionCount} provider={provider} onSuggest={nothingSuggested ? suggestionActions.suggest : undefined} />
+                ) : null}
+                {aiMode === 'note' ? (
+                    <AiOffNote availability={props.ai_availability ?? 'hidden'} integrationsHref={route('admin.integrations.index')} usage={props.ai_usage ?? null} />
+                ) : null}
 
                 <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-6">
                     <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-1">
@@ -208,11 +252,32 @@ export function ItRequestView(props: Props) {
                             </section>
                         ) : null}
 
+                        {aiDuplicates.length > 0 ? (
+                            <DuplicateSuggestions
+                                requestKey={request.key}
+                                items={aiDuplicates}
+                                now={now}
+                                actions={suggestionActions}
+                                onMerge={(key) => open('merge', key)}
+                            />
+                        ) : null}
+
                         <section aria-labelledby="pidio-t" className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4 md:p-5">
                             <h2 id="pidio-t" className="text-base font-bold">
                                 Lo que pidió {name}
                             </h2>
                             <dl className="flex flex-col gap-3.5">
+                                {suggestions?.summary ? (
+                                    <Answer term="Resumen para TI">
+                                        <SummarySuggestion
+                                            suggestion={suggestions.summary}
+                                            summaryText={suggestions.summary_text}
+                                            now={now}
+                                            actions={suggestionActions}
+                                            onAskInfo={() => open('ask')}
+                                        />
+                                    </Answer>
+                                ) : null}
                                 <Answer term="El problema">{answers.problem}</Answer>
                                 {answers.current_process ? <Answer term="Cómo se hace hoy">{answers.current_process}</Answer> : null}
                                 <Answer term="Tiempo hoy">
@@ -267,6 +332,17 @@ export function ItRequestView(props: Props) {
                                 ) : null}
                             </dl>
                         </section>
+
+                        {showCriteria ? (
+                            <CriteriaSection
+                                requestKey={request.key}
+                                criteria={request.criteria}
+                                suggestion={suggestions?.criteria ?? null}
+                                showSuggestion={aiMode === 'blocks'}
+                                now={now}
+                                actions={suggestionActions}
+                            />
+                        ) : null}
                     </div>
 
                     <aside aria-label="Evaluación" className="flex flex-col gap-4 lg:col-start-2 lg:row-span-3 lg:row-start-1">
@@ -277,12 +353,34 @@ export function ItRequestView(props: Props) {
                             canViewCosts={canViewCosts}
                             firstResponse={pending}
                             onAction={(action) => open(action)}
+                            formId={evaluationFormId}
+                            now={now}
+                            sizeSuggestion={sizeSuggestion}
+                            sizeSuggestionActions={
+                                sizeSuggestion
+                                    ? {
+                                          onDiscard: () => suggestionActions.discard(sizeSuggestion.id),
+                                          onRegenerate: () => suggestionActions.regenerate(sizeSuggestion.id),
+                                          onRetry: () => suggestionActions.regenerate(sizeSuggestion.id),
+                                          onCancel: () => suggestionActions.cancel(sizeSuggestion.id),
+                                      }
+                                    : undefined
+                            }
                         />
                     </aside>
 
                     <div className="min-w-0 lg:col-start-1 lg:row-start-2">
                         <ConversationTabs props={props} />
                     </div>
+                </div>
+
+                <div className="sticky bottom-[72px] z-10 -mx-4 flex gap-2 border-t border-line bg-surface px-4 py-2.5 md:hidden">
+                    <Button type="submit" form={evaluationFormId} size="lg" className="flex-1">
+                        Guardar evaluación
+                    </Button>
+                    <Button variant="secondary" size="lg" onClick={() => open('ask')}>
+                        Pedir información
+                    </Button>
                 </div>
             </div>
 
@@ -295,6 +393,18 @@ export function ItRequestView(props: Props) {
                 estimate={request.estimate}
                 mergeFallback={duplicates}
             />
+
+            {brief ? (
+                <BriefPanel
+                    open={briefOpen}
+                    onClose={() => setBriefOpen(false)}
+                    subject={`${brief.key} · ${brief.title}`}
+                    build={buildBrief}
+                    fileName={briefFileName(brief.key)}
+                    initialView={briefState?.view}
+                    initiallyCopied={briefState?.copied}
+                />
+            ) : null}
         </GestorLayout>
     );
 }

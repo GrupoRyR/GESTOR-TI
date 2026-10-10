@@ -5,12 +5,15 @@ import { Alert } from '@/Components/ui/Alert';
 import { Button } from '@/Components/ui/Button';
 import { Icon } from '@/Components/ui/Icon';
 import { Select } from '@/Components/ui/Select';
+import { SizeSuggestion, SizeSuggestionRow } from '@/Components/suggestions/SizeSuggestion';
+import { sizeSuggestionIdOnSave } from '@/Components/suggestions/requestSuggestions';
 import { cx } from '@/Components/ui/utils';
 import { formatCOP } from '@/lib/format';
 import { suggestedPriority, type EffortSize, type Urgency } from '@/lib/priority';
 import { route } from '@/lib/route';
 import type { RequestDetail } from '@/types/ai';
 import type { Evaluation, EvaluationPayload, RiskLevel } from '@/types/pages/ai-triage';
+import type { Suggestion } from '@/types/suggestions';
 import type { RequestAction } from './actions/RequestActionDialogs';
 
 const SIZES: EffortSize[] = ['S', 'M', 'L', 'XL'];
@@ -89,6 +92,12 @@ export interface EvaluationPanelProps {
     /** Pending first response (null once answered). */
     firstResponse: DueState | null;
     onAction: (action: RequestAction) => void;
+    /** Form id, so the phone action bar can submit it. */
+    formId?: string;
+    /** Stage D · AI size suggestion under the picker ("Usar M" only sets the picker). */
+    sizeSuggestion?: Suggestion<'size'> | null;
+    sizeSuggestionActions?: { onDiscard?: () => void; onRegenerate?: () => void; onCancel?: () => void; onRetry?: () => void };
+    now?: string;
 }
 
 /**
@@ -96,10 +105,22 @@ export interface EvaluationPanelProps {
  * (lib/priority); IT can override the final one. Saving counts as the
  * first response. Actions below open the dialogs.
  */
-export function EvaluationPanel({ request, evaluation, areaHourValue, canViewCosts, firstResponse, onAction }: EvaluationPanelProps) {
+export function EvaluationPanel({
+    request,
+    evaluation,
+    areaHourValue,
+    canViewCosts,
+    firstResponse,
+    onAction,
+    formId,
+    sizeSuggestion = null,
+    sizeSuggestionActions = {},
+    now,
+}: EvaluationPanelProps) {
     const titleId = useId();
     const finalId = useId();
     const name = firstName(request.requester.name);
+    const [usedSize, setUsedSize] = useState<{ id: number; size: EffortSize } | null>(null);
     const [touched, setTouched] = useState(evaluation.priority_final !== null && evaluation.priority_final !== evaluation.priority_suggested);
     const form = useForm<Omit<EvaluationPayload, 'priority_suggested'> & { priority_final: number | null }>({
         size: evaluation.size,
@@ -123,13 +144,21 @@ export function EvaluationPanel({ request, evaluation, areaHourValue, canViewCos
     const money =
         evaluation.impact.money ?? (areaHourValue !== null && weekly !== null ? `${formatCOP(weekly * areaHourValue * WEEKS_PER_MONTH)} al mes` : null);
 
+    const takeSize = (size: EffortSize) => {
+        if (!sizeSuggestion) return;
+        form.setData('size', size);
+        form.clearErrors('size');
+        setUsedSize({ id: sizeSuggestion.id, size });
+    };
+
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!form.data.size) {
             form.setError('size', 'Elige la talla.');
             return;
         }
-        form.transform((data) => ({ ...data, priority_suggested: live, priority_final: finalValue }));
+        const sizeSuggestionId = sizeSuggestionIdOnSave(form.data.size, usedSize);
+        form.transform((data) => ({ ...data, priority_suggested: live, priority_final: finalValue, size_suggestion_id: sizeSuggestionId }));
         form.put(route('ai.requests.evaluation.update', { request: request.key }), { preserveScroll: true });
     };
 
@@ -139,7 +168,7 @@ export function EvaluationPanel({ request, evaluation, areaHourValue, canViewCos
             : 'Elige la talla para calcularla.';
 
     return (
-        <form onSubmit={submit} aria-labelledby={titleId} className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4 md:p-5">
+        <form id={formId} onSubmit={submit} aria-labelledby={titleId} className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4 md:p-5">
             <div className="flex items-baseline justify-between gap-3">
                 <h2 id={titleId} className="font-display text-xl font-bold tracking-[-0.01em]">
                     Evaluación
@@ -213,6 +242,24 @@ export function EvaluationPanel({ request, evaluation, areaHourValue, canViewCos
                     ) : undefined
                 }
             />
+
+            {sizeSuggestion ? (
+                usedSize && form.data.size === usedSize.size ? (
+                    <p className="-mt-2 flex items-center gap-1.5 text-xs text-fg-muted">
+                        <Icon name="sparkle" size={13} />
+                        Talla {usedSize.size} de la sugerencia · se guarda con la evaluación
+                    </p>
+                ) : (
+                    <>
+                        {sizeSuggestion.state === 'ready' ? (
+                            <SizeSuggestionRow suggestion={sizeSuggestion} onUse={takeSize} onDiscard={sizeSuggestionActions.onDiscard} className="-mt-2 md:hidden" />
+                        ) : null}
+                        <div className={cx('-mt-2', sizeSuggestion.state === 'ready' && 'hidden md:block')}>
+                            <SizeSuggestion suggestion={sizeSuggestion} now={now} onUse={takeSize} {...sizeSuggestionActions} />
+                        </div>
+                    </>
+                )
+            ) : null}
 
             <RadioSegments
                 legend="Urgencia"

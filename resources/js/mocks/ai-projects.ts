@@ -3,6 +3,9 @@
  * costs), Leonardo Herrera, a viewer without `ai.costs.view` and the
  * Contabilidad user who must answer a requirement. Entities come from
  * ai-fixtures; only page copy (activity, report text, task detail) lives here.
+ * Stage D adds the GitHub block of tasks (create issue #57 for T4, PR #41 on
+ * T3), the board chips and the repo link dialog of the summary, plus
+ * "Brief para Claude" on the summary, the board drawer and the task page.
  */
 import type { PersonRef, Project, Requirement, Task, TaskDetail } from '@/types/ai';
 import type {
@@ -41,6 +44,8 @@ import {
     tasksOf,
     WIP_LIMIT,
 } from './ai-fixtures';
+import { ISSUE_CREATED_T4, repoLinkProject, TASK_GITHUB_T3, TASK_GITHUB_T4, TASK_GITHUB_T4_CREATED } from './ai-github';
+import { BRIEF_PROJECT_P06, BRIEF_PROJECT_P07, BRIEF_TASK_T4, GITHUB_ORG } from './github-fixtures';
 import { DERIVADOS, SEGUREX, sharedFor, type MockUserKey, type MockVariant } from './shared';
 
 // ---- shared pieces ------------------------------------------------------------
@@ -64,6 +69,13 @@ function withoutCosts(key: MockUserKey): SharedProps {
     const shared = sharedFor(key);
     const user = shared.auth.user;
     return { ...shared, auth: { user: { ...user, permissions: user.permissions.filter((permission) => permission !== 'ai.costs.view' && permission !== 'ai.costs.manage') } } };
+}
+
+/** Same user without `ai.github.manage`: the CLAUDE.md tab keeps "Copiar" and "Descargar" only. */
+function withoutGitHub(key: MockUserKey): SharedProps {
+    const shared = sharedFor(key);
+    const user = shared.auth.user;
+    return { ...shared, auth: { user: { ...user, permissions: user.permissions.filter((permission) => permission !== 'ai.github.manage') } } };
 }
 
 const hideCost = <T extends { budget: Project['budget'] }>(item: T): T => ({ ...item, budget: { ...item.budget, cost: null } });
@@ -130,6 +142,8 @@ const summaryJhon: ShowPage = {
     reapproval_requested_at: null,
     next_step: 'Sigue Entrega, con pruebas de Gerencia de cartera.',
     today: TODAY,
+    brief: BRIEF_PROJECT_P07,
+    brief_omitted: { time_and_costs: true, internal_notes: 2 },
     now: NOW_ISO,
 };
 
@@ -145,6 +159,16 @@ const summaryP06: ShowPage = {
         { id: 12, kind: 'comment', actor: PEOPLE.paola, text: 'validó 2 de 4 criterios de aceptación', at: '2026-10-05T11:30:00-05:00' },
     ],
     next_step: 'Sigue Entrega cuando Paola valide los 2 criterios que faltan.',
+    brief: BRIEF_PROJECT_P06,
+    brief_omitted: { time_and_costs: true, internal_notes: 0 },
+};
+
+/** P-06 as if it had no repository yet: link it, or create one from the CLAUDE.md tab. */
+const summaryP06Unlinked: ShowPage = {
+    ...summaryP06,
+    project: { ...P06, repository: null },
+    repo_link: repoLinkProject(false),
+    repo_create: { organization: GITHUB_ORG, default_name: 'toma-pedidos-descuentos-por-volumen' },
 };
 
 // ---- Board --------------------------------------------------------------------
@@ -197,6 +221,23 @@ const T7_DETAIL: TaskDetail = {
     started_at: null,
 };
 
+/** T3 "Endpoint de zonas": in review because PR #41 mentions GIA-139. */
+const T3_DETAIL: TaskDetail = {
+    ...tasksOf('P-07').find((task) => task.key === 'T3')!,
+    description: 'Endpoint que devuelve las zonas de cada asesor para el filtro, cruzando la vista de SAP B1 con la lista de zonas que mandó Diego.',
+    subtasks: [
+        { id: 31, title: 'Leer la lista de zonas y asesores', done: true },
+        { id: 32, title: 'Endpoint /zonas por asesor', done: true },
+        { id: 33, title: 'Pruebas automáticas del endpoint', done: true },
+        { id: 34, title: 'Abrir el PR con GIA-139 en el título', done: true },
+    ],
+    criteria: CRITERIA_P07.filter((criterion) => criterion.id === 12),
+    comments: [],
+    time_by_person: [{ person: PEOPLE.leonardo, hours: 7.5 }],
+    attachments: [],
+    started_at: '2026-10-05',
+};
+
 type BoardPage = PageProps<ProjectsBoardProps>;
 
 const P07_TASKS = tasksOf('P-07');
@@ -225,6 +266,7 @@ const taskT4: TaskPage = {
     project: { key: P07.key, name: 'Visualizador de cartera · filtros', company_id: P07.company_id },
     task: T4_DETAIL,
     today_project_hours: 2 + 40 / 60,
+    brief: BRIEF_TASK_T4,
     now: NOW_ISO,
 };
 
@@ -389,6 +431,9 @@ const leonardoNoCosts = withoutCosts('leonardo');
 
 const blockedOnly: Task[] = P07_TASKS.filter((task) => task.blocked_by !== null);
 
+/** After "Crear issue": T4 carries issue #57. */
+const P07_WITH_ISSUE_57: Task[] = P07_TASKS.map((task) => (task.key === 'T4' ? { ...task, github: { issue: { number: 57, state: 'open' }, pr: null, ci: null } } : task));
+
 export const variants: Record<
     string,
     | MockVariant<IndexPage>
@@ -432,10 +477,65 @@ export const variants: Record<
         props: { ...summaryJhon, ...leonardoNoCosts, project: hideCost(P07) },
     },
     'summary-on-time': { page: 'Ai/Projects/Show', label: 'Resumen · P-06 a tiempo, en pruebas', props: summaryP06 },
+    'summary-unlinked': {
+        page: 'Ai/Projects/Show',
+        label: 'Resumen · sin repositorio (muestra con P-06)',
+        props: summaryP06Unlinked,
+    },
+    'summary-link-dialog': {
+        page: 'Ai/Projects/Show',
+        label: 'Resumen · vincular repositorio del proyecto',
+        props: { ...summaryP06Unlinked, repo_link: repoLinkProject(true) },
+    },
+    project_brief: {
+        page: 'Ai/Projects/Show',
+        label: 'Brief para Claude · proyecto P-07 (6 de 6 secciones)',
+        props: { ...summaryJhon, brief_state: { open: true } },
+    },
+    project_claude_md: {
+        page: 'Ai/Projects/Show',
+        label: 'Brief para Claude · CLAUDE.md inicial y crear repositorio (P-06 sin repo)',
+        props: { ...summaryP06Unlinked, brief_state: { open: true, tab: 'claude', view: 'markdown' } },
+    },
+    'project-claude-md-no-github': {
+        page: 'Ai/Projects/Show',
+        label: 'Brief para Claude · CLAUDE.md inicial sin permiso de GitHub (sin ai.github.manage)',
+        props: { ...summaryP06Unlinked, ...withoutGitHub('jhon'), brief_state: { open: true, tab: 'claude' } },
+    },
 
     // Board
     board: { page: 'Ai/Projects/Board', label: 'Tablero · P-07 con cronómetro', props: boardJhon },
-    'board-task': { page: 'Ai/Projects/Board', label: 'Tablero · detalle de T4 abierto', props: { ...boardJhon, selected_task: T4_DETAIL } },
+    'board-task': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · detalle de T4 abierto (sin issue)',
+        props: { ...boardJhon, selected_task: T4_DETAIL, selected_task_github: TASK_GITHUB_T4, selected_task_brief: BRIEF_TASK_T4 },
+    },
+    board_task_brief: {
+        page: 'Ai/Projects/Board',
+        label: 'Brief para Claude · T4 desde el tablero (Markdown, copiado)',
+        props: {
+            ...boardJhon,
+            selected_task: T4_DETAIL,
+            selected_task_github: TASK_GITHUB_T4,
+            selected_task_brief: BRIEF_TASK_T4,
+            selected_task_brief_state: { open: true, view: 'markdown', copied: true },
+        },
+    },
+    'board-task-issue-dialog': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · crear issue de T4',
+        props: { ...boardJhon, selected_task: T4_DETAIL, selected_task_github: { ...TASK_GITHUB_T4, issue_form: { ...TASK_GITHUB_T4.issue_form!, open: true } } },
+    },
+    'board-issue-created': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · después de crear el issue #57',
+        props: { ...boardJhon, tasks: P07_WITH_ISSUE_57, issue_created: ISSUE_CREATED_T4 },
+    },
+    'board-task-pr': {
+        page: 'Ai/Projects/Board',
+        label: 'Tablero · detalle de T3 con el PR #41',
+        props: { ...boardJhon, selected_task: T3_DETAIL, selected_task_github: TASK_GITHUB_T3 },
+    },
     'board-task-blocked': { page: 'Ai/Projects/Board', label: 'Tablero · detalle de T7 bloqueada', props: { ...boardJhon, selected_task: T7_DETAIL } },
     'board-blocked': {
         page: 'Ai/Projects/Board',
@@ -455,10 +555,35 @@ export const variants: Record<
 
     // Task page
     task: { page: 'Ai/Tasks/Show', label: 'Tarea en celular · T4 con cronómetro', props: taskT4 },
+    task_brief_markdown: {
+        page: 'Ai/Tasks/Show',
+        label: 'Brief para Claude · tarea T4 en Markdown',
+        props: { ...taskT4, github: TASK_GITHUB_T4, brief_state: { open: true, view: 'markdown' } },
+    },
+    'task-issue-dialog': {
+        page: 'Ai/Tasks/Show',
+        label: 'Tarea · crear issue en GitHub (T4)',
+        props: { ...taskT4, github: { ...TASK_GITHUB_T4, issue_form: { ...TASK_GITHUB_T4.issue_form!, open: true } } },
+    },
+    'task-issue-created': {
+        page: 'Ai/Tasks/Show',
+        label: 'Tarea · issue #57 recién creado',
+        props: {
+            ...taskT4,
+            ...sharedFor('jhon', { flash: { success: `Issue #57 creado en ${TASK_GITHUB_T4.repo!.full_name}.` } }),
+            task: { ...T4_DETAIL, github: { issue: { number: 57, state: 'open' }, pr: null, ci: null } },
+            github: TASK_GITHUB_T4_CREATED,
+        },
+    },
+    'task-pr': {
+        page: 'Ai/Tasks/Show',
+        label: 'Tarea en celular · T3 en revisión por el PR #41',
+        props: { ...taskT4, ...sharedFor('leonardo'), task: T3_DETAIL, today_project_hours: 0, github: TASK_GITHUB_T3, brief: null },
+    },
     'task-stopped': {
         page: 'Ai/Tasks/Show',
         label: 'Tarea en celular · T7 bloqueada, sin cronómetro',
-        props: { ...taskT4, task: T7_DETAIL, today_project_hours: 0 },
+        props: { ...taskT4, task: T7_DETAIL, today_project_hours: 0, brief: null },
     },
 
     // Requirements

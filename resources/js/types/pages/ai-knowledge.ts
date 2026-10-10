@@ -5,14 +5,15 @@
  *
  * Inertia components and their props:
  * - `Ai/Products/Index`  ProductsIndexProps  B-Products (GestorLayout tab "products")
- * - `Ai/Products/Show`   ProductsShowProps   B-ProductDetail + C-IncidentForm drawer (tab "products")
+ * - `Ai/Products/Show`   ProductsShowProps   B-ProductDetail + C-IncidentForm drawer + D-ProductGitHub section and
+ *                                           D-RepoLink dialog (tab "products"; GitHub types in ai-github.ts)
  * - `Ai/Products/Create` ProductsCreateProps C-ProductForm, "Nuevo producto" (tab "products")
  * - `Ai/Products/Edit`   ProductsEditProps   C-ProductForm, "Editar producto · …" (tab "products")
  * - `Ai/Docs/Index`      DocsIndexProps      doc tree landing (tab "docs")
  * - `Ai/Docs/Edit`       DocsEditProps       B-Docs (tree, Markdown editor + preview, autosave)
  * - `Ai/Docs/Create`     DocsCreateProps     B-DocsTemplates (template picker)
  * - `Ai/Docs/History`    DocsHistoryProps    B-DocsHistory (versions + diff + restore)
- * - `Ai/Docs/Repo`       DocsRepoProps       B-DocsRepo (read-only files from GitHub; connects in Stage D)
+ * - `Ai/Docs/Repo`       DocsRepoProps       B-DocsRepo (read-only files from the linked GitHub repository)
  * - `Ai/Search/Index`    SearchIndexProps    B-Search (docs, requests, products)
  *
  * Ziggy routes used:
@@ -45,6 +46,10 @@
  *                                         creates a new version, deletes nothing)
  * - `ai.docs.repo`        GET    query `{ product?: slug, path?: string }` "Documentos del repositorio"; choosing a file
  *                                         is a partial reload `only: ['repo']` with `{ product, path }`
+ * - `ai.products.repository.store` POST `{ product: slug }` body `RepoLinkPayload`  "Vincular" in the repo dialog (Stage D,
+ *                                         see ai-github.ts). `ai.products.show` also takes query `{ vincular: 1 }`: renders
+ *                                         the page with `repo_link.open = true` ("Vincular repositorio" from Documentación).
+ * - `ai.releases.show`    GET    `{ product: slug, release: tag }`         version tag in the GitHub "Releases" list
  * - `ai.search`           GET    query `{ q, type?: 'docs,requests' (comma list of SearchType; omitted = all),
  *                                         company_id?, area_id? }`
  * - `ai.projects.show`    GET    `{ project: key }`                        doc owner link when the owner is a project
@@ -54,10 +59,12 @@
  *                    The product form renders NoPermission without it; the server must still refuse the writes.
  * - `ai.docs.edit`   editing, creating, publishing and restoring docs. Without it `Ai/Docs/Edit` is read-only
  *                    (preview only) and "Nuevo documento" / "Restaurar" are hidden.
+ * - `ai.github.manage` "Vincular repositorio" (the server sends `repo_link: null` without it).
  * - `ai.costs.view`  `Product.monthly_cost` (null without it; the column and KPI show a lock hint instead).
  * - Search returns only what the viewer's role may see (server-side filtering).
  */
 import type { HighlightRange, SearchType } from '@/Components/ai/search/highlight';
+import type { ProductGitHub, RepoLinkSetup } from '@/types/pages/ai-github';
 import type { FormErrors } from '@/types/shared';
 import type {
     AreaRef,
@@ -185,8 +192,15 @@ export interface ProductsShowProps {
     request_notes: Record<string, string>;
     /** The "Registrar incidente" drawer. */
     incident_form: IncidentFormSetup;
-    /** Laravel validation errors from `ai.products.incidents.store`. */
+    /** Laravel validation errors from `ai.products.incidents.store` and `ai.products.repository.store`. */
     errors?: FormErrors;
+    /**
+     * Stage D · GitHub activity from stored webhook events. `null` or omitted
+     * = no repository linked (the section shows "Vincular repositorio" or a note).
+     */
+    github?: ProductGitHub | null;
+    /** Stage D · "Vincular repositorio" dialog; null or omitted without `ai.github.manage` or when already linked. */
+    repo_link?: RepoLinkSetup | null;
     now: string;
 }
 
@@ -325,9 +339,7 @@ export type RepoState =
     | { connected: false }
     | {
           connected: true;
-          /** True while the reading is a design sample (Stage B); shows the "Se conecta en la etapa D" banner. */
-          sample: boolean;
-          /** "[REPOSITORIO]" placeholder until the GitHub organization is known. */
+          /** Repository `full_name`: "[ORG]/visualizador-cartera". Read from GitHub with the app; never edited here. */
           name: string;
           branch: string;
           fetched_at: string;

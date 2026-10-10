@@ -1,11 +1,14 @@
 import { router, useForm } from '@inertiajs/react';
-import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { dropHint, moveTask } from '@/Components/ai/projects/projects';
 import { TaskDetailContent } from '@/Components/ai/projects/TaskParts';
 import { FilterSelect } from '@/Components/ai/triage/InboxParts';
 import { KanbanCard } from '@/Components/ai/KanbanCard';
 import { columnLabel, KANBAN_COLUMNS, KanbanColumn } from '@/Components/ai/KanbanColumn';
 import { Elapsed } from '@/Components/ai/TimerButton';
+import { BriefPanel } from '@/Components/brief/BriefPanel';
+import { BriefTrigger } from '@/Components/brief/BriefTrigger';
+import { ExternalLink } from '@/Components/github/ExternalLink';
 import { Button } from '@/Components/ui/Button';
 import { Dialog } from '@/Components/ui/Dialog';
 import { Drawer } from '@/Components/ui/Drawer';
@@ -15,6 +18,7 @@ import { Select } from '@/Components/ui/Select';
 import { TextField } from '@/Components/ui/TextField';
 import { cx } from '@/Components/ui/utils';
 import { ProjectLayout } from '@/Layouts/ProjectLayout';
+import { briefFileName, buildTaskBrief, withTaskGitHub, type BriefSectionKey } from '@/lib/brief';
 import { route } from '@/lib/route';
 import type { KanbanColumnKey, Task } from '@/types/ai';
 import type { BoardFilters, ProjectsBoardProps, RunningTimer } from '@/types/pages/ai-projects';
@@ -104,6 +108,11 @@ function AddTaskDialog({ projectKey, column, onClose }: { projectKey: string; co
 /** B-Kanban + B-TaskDetail + B-KanbanPhone: drag cards between columns (or "Mover a…"), filters, timers and the task drawer. */
 export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
     const { project, filters, people, labels, selected_task, running_timer, column_limits, total_tasks, blocked_total, auth } = props;
+    const selectedGitHub = props.selected_task_github ?? null;
+    const issueCreated = props.issue_created ?? null;
+    const selectedBrief = props.selected_task_brief ?? null;
+    const [briefOpen, setBriefOpen] = useState(props.selected_task_brief_state?.open === true);
+    const requestKey = project.request_keys[0] ?? null;
     const [tasks, setTasks] = useState<Task[]>(props.tasks);
     const [dragging, setDragging] = useState<string | null>(null);
     const [over, setOver] = useState<KanbanColumnKey | null>(null);
@@ -120,6 +129,11 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
 
     const inColumn = (column: KanbanColumnKey) => tasks.filter((task) => task.column === column).sort((a, b) => a.position - b.position);
     const drawerTask = selected_task && closedKey !== selected_task.key ? selected_task : null;
+    const drawerBrief = drawerTask && selectedBrief?.key === drawerTask.key ? selectedBrief : null;
+    const buildBrief = useCallback(
+        (sections: BriefSectionKey[]) => (drawerBrief ? buildTaskBrief(withTaskGitHub(drawerBrief, selectedGitHub), sections) : ''),
+        [drawerBrief, selectedGitHub],
+    );
 
     const applyFilters = (change: Partial<BoardFilters>) =>
         router.get(boardUrl, toQuery({ ...filters, ...change }), { preserveState: true, preserveScroll: true });
@@ -139,12 +153,14 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
 
     const open = (task: Task) => {
         setClosedKey(null);
-        router.get(boardUrl, { ...toQuery(filters), tarea: task.key }, { only: ['selected_task'], preserveState: true, preserveScroll: true });
+        setBriefOpen(false);
+        router.get(boardUrl, { ...toQuery(filters), tarea: task.key }, { only: ['selected_task', 'selected_task_github', 'selected_task_brief'], preserveState: true, preserveScroll: true });
     };
 
     const close = () => {
         if (selected_task) setClosedKey(selected_task.key);
-        router.get(boardUrl, toQuery(filters), { only: ['selected_task'], preserveState: true, preserveScroll: true, replace: true });
+        setBriefOpen(false);
+        router.get(boardUrl, toQuery(filters), { only: ['selected_task', 'selected_task_github', 'selected_task_brief'], preserveState: true, preserveScroll: true, replace: true });
     };
 
     const startTimer = (task: Pick<Task, 'key'>) => router.post(route('ai.timer.start', { project: project.key, task: task.key }), {}, { preserveScroll: true });
@@ -191,6 +207,8 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
                     setOver(null);
                 }}
                 dragging={dragging === task.key}
+                requestKey={requestKey}
+                newIssue={issueCreated?.task_key === task.key}
             />
         ));
 
@@ -216,6 +234,17 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
             {running_timer ? <RunningTimerBar timer={running_timer} now={props.now} onStop={stopTimer} /> : null}
 
             <div className="flex flex-col gap-4">
+                {issueCreated ? (
+                    <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card border border-line bg-surface px-4 py-2 text-sm">
+                        <Icon name="check-circle" size={18} className="shrink-0 text-status-active" />
+                        <span className="min-w-0 flex-1">
+                            <b className="tabular">Issue #{issueCreated.issue.number}</b> creado en {issueCreated.repo_full_name}
+                        </span>
+                        <ExternalLink href={issueCreated.issue.url} className="text-[13px]">
+                            Ver en GitHub
+                        </ExternalLink>
+                    </div>
+                ) : null}
                 <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
                     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0 md:pb-0">
                         <FilterSelect
@@ -324,7 +353,17 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
                 title={drawerTask?.title ?? ''}
                 headerActions={
                     drawerTask ? (
-                        <IconButton icon="external" label="Abrir la tarea en su página" href={route('ai.tasks.show', { project: project.key, task: drawerTask.key })} />
+                        <>
+                            {drawerBrief ? (
+                                <>
+                                    <span className="hidden md:block">
+                                        <BriefTrigger expanded={briefOpen} onOpen={() => setBriefOpen(true)} />
+                                    </span>
+                                    <BriefTrigger compact expanded={briefOpen} onOpen={() => setBriefOpen(true)} className="md:hidden" />
+                                </>
+                            ) : null}
+                            <IconButton icon="external" label="Abrir la tarea en su página" href={route('ai.tasks.show', { project: project.key, task: drawerTask.key })} />
+                        </>
                     ) : null
                 }
             >
@@ -338,9 +377,25 @@ export default function ProjectsBoard(props: PageProps<ProjectsBoardProps>) {
                         viewerId={auth.user.id}
                         onTimerStart={() => startTimer(drawerTask)}
                         onTimerStop={stopTimer}
+                        github={selectedGitHub}
+                        issueIsNew={issueCreated?.task_key === drawerTask.key}
                     />
                 ) : null}
             </Drawer>
+
+            {drawerBrief && drawerTask ? (
+                <BriefPanel
+                    key={drawerBrief.key}
+                    open={briefOpen}
+                    onClose={() => setBriefOpen(false)}
+                    subject={`${drawerTask.key} · ${drawerTask.title}`}
+                    build={buildBrief}
+                    fileName={briefFileName(project.key, drawerTask.key)}
+                    copiedMessage={`Brief de ${drawerTask.key} copiado. Pégalo en Claude.`}
+                    initialView={props.selected_task_brief_state?.view}
+                    initiallyCopied={props.selected_task_brief_state?.copied}
+                />
+            ) : null}
         </ProjectLayout>
     );
 }

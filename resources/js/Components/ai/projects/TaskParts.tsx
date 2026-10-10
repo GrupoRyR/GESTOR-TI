@@ -2,6 +2,7 @@ import { router, useForm } from '@inertiajs/react';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { KANBAN_COLUMNS } from '@/Components/ai/KanbanColumn';
 import { TimerButton } from '@/Components/ai/TimerButton';
+import { TaskGitHubBlock } from '@/Components/github/TaskGitHubParts';
 import { Avatar } from '@/Components/ui/Avatar';
 import { Button } from '@/Components/ui/Button';
 import { Icon, type IconName } from '@/Components/ui/Icon';
@@ -11,6 +12,7 @@ import { formatFileSize, formatRelative, formatShortDate } from '@/lib/format';
 import { route } from '@/lib/route';
 import { formatHours } from '@/lib/timer';
 import type { Comment, GithubLink, KanbanColumnKey, PersonRef, Subtask, TaskDetail } from '@/types/ai';
+import type { TaskGitHub } from '@/types/pages/ai-github';
 import type { TaskUpdatePayload } from '@/types/pages/ai-projects';
 
 const update = (projectKey: string, taskKey: string, data: TaskUpdatePayload) =>
@@ -240,15 +242,6 @@ function GithubChips({ github, note }: { github: GithubLink | null; note?: strin
                 <p className="text-[13px] text-fg-muted">Sin issue ni PR.</p>
             )}
             {note ? <p className="text-xs text-fg-muted">{note}</p> : null}
-            <div className="flex flex-col gap-1">
-                <Button variant="secondary" icon="issue" disabled aria-describedby="issue-stage-d" className="self-start">
-                    Crear issue en GitHub
-                </Button>
-                <span id="issue-stage-d" className="flex items-center gap-1.5 text-xs text-fg-muted">
-                    <Icon name="lock" size={12} />
-                    Se activa al vincular el repositorio (etapa D)
-                </span>
-            </div>
         </Block>
     );
 }
@@ -264,10 +257,14 @@ export interface TaskDetailContentProps {
     viewerId: number;
     onTimerStart: () => void;
     onTimerStop: () => void;
+    /** Stage D · issue, PR and "Crear issue en GitHub"; without it the Stage B chips show. */
+    github?: TaskGitHub | null;
+    /** The issue was just created (marks it "nuevo"). */
+    issueIsNew?: boolean;
 }
 
 /** B-TaskDetail body: status, labels, timer, description, subtasks, criteria, comments; side facts in a 260 px column. */
-export function TaskDetailContent({ task, projectKey, people, now, viewerId, onTimerStart, onTimerStop }: TaskDetailContentProps) {
+export function TaskDetailContent({ task, projectKey, people, now, viewerId, onTimerStart, onTimerStop, github = null, issueIsNew = false }: TaskDetailContentProps) {
     const clock = new Date(now);
     const [editing, setEditing] = useState(false);
     const description = useForm<{ description: string }>({ description: task.description });
@@ -484,7 +481,13 @@ export function TaskDetailContent({ task, projectKey, people, now, viewerId, onT
                     </Button>
                 </Block>
 
-                <GithubChips github={task.github} note={prNote} />
+                {github ? (
+                    <Block title="GitHub">
+                        <TaskGitHubBlock github={github} task={task} projectKey={projectKey} now={now} issueIsNew={issueIsNew} />
+                    </Block>
+                ) : (
+                    <GithubChips github={task.github} note={prNote} />
+                )}
 
                 <Block title="Adjuntos">
                     {task.attachments.length > 0 ? (

@@ -413,7 +413,7 @@ export function ProductForm(props: ProductFormProps & { companies: Company[] }) 
                                     className="flex h-11 items-center gap-2 rounded-control border border-dashed border-line-strong bg-subtle px-3.5 text-sm text-fg-muted"
                                 >
                                     <Icon name="code" size={16} className="shrink-0" />
-                                    Se conecta en la etapa D
+                                    Se vincula desde la ficha, en Actividad en GitHub
                                 </span>
                             </div>
                         </div>
