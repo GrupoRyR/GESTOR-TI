@@ -32,6 +32,17 @@ export interface AppLayoutProps {
      * Perfil. Omitted, the bar is built from `modules` as usual.
      */
     bottomNav?: BottomNavOverride;
+    /**
+     * Phone only (< 768 px): replaces the top bar with this header (e.g. the
+     * Asistente chat header "Asistente TI · Solo consulta").
+     */
+    phoneHeader?: ReactNode;
+    /**
+     * The page fills exactly the viewport and scrolls inside itself (chat:
+     * header + scrolling log + sticky composer). `main` becomes a flex column
+     * with no phone padding, leaving room for the phone bottom bar.
+     */
+    fullHeight?: boolean;
     children: ReactNode;
 }
 
@@ -456,13 +467,16 @@ function TopBar({
  * bar with "Más" below 768 px. The brand of the selected company (or the
  * user's own in "Todas") is applied for light and dark.
  */
-export function AppLayout({ shared, title, active, badges, headerActions, subnav, bottomNav, children }: AppLayoutProps) {
+export function AppLayout({ shared, title, active, badges, headerActions, subnav, bottomNav, phoneHeader, fullHeight = false, children }: AppLayoutProps) {
     const company = brandCompany(shared);
     const modules = shared.modules.filter((module) => module.active);
 
     return (
         <div
-            className="brand-scope min-h-dvh bg-ground text-fg md:grid md:grid-cols-[84px_minmax(0,1fr)] lg:grid-cols-[248px_minmax(0,1fr)]"
+            className={cx(
+                'brand-scope bg-ground text-fg md:grid md:grid-cols-[84px_minmax(0,1fr)] lg:grid-cols-[248px_minmax(0,1fr)]',
+                fullHeight ? 'h-dvh overflow-hidden' : 'min-h-dvh',
+            )}
             style={company ? brandScopeStyle(company.colors) : undefined}
         >
             <Head title={title} />
@@ -476,11 +490,29 @@ export function AppLayout({ shared, title, active, badges, headerActions, subnav
             <SideNav modules={modules} active={active} badges={badges} company={company} />
             <Rail modules={modules} active={active} badges={badges} company={company} />
 
-            <div className="flex min-w-0 flex-col">
-                <TopBar shared={shared} company={company} headerActions={headerActions} />
+            <div className={cx('flex min-w-0 flex-col', fullHeight && 'h-dvh min-h-0')}>
+                {phoneHeader ? (
+                    <>
+                        <div className="shrink-0 md:hidden">{phoneHeader}</div>
+                        <div className="contents max-md:hidden">
+                            <TopBar shared={shared} company={company} headerActions={headerActions} />
+                        </div>
+                    </>
+                ) : (
+                    <TopBar shared={shared} company={company} headerActions={headerActions} />
+                )}
                 {subnav}
-                <main id="contenido" tabIndex={-1} className="flex-1 px-4 pt-5 pb-28 outline-none md:px-5 md:py-6 lg:px-8">
-                    <FlashMessages flash={shared.flash} className="mb-4" />
+                <main
+                    id="contenido"
+                    tabIndex={-1}
+                    className={cx(
+                        'flex-1 outline-none',
+                        fullHeight
+                            ? 'flex min-h-0 flex-col pb-[calc(71px+env(safe-area-inset-bottom))] md:px-5 md:py-5 lg:px-8'
+                            : 'px-4 pt-5 pb-28 md:px-5 md:py-6 lg:px-8',
+                    )}
+                >
+                    <FlashMessages flash={shared.flash} className={fullHeight ? 'm-4 mb-0 shrink-0 md:m-0 md:mb-4' : 'mb-4'} />
                     {children}
                 </main>
             </div>
