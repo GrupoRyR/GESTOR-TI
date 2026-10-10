@@ -30,6 +30,7 @@ class IntegrationsOverview
         private readonly TelegramClient $telegram,
         private readonly TelegramWebhookStatus $webhook,
         private readonly AiProviderSettings $ai,
+        private readonly GitHubIntegration $github,
     ) {}
 
     /**
@@ -41,7 +42,7 @@ class IntegrationsOverview
             'microsoft' => ['companies' => $this->microsoft()],
             'mail' => $this->mail->toProps(),
             'telegram' => $this->telegram(),
-            'github' => $this->github(),
+            'github' => $this->github->toCardProps(),
             'ai' => $this->ai->toProps(),
         ];
     }
@@ -108,27 +109,6 @@ class IntegrationsOverview
             'linked_users' => TelegramLink::query()->whereNotNull('chat_id')->whereNotNull('linked_at')->count(),
             'last_message_at' => is_string($lastUpdate) && $lastUpdate !== '' ? $lastUpdate : null,
             'webhook_ok' => $webhookOk,
-        ];
-    }
-
-    /**
-     * Stage A: only the organization is saved; the GitHub App installation
-     * (and its repositories) arrives in Stage D, so it is never connected
-     * yet. The install link shows once the organization is saved.
-     *
-     * @return array<string, mixed>
-     */
-    private function github(): array
-    {
-        $organization = $this->settings->get('github.organization');
-        $organization = is_string($organization) && $organization !== '' ? $organization : null;
-        $installUrl = config('services.github.install_url');
-
-        return [
-            'status' => 'disconnected',
-            'organization' => $organization,
-            'install_url' => $organization !== null && filled($installUrl) ? (string) $installUrl : null,
-            'repositories_count' => 0,
         ];
     }
 }

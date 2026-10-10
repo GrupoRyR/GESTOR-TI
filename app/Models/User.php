@@ -27,6 +27,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property ?int $company_id
  * @property ?bool $active
  * @property ?string $avatar_url
+ * @property ?string $github_login GitHub account (issue assignee, Stage D)
  * @property ?string $azure_id
  * @property ?string $tenant_id
  * @property bool $is_global
@@ -34,7 +35,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property int $failed_login_attempts
  * @property ?Carbon $locked_until
  */
-#[Fillable(['name', 'email', 'password', 'avatar_url'])]
+#[Fillable(['name', 'email', 'password', 'avatar_url', 'github_login'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

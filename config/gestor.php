@@ -93,6 +93,10 @@ return [
 
         // GitHub organization of the Gestor (Stage D uses it).
         'github.organization' => null,
+
+        // Installation of the GitHub App on the organization; set by
+        // App\Services\GitHub\RepositorySync, cleared by "Desconectar GitHub".
+        'github.installation_id' => null,
     ],
 
     /*
@@ -276,6 +280,8 @@ return [
             'user_roles_updated', 'ai_settings_updated',
             // Vault (B8): reads, copies, changes and blocked attempts.
             'vault_view', 'vault_copy', 'vault_create', 'vault_update', 'vault_delete', 'vault_denied',
+            // GitHub (D1): the app installation was forgotten.
+            'github_disconnected',
         ],
         'sensitive_log_names' => ['auth', 'credentials'],
         'alert_events' => [

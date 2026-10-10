@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\CostController;
+use App\Http\Controllers\Admin\GitHubIntegrationController;
 use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
@@ -454,6 +455,16 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
         });
         Route::put('/github', [IntegrationController::class, 'updateGithub'])->name('github.update');
         Route::put('/ai', [IntegrationController::class, 'updateAi'])->name('ai.update');
+    });
+
+    // Integraciones › GitHub (`Admin/Integrations/GitHub`, Stage D):
+    // `ai.github.manage` (Líder IA has it without `settings.manage`), so
+    // it lives outside the group above. Disconnecting keeps stored events
+    // and product/project links.
+    Route::middleware('can:ai.github.manage')->prefix('integrations/github')->name('integrations.github')->group(function () {
+        Route::get('/', [GitHubIntegrationController::class, 'show']);
+        Route::post('/events/{event}/retry', [GitHubIntegrationController::class, 'retry'])->whereNumber('event')->name('.events.retry');
+        Route::delete('/', [GitHubIntegrationController::class, 'disconnect'])->name('.disconnect');
     });
 
     // Usuarios (`Admin/Users/Index`). Users outside the admin's company

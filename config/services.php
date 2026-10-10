@@ -90,6 +90,8 @@ return [
     'github' => [
         // Public install page of the GitHub App (Integraciones › GitHub).
         'install_url' => env('GITHUB_APP_INSTALL_URL'),
+        'app_name' => env('GITHUB_APP_NAME', 'Gestor TI RYR'),
+        'api_url' => env('GITHUB_API_URL', 'https://api.github.com'),
         'app_id' => env('GITHUB_APP_ID'),
         'private_key_path' => env('GITHUB_PRIVATE_KEY_PATH'),
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
