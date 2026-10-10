@@ -8,7 +8,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 
 ## Decisions
 - 2026-10-10 (orchestrator, per user request "confirma o renombra" applied since Stage C): the route names added by design are confirmed as-is.
-- GitHub auth: GitHub App (design assumes `install_url` + private key). JWT RS256 signed with `openssl_sign` (no new dependency); installation token cached < 1 h. All GitHub calls through Laravel `Http` (fakeable). Secrets (`GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`) only in `.env`; props carry booleans.
+- GitHub auth: GitHub App (design assumes `install_url` + private key). JWT RS256 signed with `openssl_sign` (no new dependency); installation token cached < 1 h. All GitHub calls through Laravel `Http` (fakeable). Secrets (`GITHUB_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`) only in `.env`; props carry booleans.
 - GitHub admin routes register outside the `can:settings.manage` Integraciones group, under `can:ai.github.manage` (Líder IA has it, not `settings.manage`). `admin.integrations.github.update` (organization) stays `settings.manage` per type header.
 - Key matching mirrors `lib/githubKeys.ts`: `(?<![A-Za-z0-9])gia-(\d+)(?![A-Za-z0-9])`, case-insensitive, over title, body and branch.
 - AI suggestions reuse `AiRuntime::run()` (logs `ai_interactions`, enforces the cap). AI input whitelist: title, problem, current process, expected result, app, open-request titles. Never auto-applied.
@@ -30,7 +30,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 
 ## Progress / evidence
 
-### D1 · GitHub foundation — done (commit recorded in the Stage D PR list)
+### D1 · GitHub foundation — done (`8337b13`)
 - Route: delegated (writer trigger: migration, 2 models, 2 factories, client, sync, key matcher, job, presenter, controller, routes, config; 4 test files).
 - Test-first: 31 new tests (`tests/Unit/GitHub/GiaKeysTest`, `tests/Feature/GitHub/{GitHubAppTest,RepositorySyncTest}`, `tests/Feature/Admin/GitHubIntegrationAdminTest`) written first and observed RED
   (30 of 31 failing: classes, tables and routes missing), then GREEN. On Windows PHP `openssl_pkey_new` needs a config file: the test helper `GeneratesAppKey` passes a minimal one.
