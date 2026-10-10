@@ -42,7 +42,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
 `stacked-to-main` chain. Branch `claude/diseno-gestor-ia-etapa-d` is stacked on Stage C (`claude/diseno-gestor-ia-etapa-c`, PR #11). There is one PR with base = the Stage C branch. Slices are per-task work-unit commits.
 
 ## Tasks
-- [ ] T1 Foundations. Route: delegated.
+- [x] T1 Foundations. Route: delegated.
   - Types `types/github.ts` (repo, PR, issue, CI run, deploy, release, webhook event) and `types/suggestions.ts`.
   - Fixtures `mocks/github-fixtures.ts`.
   - Components:
@@ -87,6 +87,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
 
 ## Progress
 - 2026-10-09: branch created from the Stage C head (`78e1795`, 393 tests); document created.
+- T1 `38b9056` foundations: types github/suggestions, github-fixtures, Components github/suggestions/brief, helpers brief/issue/githubKeys test-first (forbidden data tested); T4 issue removed from Stage B fixtures — 436 tests. Delegated writer; parent re-ran typecheck + tests.
 
 ## Next step
-T1 foundations.
+T2 GitHub.
