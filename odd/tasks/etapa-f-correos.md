@@ -40,7 +40,7 @@ Every Gestor TI email uses the approved templates:
 
 ## Progress / evidence
 
-### F1 · Mail foundation, requester templates and `new-request` — done
+### F1 · Mail foundation, requester templates and `new-request` — done (`07b046e`)
 - **Route:** delegated writer (writer trigger: 2+ non-trivial files).
 - **Views:** `resources/views/mail/{html,text}/<name>.blade.php` for `new-request`, `request-received`, `status-changed`, `it-question`, `delivered`. Generated from `resources/emails/` with `App\Support\Mail\TemplateToBlade` (escaped echoes only, Outlook conditionals kept, documentation comments dropped). `tests/Feature/Mail/TemplateViewsTest.php` fails when a view drifts from its source: exact match with the converted source, plus a render with `samples.json` (both companies, blocks on and off) compared with an independent reference renderer of the markers.
 - **Mail layer:** `App\Mail\TemplateMail` + `App\Support\Mail\{EmailTemplate, MailBranding, BrandColor, MailDates, RequestEmails}`.
