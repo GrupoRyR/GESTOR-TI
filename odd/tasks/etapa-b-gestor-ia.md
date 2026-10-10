@@ -25,7 +25,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 - [x] B3 · Wire requester pages (ai-requester.ts): wizard + duplicates, submitted, mine, show (requester view), validate acceptance, ratings + hours saved, roadmap. Replace Stage B placeholder routes.
 - [x] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
 - [x] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
-- [ ] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
+- [x] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
 - [ ] B7 · Documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard.
 - [ ] B8 · Vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
 - [x] B9 · Design delivered (PR #10, `docs/design/stage-b-contract.md`); merged into the chain as `2a804cb` (package.json: Inertia v3 kept + `markdown-it`; lock regenerated; typecheck, 300 vitest, build and 637 PHP tests green). B5–B8 now wire the pages together with their domain: B5 `ai-projects.ts` (projects, board, tasks, requirements, report), B6 `Ai/Projects/Costs`, `Ai/TimeEntries/Create`, `admin-costs.ts`, B7 `ai-knowledge.ts` + ratings lifecycle, B8 `ai-value-vault.ts`. Not designed (keep out): product create/edit, incident create, vault item edit.
@@ -233,6 +233,62 @@ Notes for design:
 - `ReportSchedule.periodicity` is `manual | weekly`; the brief also mentioned monthly (not built).
 - `RequirementForRecipient.answer_attachment` has no URL, so the answer file cannot be downloaded from the pages yet.
 
+### B6 · Time and costs — done (commit `b4c7992` `feat(ai): add time tracking, project costs and budget control`)
+- Route: delegated (writer trigger: 30+ code files across migration, models, domain, actions, presenters, controllers, form requests, notifications, Telegram, command, routes; 9 test files).
+- Test-first: 8 new test files + 1 unit file (48 tests) written first and observed RED (47 of 48 failing: routes, models and classes missing), then GREEN; `StageAShellRoutesTest` updated (B6 placeholders removed).
+- Checks: `php artisan test` 725/725 passed; `vendor/bin/pint` + `vendor/bin/pint --test` passed; `npm run typecheck` passed; `route:list --path=ai` 88 routes (timer, time entries, costs, re-approval real)
+  and `--path=admin/costs` 6 routes; `schedule:list` shows `0 15 * * 5 ai:hours-reminder` (Bogotá); new migration up/rollback/up + `db:seed` + `AiDemoSeeder` on a temp SQLite file OK (file deleted)).
+- Size: ~2810 authored code lines + ~1340 test lines, above the ~400 heuristic: timer, hours, costs, budget rules, alerts and re-approval share ProjectBudget/ProjectCosts and the three pages consume them together.
+
+Decisions:
+- Schema (one migration): `ai_timers` (one running timer per person, unique `user_id`, project, task, `started_at`) and `ai_project_costs` (type `license|hosting|external_provider|other` = the design
+  `CostType` minus the computed `team`/`ai_usage`; recurrence `once|monthly`; amount COP; date; receipt on the private disk `gestor.ai.attachments.disk`). `ai_time_entries` (B5) unchanged.
+  The brief's "equipo" (hardware) type has no design key: use `other`.
+- Timer (`App\Actions\Ai\Timers`): start = AiProjectPolicy::logTime (IT with company access, lead, members, task assignees); starting another task stops and logs the running one; same task = no-op.
+  Stop → entry origin `timer` rounded to the minute, capped at 16 h (forgotten timer), on the Bogotá date it started, note = task title; runs under 60 s are dropped ("Corrió menos de un minuto").
+  `RunningTimer` (board, Mi semana) and `Task.timer` (board, task page) are the viewer's own timer only (`TimerPresenter`), so "Parar" always stops theirs.
+- Entries (`App\Actions\Ai\LogTime`, then WatchProjectBudget): manual `ai.time-entries.store` (TimeEntryRequest mirrors useTimeEntryForm: date ≤ today, 0 < hours ≤ 16, note required, task of the project).
+  Added (not in the contract): `ai.time-entries.update|destroy {project, entry}` (owner while on the project, or IT). `Ai/TimeEntries/Create`: open projects (planned/in development/in testing) where the viewer
+  may log, open tasks in board order, `?project=&task=` preselect only when valid, `telegram_keys` = origin request key per project.
+- Telegram `/horas KEY HORAS qué hiciste` (`App\Telegram\Commands\HoursCommand`, UpdateHandler): KEY = request key GIA-n (→ its project) or project key P-n, case-insensitive; hours `2`, `1,5`, `1.5`, `2h`
+  (0 < h ≤ 16); note required; today's date; origin telegram; reply "Listo: 2 h en P-1 · … (GIA-…), hoy. Esta semana llevas 12 h." Errors: unlinked chat, usage, hours, missing note, unknown key,
+  request not yet a project, not in the team.
+- Friday reminder `ai:hours-reminder` (Fridays 15:00 Bogotá): IT (`ai.manage`) + lead/members of planned/in development/in testing projects, active, with no entry Monday–today → `AiHoursReminder`.
+- Budget (`ProjectBudget::figures`, `BudgetRules` = PHP twin of `lib/budget.ts` + `projectedEnd`, same test cases in `tests/Unit/Ai/BudgetRulesTest.php`): real cost = Σ of the cost rows (team hours × rate in
+  force on the entry date + costs by hand + AI usage), as the page's `costsTotal` adds them, so a monthly cost counts its amount once. Remaining hours = Σ `estimate_hours` of open tasks, else approved − logged.
+  Pace = hours of the last 2 weeks ÷ 2; `projected_due_date` = projectedEnd (today when nothing remains), else the due date. `needs_reapproval` (only with an estimate) = hours or cost above the threshold, or
+  `scheduleNeedsReapproval` (approval date → due date vs projected) — the schedule rule is new on the server.
+- AI spend: `ai_interactions` with source = the project or its product, from the month it was approved (or started), one `ai_usage` row per month, USD → COP with new Settings `ai.usd_cop_rate` (4000, pending
+  from Jhon). Computed row ids are negative (`team` −1, AI −YYYYMM).
+- Costs page (`ai.manage` + view): without `ai.costs.view` the same keys go out empty (`budget.cost` null, no log, no costs, empty curve) and the page renders NoPermission. Curve: plan approval→due date,
+  cumulative real hours per day with entries, projection today→projected end. `pace_note` names other projects where the same people logged hours in the last 2 weeks. Export = CSV (`;`, UTF-8 BOM) of the week
+  (no Excel library in the stack). `ai.costs.store` (+ added `ai.costs.update|destroy` and signed `ai.costs.attachment`): AiProjectPolicy::manageCosts (`ai.manage` with company access + `ai.costs.manage`).
+- Budget alerts (`App\Actions\Ai\WatchProjectBudget`, after every entry/cost change and after a re-approval): ratio = max(hours, cost); 80 % (≥ 0.8, AlertService `warning`) and 100 % (> 1, `critical`), group key
+  `ai.budget:{P-n}:{80|100}`. AlertService is raised with no recipients (record only); the approvers get `AiBudgetAlert` (new event `ai.project.budget`, hours and percentages, no money) and the project feed
+  gets a `budget` entry. Nothing is sent while the alert is unresolved; going back below resolves it, so a new crossing alerts again.
+- Re-approval (`ai.projects.reapproval.store`, `App\Actions\Ai\RequestReapproval`): only when `needs_reapproval`, the project comes from a request and no round is open. It reuses the B4 approval rows of the
+  origin request (`is_reapproval` true, all approvers, `require_all` false) with a new `ai_estimates` row (not linked to the project until approved): logged hours per person + remaining hours on the lead,
+  rates today, other real costs as external costs, due = max(projected, current). The request keeps its status; nothing is blocked. `ApprovalRounds::awaiting()` (pending approval or open re-approval) now drives
+  `approveProject`, the approvals list, `decisionFor` and the Telegram handler. `RecordApprovalDecision` hands re-approvals to `DecideReapproval`: approve → estimate linked to the project, project due date and
+  `approved_at` updated, alerts reset; reject → old estimate kept, comment in the feed. Both clear `reapproval_requested_at`. Approvers get `AiProjectReapprovalRequested` (event `ai.project.reapproval`, same
+  ✅/❌ buttons).
+- `Admin/Costs/Index` (`admin.costs.*`): page for `ai.costs.view`, `ai.manage` or `admin.access` (403 otherwise); `rates`/`area_values` null without `ai.costs.view`. Rate rows = IT team + anyone with a rate;
+  current = latest in force today, history = the other rows newest first with `changed_by`; people without a rate come with `rate: 0`. `admin.costs.rates.update` (`ai.costs.manage`) creates a row from its date
+  (same date replaces). Area values = active areas in the company context (company name, area name). Approvers (`ai.manage`): add/remove the role "Aprobador de proyectos" with activity log
+  `approver_added|approver_removed`; candidates = active `ai.manage`/`ai.costs.view` holders who do not approve; the last approver cannot be removed. Settings (`ai.manage`): `require_other_approver` →
+  `ai.approval.require_other_if_evaluator`, `reapproval_threshold_percent` 1–100 → `ai.reapproval_threshold`.
+- Notification catalog: new `ai.requirement.requested` (requested + reminders), `ai.requirement.answered`, `ai.task.unblocked`, `ai.project.budget`, `ai.project.reapproval`, `ai.hours.reminder`; the B5
+  notices moved off `ai.request.status_changed`/`alert.info`.
+- Placeholders kept (TEMPORARY): `ai.projects.docs`, `ai.reviews.store`, vault/products/docs/value tabs.
+
+Notes for design:
+- `RateRow.rate` is a required number: IT people without a rate come with `0` (so "Cambiar tarifa" can set the first one); consider `number | null`.
+- No buttons yet for editing/deleting time entries or costs (`ai.time-entries.update|destroy`, `ai.costs.update|destroy`); `ProjectCost.detail` is always null for costs by hand (no field in `CostPayload`).
+- Approvers without `ai.manage` have no project page, so `AiBudgetAlert` carries no link; the re-approval notice links the approval.
+- The "Exportar" file is CSV (Excel opens it), not .xlsx.
+- `lib/timer.ts` has no rounding rule for stored hours: the server rounds to the minute (as `formatHours` shows) and caps a run at 16 h.
+
+Open (pending from Jhon): USD → COP rate for AI spend (`ai.usd_cop_rate`, 4000 placeholder); whether a monthly cost should count once (as the page adds it) or per elapsed month.
+
 ## Next step
-B6 · Time and costs: timer (`ai.timer.start|stop`, one running per person, `RunningTimer` on Board/Mi semana, `TaskTimer`), manual entries (`Ai/TimeEntries/Create`, `ai.time-entries.store`), Telegram `/horas`,
-`Ai/Projects/Costs` (+ export, `ai.costs.store`, project costs, AI spend), `Admin/Costs/Index`, pace/`projected_due_date`, budget alerts 80/100 %, re-approval (`ai.projects.reapproval.store`), Friday reminder.
+B7 · Documentation (markdown + revisions + templates + search, `ai-knowledge.ts`), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard (`Ai/Value/Index`, ROI with area hour values and project costs).
