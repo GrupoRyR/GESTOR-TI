@@ -101,7 +101,7 @@ Every Gestor TI email uses the approved templates:
 
 ### F3 · Close — done
 - Deploy: `docs/deploy-cpanel.md` §4 mail line (send-as permission per company mailbox, PNG logos in `public/brand/`, `colors.button`, `mail.reply_by_email`).
-- Slices (stacked on `stage-e/05-personal-tokens`): 01-mail-foundation (F0 merge of `main` with design #35/#36, doc, `07b046e`), 02-project-mails (`12cab97` + close).
+- PRs GrupoRyR/GESTOR-TI#42–#43. Slices (stacked on `stage-e/05-personal-tokens`): 01-mail-foundation (F0 merge of `main` with design #35/#36, doc, `07b046e`), 02-project-mails (`12cab97` + close).
 
 ## Open questions (for Jhon)
 - PNG logos per company (light and dark) for email; send-as permission of the sending account on both mailboxes.
