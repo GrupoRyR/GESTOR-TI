@@ -31,6 +31,13 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `buscar_solicitudes`, `ver_solicitud` (with docs and criteria), `crear_tarea`, `actualizar_tarea`, `agregar_nota_avance`, `adjuntar_documento`.
   - Company scope, policies, audit and whitelist leak tests.
   - Route: delegated.
+- [ ] E2b · Security review fixes (independent read-only review of `fc9fc3b`: no blocker/high):
+  - medium: require PKCE `S256` (league accepts `plain` and defaults to it when the method is missing);
+  - low: show the redirect host on the consent screen;
+  - low: prune DCR clients that never received a token;
+  - low: `mcp:revoke` command and consent wording matching it;
+  - follow-up from E2: the task controller uses `CreateTask`/`UpdateTask`/`AddProgressNote` (one copy of the rules).
+  - Route: delegated.
 - [ ] E3 · Close: deploy doc (Passport keys, WAF/ModSecurity for `/.well-known` and `/oauth/*`, adding the connector in claude.ai and Claude Code, hosting test checklist), full checks, PRs.
 
 ## Progress / evidence
@@ -84,7 +91,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
 - Design notes: `resources/views/mcp/{layout,authorize,forbidden}.blade.php` are minimal, accessible, Spanish, inline CSS with light and dark themes, no Vite. They sit outside the design-owned folders and are flagged for design (RYR branding).
 - Size: about 1,000 authored lines (about 600 of them tests) plus published vendor config and migrations, over the ~400 heuristic. OAuth flow coverage needed the full flow helper and the data-provider cases.
 
-### E2 · Tools — done
+### E2 · Tools — done (`8ab68f8`)
 - Route: delegated direct (writer trigger: 2+ non-trivial files). Only `GestorIaServer` registration touched E1 code; OAuth files untouched.
 - Tools (Spanish names, inputs and answers; JSON text responses; errors are tool errors `isError: true` in Spanish, never JSON-RPC errors or 500s):
   - `quien_soy`: kept.
