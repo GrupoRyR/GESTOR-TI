@@ -50,7 +50,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
   - `KnowledgeTypeIcon`, `VisibilityBadge` and an import stepper.
   - Pure helpers written test-first: import column auto-mapping, review-date status, and chat message grouping/time labels.
 - [x] T2 Chat pages (C1–C3): `Assistant/Chat` (phone and desktop) with variants for conversation, no answer, person picker, credential, vault link, first open, unavailable, off (admin and other users), no permission, refused and searching. Route: delegated.
-- [ ] T3 Knowledge base (C4): `Assistant/Knowledge/Index` (+ phone and overdue filter), `Show`, `Create` and `Edit` (form by type with visibility and review date), plus the types reference. Route: delegated.
+- [x] T3 Knowledge base (C4): `Assistant/Knowledge/Index` (+ phone and overdue filter), `Show`, `Create` and `Edit` (form by type with visibility and review date), plus the types reference. Route: delegated.
 - [ ] T4 Import, drafts and unanswered questions (C5–C7): `Assistant/Import/Create` (upload), `Assistant/Import/Mapping`, `Assistant/Import/Preview`, `Assistant/Drafts/Index` (+ phone approval) and `Assistant/Unanswered/Index`. Route: delegated.
 - [ ] T5 Pending Stage B forms and the Telegram spec. Route: delegated.
   - `Ai/Products/Create` and `Ai/Products/Edit`.
@@ -77,6 +77,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
 - 2026-10-09: branch created from the Stage B head (`b658f2d`, 300 tests); document created.
 - T1 `e3f3567` foundations: types, fixtures, AssistantLayout (+ AppLayout phoneHeader/fullHeight), chat components, credential card, helpers test-first (knowledge, importMapping, chat) — 334 tests. Delegated writer; parent re-ran typecheck + tests.
 - T2 `7f17be9` Assistant/Chat (12 variants; routes added: assistant.messages.retry, assistant.credentials.copied — to confirm), fixes ChatLog relative + tablet rail overflow-x — 339 tests. Delegated writer checked 390/834/1440 light/dark with Playwright; parent re-ran typecheck + tests.
+- T3 `264afc4` Knowledge Index/Show/Create/Edit (15 variants, types help drawer, steps editor, related picker; helpers knowledgeQuery + knowledgeFields test-first) — 357 tests. Delegated writer checked most variants with Playwright; glossary/data_flow shows not visually checked. Parent re-ran typecheck + tests.
 
 ## Next step
-T3 knowledge base.
+T4 import, drafts and unanswered.
