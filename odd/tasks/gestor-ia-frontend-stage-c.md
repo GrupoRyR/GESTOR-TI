@@ -43,7 +43,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
 `stacked-to-main` chain. Branch `claude/diseno-gestor-ia-etapa-c` is stacked on Stage B (`claude/diseno-gestor-ia-etapa-b`, PR #10, which is stacked on #8). There is one PR for Stage C with base = the Stage B branch; retarget it once the lower PRs merge. Slices are per-task work-unit commits.
 
 ## Tasks
-- [ ] T1 Foundations. Route: delegated (2+ non-trivial files).
+- [x] T1 Foundations. Route: delegated (2+ non-trivial files).
   - Domain types `types/assistant.ts` and mocks `mocks/assistant-fixtures.ts`.
   - `AssistantLayout`: AppLayout plus the Assistant tabs (Chat · Base de conocimiento · Importar desde Excel · Borradores de /aprender · Preguntas sin respuesta); the management tabs need `assistant.knowledge.manage`.
   - Chat components: message thread, assistant and user messages, sources list, suggestion chips, composer, typing indicator, person picker, credential card with a 30 s countdown and copy, vault link card.
@@ -75,6 +75,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
 
 ## Progress
 - 2026-10-09: branch created from the Stage B head (`b658f2d`, 300 tests); document created.
+- T1 `e3f3567` foundations: types, fixtures, AssistantLayout (+ AppLayout phoneHeader/fullHeight), chat components, credential card, helpers test-first (knowledge, importMapping, chat) — 334 tests. Delegated writer; parent re-ran typecheck + tests.
 
 ## Next step
-T1 foundations.
+T2 chat pages.
