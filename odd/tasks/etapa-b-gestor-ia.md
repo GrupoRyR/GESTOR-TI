@@ -454,4 +454,5 @@ Notes for design:
 - Outside the Gestor: `employees.create` (Stage A notice) and `assistant.index` (Stage C).
 
 ## Next step
-Push slice `stage-b/01-gestor-ia` and open the PR; then Stage C (Asistente TI).
+Stacked PRs opened 2026-10-09 on GrupoRyR/GESTOR-TI (one per task, on top of #9): #12 `stage-b/01-requests-products` → #13 `02-requester-pages` → #14 `03-triage-approvals` → #15 `04-design-merge` → #16 `05-projects` → #17 `06-time-costs` → #18 `07-knowledge` → #19 `08-value-vault`.
+Then Stage C (Asistente TI): design PR #11 (`claude/diseno-gestor-ia-etapa-c`) also brings the pending Stage B forms (product create/edit, incident, vault item edit).
