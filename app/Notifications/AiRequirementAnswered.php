@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 /**
  * To the IT person who asked: the requirement was answered. Informative
- * event `alert.info` (bell).
+ * event `ai.requirement.answered` (bell by default).
  */
 class AiRequirementAnswered extends GestorNotification
 {
@@ -26,7 +26,7 @@ class AiRequirementAnswered extends GestorNotification
 
     public function eventType(): string
     {
-        return 'alert.info';
+        return 'ai.requirement.answered';
     }
 
     public function title(): string

@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Route;
 /**
  * IT needs something from the person (PROMPT 6.4.3): sent when a
  * requirement is created for them or passed to them by a coworker. Uses
- * the requester event `ai.request.status_changed` (mail + bell by default)
- * until the catalog gets its own entry. No costs, no task names.
+ * the event `ai.requirement.requested` (mail, Telegram and bell by default).
+ * No costs, no task names.
  */
 class AiRequirementRequested extends GestorNotification
 {
@@ -36,7 +36,7 @@ class AiRequirementRequested extends GestorNotification
 
     public function eventType(): string
     {
-        return 'ai.request.status_changed';
+        return 'ai.requirement.requested';
     }
 
     public function title(): string

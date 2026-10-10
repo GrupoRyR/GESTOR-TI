@@ -7,6 +7,7 @@ use App\Services\Telegram\TelegramClient;
 use App\Support\Audit\AuditOrigin;
 use App\Support\Integrations\IntegrationsOverview;
 use App\Support\Settings;
+use App\Telegram\Commands\HoursCommand;
 use App\Telegram\Handlers\ApprovalCallbackHandler;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Log;
  *
  * - `/start {token}` links the private chat to the user that generated the
  *   token (single use, 30 min).
+ * - `/horas GIA-123 2 conexión con SAP`: logs hours (App\Telegram\Commands\HoursCommand).
  * - `/start` without token and any other command or text: help message,
  *   except the reason of a ❌ Rechazar pressed just before (and `/cancelar`),
  *   which ApprovalCallbackHandler takes.
@@ -110,6 +112,12 @@ class UpdateHandler implements ShouldQueue
 
         // The reason of a ❌ Rechazar pressed just before (or /cancelar).
         if (($command === null || $command === ApprovalCallbackHandler::CANCEL_COMMAND) && $this->handlePendingReason((string) $chatId, $text)) {
+            return;
+        }
+
+        if ($command === HoursCommand::COMMAND) {
+            $client->sendMessage($chatId, app(HoursCommand::class)->handle((string) $chatId, $argument));
+
             return;
         }
 

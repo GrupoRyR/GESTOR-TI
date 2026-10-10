@@ -12,7 +12,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
 /**
  * Internal cost per hour of a person (COP), in force from `effective_from`
  * (PROMPT 6.4.11). Read through App\Domain\Ai\CostRates; only holders of
- * `ai.costs.view` ever receive a rate. Administration arrives in B6.
+ * `ai.costs.view` ever receive a rate. Managed in Administración › Costos
+ * y aprobaciones (App\Http\Controllers\Admin\CostController).
  *
  * @property int $id
  * @property int $user_id
@@ -42,6 +43,14 @@ class AiCostRate extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function changedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'changed_by_id');
     }
 
     public function getActivitylogOptions(): LogOptions

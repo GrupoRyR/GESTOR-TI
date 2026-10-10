@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Domain\Ai\ApprovalRounds;
 use App\Enums\Ai\AreaApprovalStatus;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiRequest;
@@ -32,7 +33,8 @@ use App\Support\Tenancy\CurrentCompany;
  * - approveArea: the area approver of the request's area (with
  *   `ai.requests.approve_area`) while the area step is pending.
  * - approveProject: `ai.projects.approve` (only the "Aprobador de proyectos"
- *   role; Súper Admin does not inherit it) while pending approval; when
+ *   role; Súper Admin does not inherit it) while pending approval or while
+ *   a project re-approval is open (ApprovalRounds::awaiting); when
  *   Settings `ai.approval.require_other_if_evaluator` is on, not the person
  *   who evaluated it.
  * - validate: the requester while "En pruebas".
@@ -132,7 +134,7 @@ class AiRequestPolicy
 
     public function approveProject(User $user, AiRequest $request): bool
     {
-        if ($request->status !== RequestStatus::PendingApproval || ! $user->can('ai.projects.approve')) {
+        if (! $user->can('ai.projects.approve') || ! ApprovalRounds::awaiting($request)) {
             return false;
         }
 

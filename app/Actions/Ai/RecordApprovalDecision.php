@@ -29,12 +29,17 @@ use InvalidArgumentException;
  *   when the request was sent with `require_all`; rejected → "Rechazada".
  *   The estimate snapshot of the pending row stays with the decision.
  *   Reaching "Aprobada" dispatches App\Events\RequestApproved (B5 hook).
+ *   A project re-approval (`is_reapproval` while the request is past
+ *   approval) goes to App\Actions\Ai\DecideReapproval instead.
  *
  * Each approver decides once.
  */
 class RecordApprovalDecision
 {
-    public function __construct(private readonly TransitionRequest $transition) {}
+    public function __construct(
+        private readonly TransitionRequest $transition,
+        private readonly DecideReapproval $reapprovals,
+    ) {}
 
     public function handle(
         AiRequest $request,
@@ -125,6 +130,13 @@ class RecordApprovalDecision
 
     private function afterProjectDecision(AiRequest $request, User $approver, AiRequestApproval $approval, ApprovalDecision $decision, ?string $comment): void
     {
+        // A project re-approval (B6) never moves the request: the project decides.
+        if ($approval->is_reapproval && $request->status !== RequestStatus::PendingApproval) {
+            $this->reapprovals->handle($request, $approver, $approval, $decision, $comment);
+
+            return;
+        }
+
         if ($decision === ApprovalDecision::Rejected) {
             $this->transition->apply($request, RequestStatus::Rejected, $approver, $comment, RejectReason::Other);
 

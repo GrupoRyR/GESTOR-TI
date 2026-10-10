@@ -4,26 +4,31 @@ namespace App\Http\Controllers\AI;
 
 use App\Domain\Ai\Week;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Support\Ai\Presenters\TimerPresenter;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
  * "Mi semana" (`Ai/Week/Index`, WeekIndexProps). Items come from
- * App\Domain\Ai\Week (requests, tasks and requirements since B5). The
- * running timer arrives with the timer (B6); the weekly review
- * (`ai.reviews.store`) has no storage yet, so both are null for now.
+ * App\Domain\Ai\Week (requests, tasks and requirements since B5);
+ * `running_timer` is the viewer's running timer (B6). The weekly review
+ * (`ai.reviews.store`) has no storage yet, so `review` is null.
  */
 class WeekController extends Controller
 {
-    public function __invoke(Week $week): Response
+    public function __invoke(Request $http, Week $week): Response
     {
+        /** @var User $user */
+        $user = $http->user();
+
         return Inertia::render('Ai/Week/Index', [
             'today' => Week::today()->toDateString(),
             'now' => now()->toIso8601String(),
             'week_ends_on' => Week::endsOn()->toDateString(),
             'items' => $week->items(),
-            // TODO B6: the viewer's running timer.
-            'running_timer' => null,
+            'running_timer' => TimerPresenter::running(TimerPresenter::forUser($user)),
             // TODO: weekly review agenda ("Revisión semanal con Leonardo"), not designed as storage yet.
             'review' => null,
         ]);

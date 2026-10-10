@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CostController;
 use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
@@ -13,8 +14,10 @@ use App\Http\Controllers\AI\BacklogController;
 use App\Http\Controllers\AI\BoardController;
 use App\Http\Controllers\AI\InboxController;
 use App\Http\Controllers\AI\ProjectController;
+use App\Http\Controllers\AI\ProjectCostController;
 use App\Http\Controllers\AI\ProjectReportController;
 use App\Http\Controllers\AI\RatingController;
+use App\Http\Controllers\AI\ReapprovalController;
 use App\Http\Controllers\AI\RequestController;
 use App\Http\Controllers\AI\RequestInteractionController;
 use App\Http\Controllers\AI\RequestWizardController;
@@ -22,6 +25,8 @@ use App\Http\Controllers\AI\RequirementController;
 use App\Http\Controllers\AI\RoadmapController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
 use App\Http\Controllers\AI\TaskController;
+use App\Http\Controllers\AI\TimeEntryController;
+use App\Http\Controllers\AI\TimerController;
 use App\Http\Controllers\AI\TriageController;
 use App\Http\Controllers\AI\WeekController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
@@ -208,19 +213,42 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
     Route::post('/requirements/{requirement}/answer', [RequirementController::class, 'answer'])->name('requirements.answer');
     Route::post('/requirements/{requirement}/reassign', [RequirementController::class, 'reassign'])->name('requirements.reassign');
 
+    // Time and costs (B6). Timer and hours: whoever may log hours on the
+    // project (AiProjectPolicy::logTime: IT, team, assignees); entries are
+    // edited by their owner or IT (editTime). Costs page and export:
+    // `ai.manage` + view (money with `ai.costs.view`); costs by hand:
+    // `ai.costs.manage` (manageCosts). Re-approval: `ai.manage` + manage.
+    Route::scopeBindings()->group(function () {
+        Route::post('/projects/{project}/tasks/{task}/timer', [TimerController::class, 'start'])->name('timer.start');
+    });
+    Route::post('/timer/stop', [TimerController::class, 'stop'])->name('timer.stop');
+    Route::get('/time-entries/create', [TimeEntryController::class, 'create'])->name('time-entries.create');
+    Route::post('/projects/{project}/time-entries', [TimeEntryController::class, 'store'])->name('time-entries.store');
+    // Not in the design contract: edit/delete an entry.
+    Route::put('/projects/{project}/time-entries/{entry}', [TimeEntryController::class, 'update'])->whereNumber('entry')->name('time-entries.update');
+    Route::delete('/projects/{project}/time-entries/{entry}', [TimeEntryController::class, 'destroy'])->whereNumber('entry')->name('time-entries.destroy');
+
+    Route::middleware('can:ai.manage')->group(function () {
+        Route::get('/projects/{project}/costs', [ProjectCostController::class, 'index'])->name('projects.costs');
+        Route::get('/projects/{project}/costs/export', [ProjectCostController::class, 'export'])->name('projects.costs.export');
+        Route::post('/projects/{project}/reapproval', [ReapprovalController::class, 'store'])->name('projects.reapproval.store');
+    });
+    Route::middleware('can:ai.costs.manage')->group(function () {
+        Route::post('/projects/{project}/costs', [ProjectCostController::class, 'store'])->name('costs.store');
+        // Not in the design contract: edit/delete a cost.
+        Route::put('/projects/{project}/costs/{cost}', [ProjectCostController::class, 'update'])->whereNumber('cost')->name('costs.update');
+        Route::delete('/projects/{project}/costs/{cost}', [ProjectCostController::class, 'destroy'])->whereNumber('cost')->name('costs.destroy');
+    });
+    // Signed links only (ProjectCost.attachment.url, 30 minutes), then authorized again.
+    Route::get('/projects/{project}/costs/{cost}/attachment', [ProjectCostController::class, 'attachment'])
+        ->whereNumber('cost')
+        ->middleware('signed')
+        ->name('costs.attachment');
+
     // TEMPORARY (Stage B): routes the pages and the GestorLayout tabs
-    // already call, implemented by later tasks (timer, time entries, costs
-    // and re-approval B6, docs/value B7, vault B8, products B9; the weekly
-    // review has no design for its storage yet). Pages redirect to Inicio
-    // and actions go back, both with a notice.
-    Route::post('/projects/{project}/tasks/{task}/timer', StageBPlaceholderController::class)->name('timer.start');
-    Route::post('/timer/stop', StageBPlaceholderController::class)->name('timer.stop');
-    Route::get('/projects/{project}/costs', StageBPlaceholderController::class)->name('projects.costs');
-    Route::get('/projects/{project}/costs/export', StageBPlaceholderController::class)->name('projects.costs.export');
-    Route::post('/projects/{project}/costs', StageBPlaceholderController::class)->name('costs.store');
-    Route::get('/time-entries/create', StageBPlaceholderController::class)->name('time-entries.create');
-    Route::post('/projects/{project}/time-entries', StageBPlaceholderController::class)->name('time-entries.store');
-    Route::post('/projects/{project}/reapproval', StageBPlaceholderController::class)->name('projects.reapproval.store');
+    // already call, implemented by later tasks (docs/value B7, vault B8,
+    // products B9; the weekly review has no design for its storage yet).
+    // Pages redirect to Inicio and actions go back, both with a notice.
     Route::get('/projects/{project}/docs', StageBPlaceholderController::class)->name('projects.docs');
     Route::post('/reviews', StageBPlaceholderController::class)->name('reviews.store');
     Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
@@ -318,6 +346,23 @@ Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->gr
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
         Route::put('/roles', [RoleController::class, 'update'])->name('roles.update');
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+    });
+
+    // Costos y aprobaciones (`Admin/Costs/Index`, Gestor IA): the page for
+    // `ai.costs.view`, `ai.manage` or `admin.access` (money only with
+    // `ai.costs.view`, checked by the controller); rates and area hour
+    // values `ai.costs.manage`; approvers and settings `ai.manage`.
+    Route::prefix('costs')->name('costs.')->group(function () {
+        Route::get('/', [CostController::class, 'index'])->name('index');
+        Route::middleware('can:ai.costs.manage')->group(function () {
+            Route::put('/rates/{user}', [CostController::class, 'updateRate'])->whereNumber('user')->name('rates.update');
+            Route::put('/area-values', [CostController::class, 'updateAreaValues'])->name('area-values.update');
+        });
+        Route::middleware('can:ai.manage')->group(function () {
+            Route::post('/approvers', [CostController::class, 'storeApprover'])->name('approvers.store');
+            Route::delete('/approvers/{user}', [CostController::class, 'destroyApprover'])->whereNumber('user')->name('approvers.destroy');
+            Route::put('/settings', [CostController::class, 'updateSettings'])->name('settings.update');
+        });
     });
 
     // Auditoría (`Admin/Audit/Index`) and its CSV export: restricted users

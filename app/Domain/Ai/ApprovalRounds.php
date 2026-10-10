@@ -56,6 +56,31 @@ final class ApprovalRounds
     }
 
     /**
+     * A project re-approval (B6, App\Actions\Ai\RequestReapproval) is open:
+     * the current round was asked again for a project already running
+     * (`is_reapproval`) and nobody decided it yet. The request keeps its
+     * status ("En desarrollo"…) meanwhile.
+     */
+    public static function reapprovalPending(AiRequest $request): bool
+    {
+        $round = self::current($request);
+
+        return $request->status !== RequestStatus::PendingApproval
+            && $round->isNotEmpty()
+            && $round->every(fn (AiRequestApproval $row) => $row->is_reapproval)
+            && self::decided($round) === null;
+    }
+
+    /**
+     * The request waits for a project approval decision: "Pendiente de
+     * aprobación", or an open project re-approval.
+     */
+    public static function awaiting(AiRequest $request): bool
+    {
+        return $request->status === RequestStatus::PendingApproval || self::reapprovalPending($request);
+    }
+
+    /**
      * Requests waiting for the viewer's decision (company scope applies),
      * newest request for approval first.
      *
@@ -68,7 +93,12 @@ final class ApprovalRounds
         }
 
         return AiRequest::query()
-            ->where('status', RequestStatus::PendingApproval->value)
+            ->where(fn ($query) => $query
+                ->where('status', RequestStatus::PendingApproval->value)
+                ->orWhereHas('approvals', fn ($approvals) => $approvals
+                    ->where('kind', ApprovalKind::Project->value)
+                    ->where('decision', ApprovalDecision::Pending->value)
+                    ->where('is_reapproval', true)))
             ->with(['approvals', 'requester.employee', 'area', 'product'])
             ->get()
             ->filter(fn (AiRequest $request) => Gate::forUser($viewer)->allows('approveProject', $request)
@@ -85,7 +115,7 @@ final class ApprovalRounds
     {
         $round = self::current($request);
         $mine = $round->first(fn (AiRequestApproval $row) => (int) $row->user_id === $viewer->id && $row->decision !== ApprovalDecision::Pending);
-        $row = $mine ?? ($request->status !== RequestStatus::PendingApproval ? self::decided($round) : null);
+        $row = $mine ?? (! self::awaiting($request) ? self::decided($round) : null);
 
         if ($row === null || $row->decision === ApprovalDecision::Pending) {
             return null;

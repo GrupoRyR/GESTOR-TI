@@ -3,6 +3,7 @@
 namespace App\Telegram\Handlers;
 
 use App\Actions\Ai\RecordApprovalDecision;
+use App\Domain\Ai\ApprovalRounds;
 use App\Enums\Ai\ApprovalChannel;
 use App\Enums\Ai\ApprovalDecision;
 use App\Enums\Ai\ApprovalKind;
@@ -201,7 +202,8 @@ class ApprovalCallbackHandler implements CallbackHandler
     private function stillPending(AiRequestApproval $approval): bool
     {
         return $approval->decision === ApprovalDecision::Pending
-            && $approval->request?->status === RequestStatus::PendingApproval;
+            && $approval->request !== null
+            && ApprovalRounds::awaiting($approval->request);
     }
 
     /**
@@ -231,7 +233,7 @@ class ApprovalCallbackHandler implements CallbackHandler
             $approval->decision === ApprovalDecision::Approved => '✅ Ya la aprobaste.',
             $approval->decision === ApprovalDecision::Rejected => '❌ Ya la rechazaste.',
             $request?->status === RequestStatus::Rejected => '❌ Ya fue rechazada.',
-            $request?->status === RequestStatus::PendingApproval => 'Sigue pendiente.',
+            $request !== null && ApprovalRounds::awaiting($request) => 'Sigue pendiente.',
             default => '✅ Ya fue aprobada.',
         };
     }

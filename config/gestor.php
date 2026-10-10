@@ -68,6 +68,11 @@ return [
         'ai.requirements.reminder_every_days' => 2,
         'ai.reapproval_threshold' => 0.2,
 
+        // Time and costs (B6): COP per USD used to show the AI spend of
+        // `ai_interactions` (USD) among the project costs (COP). Pending
+        // from Jhon: the rate to use (no live exchange rate is fetched).
+        'ai.usd_cop_rate' => 4000,
+
         // AI spend: monthly cap in USD (0 = not configured yet; pending
         // from Jhon) and warning threshold in percent of the cap.
         'ai.monthly_cost_cap_usd' => 0.0,

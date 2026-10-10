@@ -44,6 +44,12 @@ Schedule::command('ai:project-reports')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
+// Friday reminder to IT and project people who logged no hours this week.
+Schedule::command('ai:hours-reminder')
+    ->weeklyOn(5, '15:00')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

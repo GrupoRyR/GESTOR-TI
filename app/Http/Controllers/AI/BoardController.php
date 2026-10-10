@@ -10,10 +10,12 @@ use App\Models\AiProject;
 use App\Models\AiProjectColumn;
 use App\Models\AiTask;
 use App\Models\AiTaskAttachment;
+use App\Models\AiTimer;
 use App\Models\User;
 use App\Support\Ai\Presenters\ProjectPresenter;
 use App\Support\Ai\Presenters\RequestPresenter;
 use App\Support\Ai\Presenters\TaskPresenter;
+use App\Support\Ai\Presenters\TimerPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -33,7 +35,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * - `ai.tasks.attachments.show`: signed link of a task file, authorized
  *   again (view).
  *
- * `running_timer` and task timers stay null until B6 (timer).
+ * `running_timer` and `Task.timer` are the viewer's own running timer.
  */
 class BoardController extends Controller
 {
@@ -45,6 +47,7 @@ class BoardController extends Controller
     public function board(Request $http, AiProject $project): Response
     {
         Gate::authorize('view', $project);
+        $timer = TimerPresenter::forUser($this->user($http));
 
         $filters = [
             'assignee_id' => is_numeric($http->query('assignee_id')) ? (int) $http->query('assignee_id') : null,
@@ -71,16 +74,15 @@ class BoardController extends Controller
 
         return Inertia::render('Ai/Projects/Board', [
             'project' => $this->projects->header($project),
-            'tasks' => $tasks->map(fn (AiTask $task) => TaskPresenter::task($task, $project))->all(),
+            'tasks' => $tasks->map(fn (AiTask $task) => TaskPresenter::task($task, $project, $timer))->all(),
             'total_tasks' => $all->count(),
             'blocked_total' => $all->filter(fn (AiTask $task) => $task->blockingRequirements->isNotEmpty())->count(),
             'column_limits' => (object) $limits,
             'filters' => $filters,
             'people' => $this->people->for($project)->map(fn (User $user) => RequestPresenter::person($user))->values()->all(),
             'labels' => array_values($labels),
-            'selected_task' => fn () => $this->selected($http, $project),
-            // TODO B6: the viewer's running timer.
-            'running_timer' => null,
+            'selected_task' => fn () => $this->selected($http, $project, $timer),
+            'running_timer' => TimerPresenter::running($timer),
             'now' => now()->toIso8601String(),
         ]);
     }
@@ -92,7 +94,7 @@ class BoardController extends Controller
 
         return Inertia::render('Ai/Tasks/Show', [
             'project' => ['key' => $project->key, 'name' => $project->name, 'company_id' => (int) $project->company_id],
-            'task' => TaskPresenter::detail($task, $project),
+            'task' => TaskPresenter::detail($task, $project, TimerPresenter::forUser($user)),
             'today_project_hours' => RequestPresenter::number(round((float) $project->timeEntries()
                 ->where('user_id', $user->id)
                 ->whereDate('date', Week::today()->toDateString())
@@ -111,7 +113,7 @@ class BoardController extends Controller
     /**
      * @return array<string, mixed>|null
      */
-    private function selected(Request $http, AiProject $project): ?array
+    private function selected(Request $http, AiProject $project, ?AiTimer $timer): ?array
     {
         $key = $http->query('tarea');
 
@@ -121,7 +123,7 @@ class BoardController extends Controller
 
         $task = $project->tasks()->where('key', $key)->first();
 
-        return $task === null ? null : TaskPresenter::detail($task, $project);
+        return $task === null ? null : TaskPresenter::detail($task, $project, $timer);
     }
 
     private function user(Request $http): User

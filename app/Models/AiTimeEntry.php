@@ -9,8 +9,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Hours a person logged on a project (PROMPT 6.4.11, design `TimeEntry`),
- * `origin` timer|manual|telegram. B5 only reads them (spent hours); the
- * timer, the manual form and Telegram `/horas` arrive in B6.
+ * `origin` timer|manual|telegram, written by App\Actions\Ai\LogTime (the
+ * timer, the "Agregar horas" form and Telegram `/horas`).
  *
  * @property int $id
  * @property int $user_id

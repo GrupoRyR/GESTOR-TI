@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\AiProject;
+use App\Models\AiTimeEntry;
 use App\Models\User;
 use App\Support\Tenancy\CurrentCompany;
 
@@ -57,5 +58,43 @@ class AiProjectPolicy
     public function viewCosts(User $user): bool
     {
         return $user->can('ai.costs.view');
+    }
+
+    /**
+     * Log hours (timer, "Agregar horas", Telegram `/horas`): IT with access
+     * to the company, the team (lead and members) and task assignees.
+     */
+    public function logTime(User $user, AiProject $project): bool
+    {
+        return $this->manage($user, $project) || $this->worksOn($user, $project);
+    }
+
+    /**
+     * Edit or delete a time entry: its owner while still on the project,
+     * or IT (manage).
+     */
+    public function editTime(User $user, AiProject $project, AiTimeEntry $entry): bool
+    {
+        if ((int) $entry->ai_project_id !== $project->id) {
+            return false;
+        }
+
+        return $this->manage($user, $project)
+            || ((int) $entry->user_id === $user->id && $this->worksOn($user, $project));
+    }
+
+    /**
+     * Costs entered by hand: IT with `ai.costs.manage`.
+     */
+    public function manageCosts(User $user, AiProject $project): bool
+    {
+        return $this->manage($user, $project) && $user->can('ai.costs.manage');
+    }
+
+    private function worksOn(User $user, AiProject $project): bool
+    {
+        return (int) $project->lead_id === $user->id
+            || $project->members()->where('user_id', $user->id)->exists()
+            || $project->tasks()->whereHas('assignees', fn ($query) => $query->whereKey($user->id))->exists();
     }
 }

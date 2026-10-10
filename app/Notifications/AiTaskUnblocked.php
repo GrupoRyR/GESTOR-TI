@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 /**
  * To the people assigned to a task when the requirement that blocked it
  * is answered (PROMPT 6.4.3 "bloqueos visibles… y avisa"). Informative
- * event `alert.info` (bell) until the catalog gets a project entry.
+ * event `ai.task.unblocked` (Telegram and bell by default).
  */
 class AiTaskUnblocked extends GestorNotification
 {
@@ -29,7 +29,7 @@ class AiTaskUnblocked extends GestorNotification
 
     public function eventType(): string
     {
-        return 'alert.info';
+        return 'ai.task.unblocked';
     }
 
     public function title(): string

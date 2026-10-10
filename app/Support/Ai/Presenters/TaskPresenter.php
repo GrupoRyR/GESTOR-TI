@@ -10,12 +10,14 @@ use App\Models\AiTask;
 use App\Models\AiTaskAttachment;
 use App\Models\AiTaskComment;
 use App\Models\AiTimeEntry;
+use App\Models\AiTimer;
 use App\Models\User;
 use Illuminate\Support\Facades\URL;
 
 /**
  * Board shapes of resources/js/types/ai.ts: `Task` and `TaskDetail`.
- * Hours only, never money. `timer` stays null until B6 (timer);
+ * Hours only, never money. `timer` is the viewer's own running timer on
+ * the task (TimerPresenter), else null;
  * `github` stays null until Stage D fills the issue/PR columns.
  * Task criteria are not linked yet (empty list).
  */
@@ -30,7 +32,7 @@ final class TaskPresenter
     /**
      * @return array<string, mixed>
      */
-    public static function task(AiTask $task, AiProject $project): array
+    public static function task(AiTask $task, AiProject $project, ?AiTimer $viewerTimer = null): array
     {
         $task->loadMissing(self::RELATIONS);
         $blocking = $task->blockingRequirements->first();
@@ -49,7 +51,7 @@ final class TaskPresenter
                 ? ['id' => $blocking->id, 'title' => $blocking->title, 'area_name' => $blocking->area_name]
                 : null,
             'github' => self::github($task),
-            'timer' => null,
+            'timer' => TimerPresenter::task($task, $viewerTimer),
             'position' => $task->position,
         ];
     }
@@ -57,12 +59,12 @@ final class TaskPresenter
     /**
      * @return array<string, mixed>
      */
-    public static function detail(AiTask $task, AiProject $project): array
+    public static function detail(AiTask $task, AiProject $project, ?AiTimer $viewerTimer = null): array
     {
         $task->loadMissing(['comments.author.employee', 'attachments']);
 
         return [
-            ...self::task($task, $project),
+            ...self::task($task, $project, $viewerTimer),
             'description' => (string) $task->description,
             'subtasks' => $task->subtasks->map(fn (AiSubtask $subtask) => [
                 'id' => $subtask->id,

@@ -211,6 +211,38 @@ class AiProject extends Model
     }
 
     /**
+     * Costs entered by hand (licenses, hosting, providers…).
+     *
+     * @return HasMany<AiProjectCost, $this>
+     */
+    public function costs(): HasMany
+    {
+        return $this->hasMany(AiProjectCost::class);
+    }
+
+    /**
+     * Timers running right now on the project.
+     *
+     * @return HasMany<AiTimer, $this>
+     */
+    public function timers(): HasMany
+    {
+        return $this->hasMany(AiTimer::class);
+    }
+
+    /**
+     * The request it came from (oldest link), whose approval rows the
+     * re-approval reuses; null for a project without requests.
+     */
+    public function originRequest(): ?AiRequest
+    {
+        /** @var AiRequest|null $request */
+        $request = $this->requests()->first();
+
+        return $request;
+    }
+
+    /**
      * @return HasOne<AiProjectReport, $this>
      */
     public function report(): HasOne

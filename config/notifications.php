@@ -54,6 +54,38 @@ return [
             'channels' => ['mail', 'telegram', 'database'],
         ],
 
+        // Gestor IA projects (B5/B6).
+        'ai.requirement.requested' => [
+            'label' => 'Requerimientos que TI me pide',
+            'hint' => 'Un dato, un acceso o una validación para un proyecto, y sus recordatorios',
+            'channels' => ['mail', 'telegram', 'database'],
+        ],
+        'ai.requirement.answered' => [
+            'label' => 'Requerimientos respondidos',
+            'hint' => 'Alguien respondió lo que TI pidió para un proyecto',
+            'channels' => ['database'],
+        ],
+        'ai.task.unblocked' => [
+            'label' => 'Tareas desbloqueadas',
+            'hint' => 'Una tarea tuya ya puede seguir porque llegó lo que esperaba',
+            'channels' => ['telegram', 'database'],
+        ],
+        'ai.project.budget' => [
+            'label' => 'Avisos de presupuesto de proyectos',
+            'hint' => 'Un proyecto llegó al 80 % o pasó el 100 % de lo aprobado',
+            'channels' => ['mail', 'telegram', 'database'],
+        ],
+        'ai.project.reapproval' => [
+            'label' => 'Nuevas aprobaciones de proyectos',
+            'hint' => 'Un proyecto pasó lo aprobado y espera que lo apruebes otra vez',
+            'channels' => ['mail', 'telegram', 'database'],
+        ],
+        'ai.hours.reminder' => [
+            'label' => 'Recordatorio de horas',
+            'hint' => 'El viernes, si no cargaste horas en la semana',
+            'channels' => ['telegram', 'database'],
+        ],
+
         // Bóveda (Stage B).
         'vault.accessed' => [
             'label' => 'Acceso a la bóveda de credenciales',

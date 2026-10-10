@@ -34,7 +34,7 @@ class AiRequirementReminder extends GestorNotification
 
     public function eventType(): string
     {
-        return 'ai.request.status_changed';
+        return 'ai.requirement.requested';
     }
 
     public function title(): string
