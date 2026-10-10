@@ -1,8 +1,11 @@
 import { Link, router } from '@inertiajs/react';
-import { useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { BudgetBars, CostsLock, PersonLine, ReapprovalBanner } from '@/Components/ai/projects/ProjectParts';
 import { reapprovalReasons, reapprovalSentence, requirementState } from '@/Components/ai/projects/projects';
 import { columnLabel } from '@/Components/ai/KanbanColumn';
+import { BriefPanel } from '@/Components/brief/BriefPanel';
+import { BriefTrigger } from '@/Components/brief/BriefTrigger';
+import { RepoCreateFooter } from '@/Components/brief/RepoCreateFooter';
 import { RepoLinkDialog } from '@/Components/github/RepoLinkDialog';
 import { Avatar } from '@/Components/ui/Avatar';
 import { Button } from '@/Components/ui/Button';
@@ -10,6 +13,7 @@ import { CompanyMark } from '@/Components/ui/CompanyMark';
 import { Icon, type IconName } from '@/Components/ui/Icon';
 import { cx } from '@/Components/ui/utils';
 import { ProjectLayout } from '@/Layouts/ProjectLayout';
+import { ALL_BRIEF_SECTIONS, briefFileName, buildClaudeMd, buildProjectBrief, claudeMdInputFromProject, omittedNote, type BriefSectionKey } from '@/lib/brief';
 import { can } from '@/lib/can';
 import { formatLongDate, formatRelative, formatShortDate } from '@/lib/format';
 import { route } from '@/lib/route';
@@ -60,7 +64,11 @@ function DateRow({ label, value, tone }: { label: string; value: string; tone?: 
     );
 }
 
-/** B-ProjectSummary: objective, linked request, team and dates, board progress, budget, criteria, requirements, activity. */
+/**
+ * B-ProjectSummary: objective, linked request, team and dates, board progress, budget, criteria, requirements, activity.
+ * Stage D: "Brief para Claude" in the project header (D-BriefProject) with the "CLAUDE.md inicial" tab and, for
+ * `ai.github.manage` without a repository, "Crear repositorio con este CLAUDE.md".
+ */
 export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
     const { project, origin_request, open_requirements, activity, approvers, reapproval_threshold, reapproval_requested_at, next_step, today, auth, companies } = props;
     const now = new Date(props.now);
@@ -69,6 +77,12 @@ export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
     const [requesting, setRequesting] = useState(false);
     const repoLink = can(auth.user, 'ai.github.manage') ? (props.repo_link ?? null) : null;
     const [linkOpen, setLinkOpen] = useState(repoLink?.open ?? false);
+    const brief = props.brief ?? null;
+    const briefState = props.brief_state ?? null;
+    const [briefOpen, setBriefOpen] = useState(brief !== null && briefState?.open === true);
+    const repoCreate = can(auth.user, 'ai.github.manage') && !project.repository ? (props.repo_create ?? null) : null;
+    const buildBrief = useCallback((sections: BriefSectionKey[]) => (brief ? buildProjectBrief(brief, sections) : ''), [brief]);
+    const claudeMarkdown = useMemo(() => (brief ? buildClaudeMd(claudeMdInputFromProject(brief)) : ''), [brief]);
     const { budget } = project;
     const reasons = reapprovalReasons(budget, reapproval_threshold);
     const needsReapproval = reasons.length > 0 || budget.needs_reapproval;
@@ -87,7 +101,13 @@ export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
         router.post(route('ai.projects.reapproval.store', { project: project.key }), {}, { preserveScroll: true, onStart: () => setRequesting(true), onFinish: () => setRequesting(false) });
 
     return (
-        <ProjectLayout shared={props} title={`${project.key} ${project.name} · Gestor IA`} project={project} tab="summary">
+        <ProjectLayout
+            shared={props}
+            title={`${project.key} ${project.name} · Gestor IA`}
+            project={project}
+            tab="summary"
+            projectActions={brief ? <BriefTrigger expanded={briefOpen} onOpen={() => setBriefOpen(true)} /> : null}
+        >
             <div className="flex flex-col gap-4">
                 {needsReapproval ? (
                     <ReapprovalBanner
@@ -389,6 +409,36 @@ export default function ProjectsShow(props: PageProps<ProjectsShowProps>) {
                     onClose={() => setLinkOpen(false)}
                     action={route('ai.projects.repository.store', { project: project.key })}
                     now={props.now}
+                />
+            ) : null}
+            {brief ? (
+                <BriefPanel
+                    open={briefOpen}
+                    onClose={() => setBriefOpen(false)}
+                    subject={`${brief.key} · ${brief.name}${project.repository ? '' : ' · sin repo'}`}
+                    build={buildBrief}
+                    defaultSections={ALL_BRIEF_SECTIONS}
+                    fileName={briefFileName(brief.key)}
+                    showWorkflow
+                    omittedNote={omittedNote(props.brief_omitted)}
+                    initialView={briefState?.view}
+                    initialTab={briefState?.tab}
+                    initiallyCopied={briefState?.copied}
+                    claudeMd={{
+                        markdown: claudeMarkdown,
+                        fileName: 'CLAUDE.md',
+                        renderFooter: repoCreate
+                            ? (copy) => (
+                                  <RepoCreateFooter
+                                      organization={repoCreate.organization}
+                                      defaultName={repoCreate.default_name}
+                                      claudeMd={claudeMarkdown}
+                                      action={route('ai.projects.repository.create', { project: project.key })}
+                                      copy={copy}
+                                  />
+                              )
+                            : undefined,
+                    }}
                 />
             ) : null}
         </ProjectLayout>

@@ -19,7 +19,8 @@
  * - `ai.projects.reapproval.store` POST   `{ project: key }`                        "Pedir nueva aprobación" (sends to the approvers)
  * - `ai.projects.board`            GET    `{ project: key }` query `{ assignee_id?, label?, blocked?: 1, tarea?: task key }`
  *                                         filters use `router.get` (preserveState); clicking a card is a partial reload
- *                                         `only: ['selected_task']` with `{ tarea: key }` (the URL keeps `?tarea=T4`).
+ *                                         `only: ['selected_task', 'selected_task_github', 'selected_task_brief']` with
+ *                                         `{ tarea: key }` (the URL keeps `?tarea=T4`).
  * - `ai.tasks.move`                PUT    `{ project: key, task: key }` body `{ column: KanbanColumnKey, position: number }` (1-based)
  *                                         drag and drop, and the keyboard "Mover a…" menu (position = end of the column)
  * - `ai.tasks.store`               POST   `{ project: key }` body `{ title: string, column: KanbanColumnKey }`  "Agregar tarea"
@@ -53,6 +54,12 @@
  *                                         task page). Back to the same page: the task page gets flash success, the board gets
  *                                         `issue_created` (toast) instead. The drawer partial reload becomes `only: ['selected_task',
  *                                         'selected_task_github']`.
+ * - `ai.projects.repository.create` POST `{ project: key }` body `RepoCreatePayload`  Stage D · "Crear repositorio con
+ *                                         este CLAUDE.md" in the brief panel of the summary (needs `ai.github.manage`,
+ *                                         only while `project.repository` is null). The server creates a private repo
+ *                                         in the organization with README.md, the given CLAUDE.md and docs/, links it to
+ *                                         the project and comes back to `ai.projects.show` with flash success. Errors
+ *                                         keyed `name` (invalid or taken) and `claude_md`.
  * - `ai.products.show`             GET    `{ product: slug }`                       "Ver actividad en GitHub" on the summary
  * - `ai.requests.show`             GET    `{ request: key }`                        linked request card, header
  * - `admin.costs.index`            GET    —                                         "Tarifas en Administración"
@@ -66,6 +73,16 @@
  * - Requesters never see costs, rates or internal notes: `RequirementForRecipient` carries none.
  * - `ai.github.manage` linking the repository and creating issues (Stage D). Without it `repo_link` and
  *                     `TaskGitHub.issue_form` are null and the buttons are hidden; GitHub data shows to `ai.manage`.
+ *                     Also creating the repository from the brief: without it `repo_create` is null.
+ *
+ * Stage D · "Brief para Claude" (D-BriefTask, D-BriefProject, D-BriefPhone):
+ * - Summary (`brief`, all six sections, "CLAUDE.md inicial" tab), board drawer (`selected_task_brief`) and task page
+ *   (`brief`, 4 of 6 sections). No routes for copying or downloading: the page builds the Markdown with
+ *   `lib/brief.ts` and copies or saves it (`P-07-brief.md`, `P-07-T4-brief.md`, `CLAUDE.md`) in the browser.
+ *   The task brief adds the task's issue/PR from the GitHub prop and the suggested branch (`gia-139-t4`).
+ * - Briefs are sent ONLY with `ai.manage`, filled with the whitelisted fields of `ProjectBriefInput` /
+ *   `TaskBriefInput`: never vault items or links, credentials, costs, rates, hours logged or internal notes.
+ *   `brief_omitted` only counts what was left out, for the note under the preview.
  */
 import type { RunningTimer } from '@/types/pages/ai-triage';
 import type {
@@ -83,8 +100,10 @@ import type {
 import type { ProjectHeader } from '@/Layouts/ProjectLayout';
 import type { GitHubIssue } from '@/types/github';
 import type { RepoLinkSetup, TaskGitHub } from '@/types/pages/ai-github';
+import type { BriefOpenState } from '@/types/pages/ai-triage';
+import type { BriefOmitted, ProjectBriefInput, TaskBriefInput } from '@/lib/brief';
 
-export type { ProjectHeader, RunningTimer };
+export type { BriefOpenState, ProjectHeader, RunningTimer };
 
 export type WipCount = { in_development: number; limit: number };
 
@@ -147,7 +166,30 @@ export interface ProjectsShowProps {
     today: string;
     /** Stage D · "Vincular repositorio" when `project.repository` is null; null or omitted without `ai.github.manage`. */
     repo_link?: RepoLinkSetup | null;
+    /** Stage D · data of "Brief para Claude"; only with `ai.manage`. Null or omitted hides the button. */
+    brief?: ProjectBriefInput | null;
+    /** Stage D · what the server left out of the brief ("el tiempo y costos y 2 notas internas"). */
+    brief_omitted?: BriefOmitted | null;
+    /** Stage D · initial state of the brief panel (`?brief=1` opens it); omitted = closed. */
+    brief_state?: BriefOpenState | null;
+    /** Stage D · "Crear repositorio con este CLAUDE.md": only with `ai.github.manage` and no repository yet; else null. */
+    repo_create?: RepoCreateSetup | null;
     now: string;
+}
+
+export interface RepoCreateSetup {
+    /** "[ORG]", shown as the fixed prefix of the name field. */
+    organization: string;
+    /** Proposed name, the project name as a slug ("toma-pedidos-descuentos-por-volumen"). */
+    default_name: string;
+}
+
+/** Body of `ai.projects.repository.create`. */
+export interface RepoCreatePayload {
+    /** Repository name without the organization. */
+    name: string;
+    /** The CLAUDE.md shown in the panel, as Markdown. */
+    claude_md: string;
 }
 
 // ---- Board ------------------------------------------------------------------
@@ -188,6 +230,10 @@ export interface ProjectsBoardProps {
     running_timer: RunningTimer | null;
     /** Stage D · GitHub block of the drawer task (issue, PR, create issue). Sent with `selected_task`; null when closed. */
     selected_task_github?: TaskGitHub | null;
+    /** Stage D · brief data of the drawer task, sent with `selected_task` (`only` includes it); null when closed or without `ai.manage`. */
+    selected_task_brief?: TaskBriefInput | null;
+    /** Stage D · initial state of the drawer task's brief panel (gallery); omitted = closed. */
+    selected_task_brief_state?: BriefOpenState | null;
     /** Stage D · right after "Crear issue": toast with the link and "nuevo" on the card. Null or omitted otherwise. */
     issue_created?: { task_key: string; issue: GitHubIssue; repo_full_name: string } | null;
     now: string;
@@ -202,6 +248,10 @@ export interface TasksShowProps {
     today_project_hours: number;
     /** Stage D · PR card, history and "Crear issue en GitHub" (D-GitHubPhone). Null or omitted = no GitHub block. */
     github?: TaskGitHub | null;
+    /** Stage D · data of "Brief para Claude"; only with `ai.manage`. Null or omitted hides the button. */
+    brief?: TaskBriefInput | null;
+    /** Stage D · initial state of the brief panel (`?brief=1` opens it); omitted = closed. */
+    brief_state?: BriefOpenState | null;
     now: string;
 }
 

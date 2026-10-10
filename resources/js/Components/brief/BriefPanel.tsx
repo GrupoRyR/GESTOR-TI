@@ -14,8 +14,18 @@ export interface BriefClaudeMd {
     markdown: string;
     /** "CLAUDE.md". */
     fileName: string;
-    /** Extra content under the preview, e.g. the repo name field and "Crear repositorio con este CLAUDE.md". */
+    /** Extra content under the preview. */
     children?: ReactNode;
+    /**
+     * Replaces the footer on this tab (D-BriefProject: repo name field,
+     * "Copiar" and "Crear repositorio con este CLAUDE.md"). Gets the copy state.
+     */
+    renderFooter?: (copy: BriefCopyControl) => ReactNode;
+}
+
+export interface BriefCopyControl {
+    copied: boolean;
+    onCopy: () => void;
 }
 
 export interface BriefPanelProps {
@@ -175,6 +185,56 @@ export function BriefPanel({
 
     const enabledCount = sections.filter((key) => availableSections.includes(key)).length;
 
+    const copiedStatus = (
+        <p
+            aria-live="polite"
+            role="status"
+            className={cx('flex min-h-11 items-center gap-2.5 rounded-control bg-fg px-3.5 text-sm font-semibold text-on-fg', !copied && 'sr-only')}
+        >
+            {copied ? (
+                <>
+                    <Icon name="check" size={18} className="shrink-0 text-status-active-dot" />
+                    {onClaude ? 'CLAUDE.md copiado.' : copiedMessage}
+                </>
+            ) : (
+                ''
+            )}
+        </p>
+    );
+
+    const defaultFooter = (
+        <div className="flex w-full flex-col gap-2.5">
+            <div className="flex flex-col gap-1.5 text-[13px] leading-snug text-fg-soft">
+                <span className="flex items-start gap-2">
+                    <Icon name="shield" size={16} className="mt-px shrink-0" />
+                    <span>
+                        <b className="font-semibold text-fg">No incluye contraseñas, bóveda, costos ni notas internas.</b>
+                        {omittedNote && !onClaude ? ` ${omittedNote}` : ''}
+                    </span>
+                </span>
+                <span className="pl-6">
+                    <b className="font-semibold text-fg">Cómo usarlo:</b> pégalo en un proyecto de Claude o en Claude Code.
+                </span>
+            </div>
+            {copiedStatus}
+            <div className="flex gap-2">
+                <Button
+                    variant="secondary"
+                    size="lg"
+                    icon="download"
+                    aria-label="Descargar .md"
+                    onClick={() => downloadMarkdown(markdown, onClaude ? claudeMd.fileName : fileName)}
+                    className="w-12 px-0 sm:w-auto sm:px-4"
+                >
+                    <span className="hidden sm:inline">Descargar .md</span>
+                </Button>
+                <Button variant={copied ? 'dark' : 'primary'} size="lg" icon={copied ? 'check' : 'copy'} onClick={copy} className="flex-1">
+                    {copied ? 'Copiado' : onClaude ? 'Copiar' : 'Copiar brief'}
+                </Button>
+            </div>
+        </div>
+    );
+
     return (
         <Drawer
             open={open}
@@ -182,14 +242,14 @@ export function BriefPanel({
             title="Brief para Claude"
             width={width}
             footer={
-                <>
-                    <Button variant="secondary" icon="download" onClick={() => downloadMarkdown(markdown, onClaude ? claudeMd.fileName : fileName)}>
-                        Descargar .md
-                    </Button>
-                    <Button variant="dark" icon={copied ? 'check' : 'copy'} onClick={copy}>
-                        {copied ? 'Copiado' : onClaude ? 'Copiar' : 'Copiar brief'}
-                    </Button>
-                </>
+                onClaude && claudeMd.renderFooter ? (
+                    <div className="flex w-full flex-col gap-2.5">
+                        {copiedStatus}
+                        {claudeMd.renderFooter({ copied, onCopy: copy })}
+                    </div>
+                ) : (
+                    defaultFooter
+                )
             }
         >
             <div className="flex flex-col gap-2">
@@ -284,7 +344,7 @@ export function BriefPanel({
 
                 {view === 'preview' ? (
                     <div className="rounded-control border border-line bg-surface px-4 py-3">
-                        <MarkdownPreview source={markdown} emptyText="Activa al menos una sección para armar el brief." />
+                        <MarkdownPreview source={markdown} emptyText="Activa al menos una sección para armar el brief." className="text-sm" />
                     </div>
                 ) : (
                     <MarkdownLines markdown={markdown} label={onClaude ? 'Markdown del CLAUDE.md' : 'Markdown del brief'} />
@@ -292,23 +352,8 @@ export function BriefPanel({
 
                 {onClaude ? claudeMd.children : null}
 
-                <div className="flex flex-col gap-1.5 rounded-control bg-subtle px-3.5 py-2.5 text-[13px] leading-snug text-fg-soft">
-                    <span className="flex items-start gap-2">
-                        <Icon name="shield" size={16} className="mt-px shrink-0" />
-                        <span>
-                            <b className="text-fg">No incluye contraseñas, bóveda, costos ni notas internas.</b>
-                            {omittedNote && !onClaude ? ` ${omittedNote}` : ''}
-                        </span>
-                    </span>
-                    <span className="pl-6">
-                        <b className="text-fg">Cómo usarlo:</b> pégalo en un proyecto de Claude o en Claude Code.
-                    </span>
-                </div>
             </div>
 
-            <p aria-live="polite" role="status" className={cx('text-[13px] font-semibold text-fg', !copied && 'sr-only')}>
-                {copied ? (onClaude ? 'CLAUDE.md copiado.' : copiedMessage) : ''}
-            </p>
         </Drawer>
     );
 }

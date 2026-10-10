@@ -55,8 +55,19 @@
  * - `ai.costs.view`       costs, hourly rates, area hour value, payback. Without it the server sends `null`
  *                         (`Estimate.total_cost`, `external_costs`, `TeamMember.hourly_rate`, `area_hour_value`,
  *                         `payback_months`, `AreaProject.cost`) and the UI hides those blocks.
+ *
+ * Stage D · "Brief para Claude" (D-BriefRequest, D-BriefPhone) on `Ai/Requests/Show` (IT view):
+ * - No route of its own. The page builds the Markdown in the browser with `lib/brief.ts` from `brief`;
+ *   "Copiar brief" uses the clipboard and "Descargar .md" saves `GIA-139-brief.md` locally. Nothing is
+ *   sent back to the server and the AI API is not called. (The backend may mirror the builders later.)
+ * - `brief` is sent ONLY with `ai.manage` (the requester view never has it). The server fills it with the
+ *   whitelisted fields of `RequestBriefInput` only: never vault items or links, credentials, costs,
+ *   rates, area hour value or internal notes. Decisions marked `private` are dropped by the builder anyway.
+ * - `brief_state.open` opens the panel on load (deep link `?brief=1`); `view` and `copied` are gallery-only.
  */
 import type { SemaphoreLevel } from '@/Components/ui/Semaphore';
+import type { BriefTab, BriefView } from '@/Components/brief/BriefPanel';
+import type { RequestBriefInput } from '@/lib/brief';
 import type { EffortSize, Urgency } from '@/lib/priority';
 import type {
     AreaRef,
@@ -157,8 +168,23 @@ export interface ItShowProps extends TriageActionData {
     area_hour_value: number | null;
     first_response: { due_at: string; answered_at: string | null };
     first_response_business_days: number;
+    /** Stage D · data of "Brief para Claude"; only with `ai.manage`, whitelisted fields only. Null or omitted hides the button. */
+    brief?: RequestBriefInput | null;
+    /** Stage D · initial state of the brief panel; omitted = closed. */
+    brief_state?: BriefOpenState | null;
     /** Server time (ISO) the deadline and waiting labels are measured from; avoids device clock skew. */
     now: string;
+}
+
+/**
+ * Initial state of a "Brief para Claude" panel. The server only sets `open`
+ * (deep link `?brief=1`); `view`, `tab` and `copied` exist for the gallery.
+ */
+export interface BriefOpenState {
+    open: boolean;
+    view?: BriefView;
+    tab?: BriefTab;
+    copied?: boolean;
 }
 
 export type RejectReason = 'exists' | 'not_it' | 'cost' | 'duplicate' | 'other';

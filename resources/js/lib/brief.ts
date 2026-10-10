@@ -8,6 +8,7 @@
  * read, even when the caller passes an object that carries them. Decisions
  * marked `private` and links that point to the vault are dropped.
  */
+import { suggestedBranch } from './githubKeys';
 import type { EffortSize } from './priority';
 
 export type BriefSectionKey = 'problem' | 'criteria' | 'product' | 'links' | 'tasks' | 'decisions';
@@ -343,4 +344,80 @@ export function briefStats(markdown: string): BriefStats {
     const words = text.match(/\S*[\p{L}\p{N}]\S*/gu)?.length ?? 0;
     const lines = markdown.replace(/\n$/, '').split('\n').length;
     return { words, lines };
+}
+
+// ---- page helpers ---------------------------------------------------------
+
+/** "GIA-139-brief.md", "P-07-T4-brief.md". */
+export function briefFileName(...keys: string[]): string {
+    return `${keys.join('-')}-brief.md`;
+}
+
+/** GitHub data of a task as the page already has it (`TaskGitHub`), reduced to what the brief reads. */
+export interface TaskBriefGitHub {
+    request_key: string;
+    issue: { number: number } | null;
+    pull_request: { number: number; title: string; state: 'open' | 'merged' | 'closed' } | null;
+}
+
+const PR_STATE_LABEL: Record<NonNullable<TaskBriefGitHub['pull_request']>['state'], string> = {
+    open: 'abierto',
+    merged: 'fusionado',
+    closed: 'cerrado',
+};
+
+/**
+ * Adds the task's own issue and PR (from the page's GitHub prop) and the
+ * suggested branch to the brief input. A PR the server sent as "related"
+ * stays when the task has none; a branch sent by the server wins.
+ */
+export function withTaskGitHub(input: TaskBriefInput, github: TaskBriefGitHub | null): TaskBriefInput {
+    if (!github) return input;
+    const pr = github.pull_request;
+    return {
+        ...input,
+        pull_request: pr ? { number: pr.number, title: pr.title, state: PR_STATE_LABEL[pr.state] } : (input.pull_request ?? null),
+        issue: github.issue ? { number: github.issue.number } : (input.issue ?? null),
+        suggested_branch: input.suggested_branch || suggestedBranch(github.request_key, { key: input.key }),
+    };
+}
+
+/** What the server left out of a brief, counted so the panel can say it. */
+export interface BriefOmitted {
+    time_and_costs: boolean;
+    internal_notes: number;
+}
+
+/** "Aquí se omitieron el tiempo y costos y 2 notas internas."; null when nothing was left out. */
+export function omittedNote(omitted: BriefOmitted | null | undefined): string | null {
+    if (!omitted) return null;
+    const parts: string[] = [];
+    if (omitted.time_and_costs) parts.push('el tiempo y costos');
+    if (omitted.internal_notes > 0) parts.push(`${omitted.internal_notes} ${omitted.internal_notes === 1 ? 'nota interna' : 'notas internas'}`);
+    if (parts.length === 0) return null;
+    const plural = omitted.time_and_costs || omitted.internal_notes > 1;
+    return `Aquí se ${plural ? 'omitieron' : 'omitió'} ${parts.join(' y ')}.`;
+}
+
+/** Initial CLAUDE.md data of a project: name, objective and product context only. */
+export function claudeMdInputFromProject(input: ProjectBriefInput): ClaudeMdInput {
+    return {
+        project_name: input.name,
+        objective: input.objective,
+        stack: input.product?.stack ?? null,
+        host: input.product?.host ?? null,
+        data_source: input.product?.data_source ?? null,
+    };
+}
+
+const REPO_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/** GitHub repository name rules; null when valid. The server checks it again (and that it is free). */
+export function repoNameError(name: string): string | null {
+    const value = name.trim();
+    if (value === '') return 'Escribe el nombre del repositorio.';
+    if (value.length > 100) return 'Máximo 100 caracteres.';
+    if (!REPO_NAME_PATTERN.test(value)) return 'Usa solo letras sin tilde, números, guiones, puntos o guion bajo.';
+    if (value === '.' || value === '..') return 'Ese nombre no lo acepta GitHub.';
+    return null;
 }

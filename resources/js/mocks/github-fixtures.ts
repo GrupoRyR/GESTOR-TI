@@ -5,6 +5,9 @@
  * Herrera, Visualizador v3.1.0 shipped on 22 sep, and T4 has no issue until
  * the create-issue flow makes #57 (`ISSUE_57` is that post-create state).
  *
+ * Also the whitelisted inputs of "Brief para Claude" (`BRIEF_*`): what the
+ * server would send to `ai.manage`, without costs, vault or internal notes.
+ *
  * Today in the mocks is miércoles 7 oct 2026, 9:40 a. m. (`NOW_ISO`). This
  * file exports no `variants`, so the gallery ignores it.
  */
@@ -24,6 +27,7 @@ import type {
     WebhookEvent,
     WebhookStats,
 } from '@/types/github';
+import type { BriefLink, BriefProduct, BriefTaskRow, ProjectBriefInput, RequestBriefInput, TaskBriefInput } from '@/lib/brief';
 import type { AiUsage, Suggestion } from '@/types/suggestions';
 import { PEOPLE } from './ai-fixtures';
 
@@ -514,3 +518,117 @@ export const SUGGESTION_RELEASE_NOTES_182: Suggestion<'release_notes'> = suggest
 });
 
 export const AI_USAGE_CAP: AiUsage = { spent_label: '[GASTO DEL MES]', cap_label: '[TOPE MENSUAL]', resumes_on: '1 de noviembre' };
+
+// ---- Brief para Claude (whitelisted inputs, D-Brief*) ---------------------
+
+export const BRIEF_PRODUCT_VISUALIZADOR: BriefProduct = {
+    name: 'Visualizador de cartera',
+    version: 'v3.1.0',
+    stack: 'Next.js',
+    host: 'Vercel',
+    data_source: 'SAP Business One vía [FUENTE]',
+};
+
+/** Repo, CLAUDE.md and the technical manual; the backend drops any vault link. */
+export const BRIEF_LINKS_VISUALIZADOR: BriefLink[] = [
+    { label: 'Repositorio', url: repoUrl('visualizador-cartera') },
+    { label: 'Instrucciones para Claude (CLAUDE.md)', url: `${repoUrl('visualizador-cartera')}/blob/main/CLAUDE.md` },
+    { label: 'Manual técnico y de despliegue', url: 'https://[DOMINIO DEL GESTOR]/ai/documentacion/5' },
+];
+
+const GIA_139_CRITERIA = ['Filtrar por asesor.', 'Filtrar por zona.', 'Combinar ambos filtros.', 'Exportar el resultado a Excel.'];
+
+/** P-07 rows of the brief task table: key, column label and the GitHub reference. */
+export const BRIEF_TASKS_P07: BriefTaskRow[] = [
+    { key: 'T2', title: 'Consulta SAP por asesor', status: 'Hecho', github: `PR #${PR_36.number}` },
+    { key: 'T3', title: 'Endpoint de zonas', status: 'En revisión', github: `PR #${PR_41.number}` },
+    { key: 'T4', title: 'Consulta de cartera por asesor', status: 'En progreso', github: null },
+    { key: 'T7', title: 'Total vencido por rango de días', status: 'Bloqueada', github: null },
+];
+
+export const BRIEF_REQUEST_GIA_139: RequestBriefInput = {
+    key: 'GIA-139',
+    title: 'Visualizador de cartera: filtro por asesor y zona',
+    company: 'Segurex',
+    area: 'Cartera',
+    requester: 'Gerencia de cartera',
+    size: 'L',
+    project_key: 'P-07',
+    problem: 'Para ver la cartera de un asesor o de una zona hay que exportar todo el visualizador a Excel y filtrar a mano.',
+    current_process: 'Cada lunes se arma un Excel por zona y se le manda a cada asesor por correo.',
+    expected_result: 'Elegir asesor y zona en el visualizador, ver el total al instante y exportar solo eso.',
+    hours_per_week: 4,
+    people: 5,
+    criteria: GIA_139_CRITERIA,
+    product: BRIEF_PRODUCT_VISUALIZADOR,
+    links: BRIEF_LINKS_VISUALIZADOR,
+    tasks: BRIEF_TASKS_P07,
+    decisions: [{ text: 'SAP B1 se lee solo por la vista de cartera de solo lectura.' }],
+};
+
+/** T4 (no issue yet): the server sends PR #41 as the related PR of GIA-139; the page adds the branch. */
+export const BRIEF_TASK_T4: TaskBriefInput = {
+    key: 'T4',
+    title: 'Consulta de cartera por asesor desde SAP B1',
+    project: { key: 'P-07', name: 'Visualizador de cartera · filtros' },
+    request: { key: 'GIA-139', title: 'filtro por asesor y zona' },
+    status: 'En progreso',
+    assignees: [PEOPLE.jhon.name],
+    description: 'Traer de SAP B1 la cartera de cada asesor con su zona y los días vencidos. Usa la vista de cartera de solo lectura; nunca escribas en SAP.',
+    subtasks: [
+        { title: 'Conectar a la vista de cartera de SAP B1 en pruebas', done: true },
+        { title: 'Filtrar por código de asesor', done: true },
+        { title: 'Agrupar por rango de días vencidos', done: false },
+        { title: 'Probar con 3 asesores reales', done: false },
+        { title: 'Documentar la consulta', done: false },
+    ],
+    criteria: GIA_139_CRITERIA,
+    product: BRIEF_PRODUCT_VISUALIZADOR,
+    links: BRIEF_LINKS_VISUALIZADOR.slice(0, 2),
+    pull_request: { number: PR_41.number, title: PR_41.title, state: 'abierto' },
+    issue: null,
+    tasks: BRIEF_TASKS_P07,
+    decisions: [{ text: 'SAP B1 se lee solo por la vista de cartera de solo lectura.' }],
+};
+
+export const BRIEF_PROJECT_P07: ProjectBriefInput = {
+    key: 'P-07',
+    name: 'Visualizador de cartera · filtros',
+    company: 'Segurex',
+    area: 'Cartera',
+    status: 'En desarrollo',
+    phase: 'Construcción',
+    request_keys: ['GIA-139'],
+    objective: 'Que la Gerencia de cartera filtre la cartera por asesor y por zona sin pedir reportes a TI, y vea cuánto tiene vencido cada asesor.',
+    criteria: [
+        { text: 'Filtrar la cartera por asesor', done: true },
+        { text: 'Filtrar la cartera por zona', done: true },
+        { text: 'Ver el total vencido por asesor y por rango de días', done: false },
+        { text: 'Exportar a Excel lo que se filtró', done: false },
+        { text: 'Cargar en menos de 3 segundos con toda la cartera', done: false },
+    ],
+    product: BRIEF_PRODUCT_VISUALIZADOR,
+    links: BRIEF_LINKS_VISUALIZADOR,
+    tasks: BRIEF_TASKS_P07,
+    decisions: [
+        { text: 'SAP B1 se lee solo por la vista de cartera de solo lectura.' },
+        { text: 'Las zonas salen de la lista que envió Ventas el 5 oct.' },
+    ],
+};
+
+/** P-06 without a repository yet: the CLAUDE.md tab offers "Crear repositorio". */
+export const BRIEF_PROJECT_P06: ProjectBriefInput = {
+    key: 'P-06',
+    name: 'Toma Pedidos · descuentos por volumen',
+    company: 'Segurex',
+    area: 'Ventas',
+    status: 'En pruebas',
+    phase: 'Construcción',
+    request_keys: ['GIA-127'],
+    objective: 'Que Toma Pedidos aplique solo los descuentos por volumen aprobados por Ventas.',
+    criteria: [],
+    product: { name: 'Toma Pedidos SAP', version: 'v2.4.0', stack: 'Laravel', host: 'GoDaddy', data_source: 'SAP Business One' },
+    links: [],
+    tasks: [],
+    decisions: [],
+};

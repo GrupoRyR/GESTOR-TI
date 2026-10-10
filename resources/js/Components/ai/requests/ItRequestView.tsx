@@ -1,11 +1,13 @@
 import { Link } from '@inertiajs/react';
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { RequestActionDialogs, useRequestActions, type RequestAction } from '@/Components/ai/requests/actions/RequestActionDialogs';
 import { EvaluationPanel, URGENCY_LABELS } from '@/Components/ai/requests/EvaluationPanel';
 import { InternalNotes } from '@/Components/ai/requests/InternalNotes';
 import { RequestConversation } from '@/Components/ai/requests/RequestConversation';
 import { dueState, firstName, teamHours } from '@/Components/ai/triage/triage';
 import { DUE_TO_SEMAPHORE } from '@/Components/ai/triage/FirstResponse';
+import { BriefPanel } from '@/Components/brief/BriefPanel';
+import { BriefTrigger } from '@/Components/brief/BriefTrigger';
 import { Button } from '@/Components/ui/Button';
 import { CompanyMark } from '@/Components/ui/CompanyMark';
 import { Icon } from '@/Components/ui/Icon';
@@ -14,6 +16,7 @@ import { Semaphore } from '@/Components/ui/Semaphore';
 import { StatusChip } from '@/Components/ui/StatusChip';
 import { cx } from '@/Components/ui/utils';
 import { GestorLayout } from '@/Layouts/GestorLayout';
+import { briefFileName, buildRequestBrief, type BriefSectionKey } from '@/lib/brief';
 import { can } from '@/lib/can';
 import { formatFileSize, formatLongDate, formatShortDate, formatTime } from '@/lib/format';
 import { route } from '@/lib/route';
@@ -117,6 +120,7 @@ function ConversationTabs({ props }: { props: Props }) {
  * Request detail for IT (holders of `ai.manage`): what the requester asked,
  * a duplicate warning, public conversation and internal notes in tabs, and
  * the evaluation panel with every action (dialogs shared with the inbox).
+ * Stage D: "Brief para Claude" in the header when the server sends `brief`.
  */
 export function ItRequestView(props: Props) {
     const { request, evaluation, duplicates, area_hour_value, first_response, companies, auth, now } = props;
@@ -130,6 +134,10 @@ export function ItRequestView(props: Props) {
     const { answers } = request;
     const open = (action: RequestAction, mergeInto: string | null = null) => actions.open(action, [request], mergeInto);
     const createdWeekday = formatLongDate(request.created_at).split(' ')[0];
+    const brief = props.brief ?? null;
+    const briefState = props.brief_state ?? null;
+    const [briefOpen, setBriefOpen] = useState(brief !== null && briefState?.open === true);
+    const buildBrief = useCallback((sections: BriefSectionKey[]) => (brief ? buildRequestBrief(brief, sections) : ''), [brief]);
 
     return (
         <GestorLayout
@@ -172,6 +180,11 @@ export function ItRequestView(props: Props) {
                             </>
                         ) : null}
                     </p>
+                    {brief ? (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                            <BriefTrigger expanded={briefOpen} onOpen={() => setBriefOpen(true)} />
+                        </div>
+                    ) : null}
                     <PhaseRail status={request.status} variant="full" className="max-w-[560px]" />
                 </header>
 
@@ -295,6 +308,18 @@ export function ItRequestView(props: Props) {
                 estimate={request.estimate}
                 mergeFallback={duplicates}
             />
+
+            {brief ? (
+                <BriefPanel
+                    open={briefOpen}
+                    onClose={() => setBriefOpen(false)}
+                    subject={`${brief.key} · ${brief.title}`}
+                    build={buildBrief}
+                    fileName={briefFileName(brief.key)}
+                    initialView={briefState?.view}
+                    initiallyCopied={briefState?.copied}
+                />
+            ) : null}
         </GestorLayout>
     );
 }

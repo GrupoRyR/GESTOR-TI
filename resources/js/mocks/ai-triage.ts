@@ -34,9 +34,11 @@ import {
     REQUEST_GIA_148,
     requestByKey,
     REQUESTS,
+    TIMELINE_GIA_139,
     TODAY,
     WIP_LIMIT,
 } from './ai-fixtures';
+import { BRIEF_REQUEST_GIA_139 } from './github-fixtures';
 import { DERIVADOS, SEGUREX, sharedFor, type MockVariant } from './shared';
 
 // ---- shared pieces ------------------------------------------------------------
@@ -189,6 +191,52 @@ const showGia151: PageProps<ItShowProps> = {
     area_hour_value: 45_000,
     first_response: GIA_151.first_response,
     first_response_business_days: FIRST_RESPONSE_DAYS,
+    now: NOW_ISO,
+};
+
+/** GIA-139 already in development (P-07): IT opens "Brief para Claude" (D-BriefRequest, D-BriefPhone). */
+const GIA_139: RequestDetail = {
+    ...requestByKey('GIA-139'),
+    answers: {
+        problem: BRIEF_REQUEST_GIA_139.problem,
+        current_process: BRIEF_REQUEST_GIA_139.current_process ?? null,
+        expected_result: BRIEF_REQUEST_GIA_139.expected_result ?? '',
+        success_criteria: null,
+        systems: ['Visualizador de cartera', 'SAP Business One'],
+        systems_notes: null,
+        deadline: null,
+        deadline_reason: null,
+    },
+    attachments: [],
+    criteria: [],
+    timeline: TIMELINE_GIA_139,
+    comments: [],
+    internal_notes: [
+        {
+            id: 43,
+            author: PEOPLE.jhon,
+            is_it: true,
+            body: 'La vista de cartera ya trae el código del asesor; la zona hay que cruzarla con la lista de Ventas.',
+            created_at: '2026-09-29T10:00:00-05:00',
+        },
+    ],
+    estimate: null,
+    approval: null,
+    rating: null,
+    followers_count: 3,
+};
+
+const showGia139: PageProps<ItShowProps> = {
+    ...sharedFor('jhon'),
+    ...ACTION_DATA,
+    view: 'it',
+    request: GIA_139,
+    evaluation: { impact: { hours_per_week: 4, people: 5, money: null, risk: 'medium' }, size: 'L', urgency: 'high', priority_suggested: 74, priority_final: 82 },
+    duplicates: [],
+    area_hour_value: null,
+    first_response: GIA_139.first_response,
+    first_response_business_days: FIRST_RESPONSE_DAYS,
+    brief: BRIEF_REQUEST_GIA_139,
     now: NOW_ISO,
 };
 
@@ -519,6 +567,17 @@ export const variants: Record<
     // Request detail (IT)
     'show-it': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI (GIA-148, duplicada)', props: showGia148 },
     'show-it-hour-value': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI con valor de hora (GIA-151, Leonardo)', props: showGia151 },
+    'show-it-brief-closed': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI con botón Brief para Claude (GIA-139)', props: showGia139 },
+    request_brief: {
+        page: 'Ai/Requests/Show',
+        label: 'Brief para Claude · solicitud GIA-139, vista previa',
+        props: { ...showGia139, brief_state: { open: true } },
+    },
+    request_brief_copied: {
+        page: 'Ai/Requests/Show',
+        label: 'Brief para Claude · solicitud GIA-139, copiado',
+        props: { ...showGia139, brief_state: { open: true, copied: true } },
+    },
     'show-it-save-error': {
         page: 'Ai/Requests/Show',
         label: 'Solicitud · error al guardar la evaluación (GIA-148)',

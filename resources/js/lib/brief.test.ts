@@ -7,6 +7,11 @@ import {
     buildProjectBrief,
     buildRequestBrief,
     buildTaskBrief,
+    briefFileName,
+    claudeMdInputFromProject,
+    omittedNote,
+    repoNameError,
+    withTaskGitHub,
     type ProjectBriefInput,
     type RequestBriefInput,
     type TaskBriefInput,
@@ -304,5 +309,92 @@ describe('briefStats', () => {
 
     it('is zero for an empty brief', () => {
         expect(briefStats('')).toEqual({ words: 0, lines: 0 });
+    });
+});
+
+describe('briefFileName', () => {
+    it('joins the keys and ends in -brief.md', () => {
+        expect(briefFileName('GIA-139')).toBe('GIA-139-brief.md');
+        expect(briefFileName('P-07', 'T4')).toBe('P-07-T4-brief.md');
+    });
+});
+
+describe('withTaskGitHub', () => {
+    const base: TaskBriefInput = { ...TASK, pull_request: null, issue: null, suggested_branch: null };
+
+    it('adds the suggested branch from the request key when the task has no issue', () => {
+        const merged = withTaskGitHub(base, { request_key: 'GIA-139', issue: null, pull_request: null });
+        expect(merged.suggested_branch).toBe('gia-139-t4');
+        expect(buildTaskBrief(merged)).toContain('- Issue: todavía no tiene · rama sugerida gia-139-t4');
+    });
+
+    it('uses the task issue and its own PR, with the state in Spanish', () => {
+        const merged = withTaskGitHub(base, {
+            request_key: 'GIA-139',
+            issue: { number: 57 },
+            pull_request: { number: 41, title: 'GIA-139 endpoint de zonas', state: 'merged' },
+        });
+        expect(merged.issue).toEqual({ number: 57 });
+        expect(merged.pull_request).toEqual({ number: 41, title: 'GIA-139 endpoint de zonas', state: 'fusionado' });
+    });
+
+    it('keeps the related PR the server sent when the task has none, and the server branch', () => {
+        const related = { number: 41, title: 'GIA-139 endpoint de zonas', state: 'abierto' };
+        const merged = withTaskGitHub({ ...base, pull_request: related, suggested_branch: 'gia-139-t4-cartera' }, { request_key: 'GIA-139', issue: null, pull_request: null });
+        expect(merged.pull_request).toEqual(related);
+        expect(merged.suggested_branch).toBe('gia-139-t4-cartera');
+    });
+
+    it('returns the input unchanged without GitHub data', () => {
+        expect(withTaskGitHub(base, null)).toBe(base);
+    });
+});
+
+describe('omittedNote', () => {
+    it('names what the brief left out', () => {
+        expect(omittedNote({ time_and_costs: true, internal_notes: 2 })).toBe('Aquí se omitieron el tiempo y costos y 2 notas internas.');
+        expect(omittedNote({ time_and_costs: false, internal_notes: 1 })).toBe('Aquí se omitió 1 nota interna.');
+        expect(omittedNote({ time_and_costs: true, internal_notes: 0 })).toBe('Aquí se omitieron el tiempo y costos.');
+    });
+
+    it('is null when nothing was left out', () => {
+        expect(omittedNote({ time_and_costs: false, internal_notes: 0 })).toBeNull();
+        expect(omittedNote(null)).toBeNull();
+    });
+});
+
+describe('claudeMdInputFromProject', () => {
+    it('takes name, objective and product context from the project brief', () => {
+        expect(claudeMdInputFromProject(PROJECT)).toEqual({
+            project_name: 'Visualizador de cartera · filtros',
+            objective: PROJECT.objective,
+            stack: 'Next.js',
+            host: 'Vercel',
+            data_source: 'SAP Business One vía [FUENTE]',
+        });
+    });
+
+    it('leaves placeholders when the project has no product yet', () => {
+        const md = buildClaudeMd(claudeMdInputFromProject({ ...PROJECT, product: null }));
+        expect(md).toContain('- [STACK] · se publica en [HOSTING]');
+    });
+
+    it('never carries forbidden data into the CLAUDE.md', () => {
+        const md = buildClaudeMd(claudeMdInputFromProject({ ...PROJECT, ...FORBIDDEN } as ProjectBriefInput));
+        for (const value of FORBIDDEN_VALUES) expect(md).not.toContain(value);
+    });
+});
+
+describe('repoNameError', () => {
+    it('accepts GitHub repository names', () => {
+        expect(repoNameError('toma-pedidos-descuentos')).toBeNull();
+        expect(repoNameError('visualizador_cartera.v2')).toBeNull();
+    });
+
+    it('explains what is wrong', () => {
+        expect(repoNameError('  ')).toBe('Escribe el nombre del repositorio.');
+        expect(repoNameError('toma pedidos')).toBe('Usa solo letras sin tilde, números, guiones, puntos o guion bajo.');
+        expect(repoNameError('a'.repeat(101))).toBe('Máximo 100 caracteres.');
+        expect(repoNameError('..')).toBe('Ese nombre no lo acepta GitHub.');
     });
 });

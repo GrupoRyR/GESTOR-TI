@@ -1,14 +1,17 @@
 import { router, useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { SubtaskList } from '@/Components/ai/projects/TaskParts';
 import { columnLabel } from '@/Components/ai/KanbanColumn';
 import { Elapsed } from '@/Components/ai/TimerButton';
+import { BriefPanel } from '@/Components/brief/BriefPanel';
+import { BriefTrigger } from '@/Components/brief/BriefTrigger';
 import { TaskGitHubBlock, TaskGitHubHistory, TaskPullRequestCard } from '@/Components/github/TaskGitHubParts';
 import { Avatar } from '@/Components/ui/Avatar';
 import { Button } from '@/Components/ui/Button';
 import { Icon } from '@/Components/ui/Icon';
 import { cx } from '@/Components/ui/utils';
 import { GestorLayout } from '@/Layouts/GestorLayout';
+import { briefFileName, buildTaskBrief, withTaskGitHub, type BriefSectionKey } from '@/lib/brief';
 import { formatRelative, formatShortDate, formatTime } from '@/lib/format';
 import { route } from '@/lib/route';
 import { formatHours } from '@/lib/timer';
@@ -18,11 +21,16 @@ import type { PageProps } from '@/types/shared';
 /**
  * B-TaskPhone: the task with its stopwatch as the hero, subtasks and a quick
  * comment. Stage D adds the PR card and history (D-GitHubPhone) or the issue
- * block with "Crear issue en GitHub". Centered column on desktop.
+ * block with "Crear issue en GitHub", and "Brief para Claude" (D-BriefTask)
+ * when the server sends `brief`. Centered column on desktop.
  */
 export default function TasksShow(props: PageProps<TasksShowProps>) {
     const { project, task, today_project_hours, auth } = props;
     const github = props.github ?? null;
+    const brief = props.brief ?? null;
+    const briefState = props.brief_state ?? null;
+    const [briefOpen, setBriefOpen] = useState(brief !== null && briefState?.open === true);
+    const buildBrief = useCallback((sections: BriefSectionKey[]) => (brief ? buildTaskBrief(withTaskGitHub(brief, github), sections) : ''), [brief, github]);
     const now = new Date(props.now);
     const running = task.timer?.running === true && task.timer.started_at !== null;
     const mine = !task.timer || task.timer.person_id === auth.user.id;
@@ -182,6 +190,7 @@ export default function TasksShow(props: PageProps<TasksShowProps>) {
                 </form>
 
                 <div className="flex flex-wrap gap-2">
+                    {brief ? <BriefTrigger expanded={briefOpen} onOpen={() => setBriefOpen(true)} /> : null}
                     <Button variant="secondary" icon="clock" href={route('ai.time-entries.create', { project: project.key, task: task.key })}>
                         Agregar horas a mano
                     </Button>
@@ -190,6 +199,19 @@ export default function TasksShow(props: PageProps<TasksShowProps>) {
                     </Button>
                 </div>
             </div>
+
+            {brief ? (
+                <BriefPanel
+                    open={briefOpen}
+                    onClose={() => setBriefOpen(false)}
+                    subject={`${task.key} · ${task.title}`}
+                    build={buildBrief}
+                    fileName={briefFileName(project.key, task.key)}
+                    copiedMessage={`Brief de ${task.key} copiado. Pégalo en Claude.`}
+                    initialView={briefState?.view}
+                    initiallyCopied={briefState?.copied}
+                />
+            ) : null}
         </GestorLayout>
     );
 }
