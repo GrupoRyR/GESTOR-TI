@@ -55,7 +55,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
     - the `GIA-123` key extraction from title/body/branch;
     - word/line counts.
   - Also: remove T4's issue from the Stage B fixtures.
-- [ ] T2 GitHub. Route: delegated.
+- [x] T2 GitHub. Route: delegated.
   - `Admin/Integrations/GitHub` (or a section of Index), plus the repo link dialog on `Ai/Products/Show` and `Ai/Projects/Show`.
   - A GitHub activity section on `Ai/Products/Show`.
   - The create-issue dialog on `Ai/Tasks/Show` and the board chips.
@@ -88,6 +88,7 @@ Out of scope: PHP, routes, controllers, the webhook endpoint, and Stage E (MCP).
 ## Progress
 - 2026-10-09: branch created from the Stage C head (`78e1795`, 393 tests); document created.
 - T1 `38b9056` foundations: types github/suggestions, github-fixtures, Components github/suggestions/brief, helpers brief/issue/githubKeys test-first (forbidden data tested); T4 issue removed from Stage B fixtures — 436 tests. Delegated writer; parent re-ran typecheck + tests.
+- T2 `d39aa41` Admin/Integrations/GitHub, repo link dialog (product + project), product GitHub section, create issue (task page + board), PR card/history, Ai/Releases/Show with notes suggestion + notify; helpers repoLink/releaseNotice/taskGitHub/githubAdmin test-first — 454 tests. Writer swept all variants 390/1440 (+834) light/dark with Playwright; parent re-ran typecheck + tests. Follow-up: .md-prose heading sizes too large.
 
 ## Next step
-T2 GitHub.
+T3 brief para Claude.
