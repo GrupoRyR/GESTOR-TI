@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { conversationWhen, dayLabel, groupByDay, inlineSegments, messageTime, paragraphs } from './chat';
+import { conversationGroups, conversationWhen, dayLabel, groupByDay, inlineSegments, messageTime, paragraphs, pendingQuestion } from './chat';
 
 const NOW = new Date('2026-10-07T09:40:00-05:00');
 /** format.ts keeps "9:40 a. m." together with non-breaking spaces. */
@@ -70,5 +70,42 @@ describe('answer text', () => {
 
     it('leaves an unclosed marker as text', () => {
         expect(inlineSegments('a **b')).toEqual([{ text: 'a **b', bold: false }]);
+    });
+});
+
+describe('conversationGroups', () => {
+    const item = (id: number, last: string) => ({ id, title: `C${id}`, last_message_at: last });
+
+    it('splits the list into Hoy, Esta semana and Antes, keeping order and skipping empty groups', () => {
+        const groups = conversationGroups(
+            [item(1, '2026-10-07T09:40:00-05:00'), item(2, '2026-10-06T16:00:00-05:00'), item(3, '2026-10-01T11:00:00-05:00'), item(4, '2026-09-30T11:00:00-05:00')],
+            NOW,
+        );
+        expect(groups.map((group) => [group.label, group.items.map((entry) => entry.id)])).toEqual([
+            ['Hoy', [1]],
+            ['Esta semana', [2, 3]],
+            ['Antes', [4]],
+        ]);
+    });
+
+    it('uses the Bogotá day: 23:30 yesterday is not today', () => {
+        expect(conversationGroups([item(1, '2026-10-06T23:30:00-05:00')], NOW)[0]?.label).toBe('Esta semana');
+    });
+
+    it('returns no groups for an empty list', () => {
+        expect(conversationGroups([], NOW)).toEqual([]);
+    });
+});
+
+describe('pendingQuestion', () => {
+    it('is the last message when it is a question still without an answer', () => {
+        const question = { id: 2, role: 'user' as const };
+        expect(pendingQuestion([{ id: 1, role: 'assistant' as const }, question])).toBe(question);
+    });
+
+    it('is null when the last message is an answer, or there are none', () => {
+        expect(pendingQuestion([{ id: 1, role: 'user' as const }, { id: 2, role: 'assistant' as const }])).toBeNull();
+        expect(pendingQuestion([{ id: 1, role: 'system' as const }])).toBeNull();
+        expect(pendingQuestion([])).toBeNull();
     });
 });

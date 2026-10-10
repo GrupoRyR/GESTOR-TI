@@ -86,8 +86,8 @@ export function CredentialCard({ notice, revealed, onReveal, revealing = false, 
                     <div aria-hidden="true" className="h-1 overflow-hidden rounded-full bg-line-strong">
                         <div className="h-full bg-fg transition-[width] duration-1000 ease-linear" style={{ width: `${(secondsLeft / total) * 100}%` }} />
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="tabular mr-auto text-[13px] font-semibold text-fg-soft">Se oculta en {secondsLeft} s</span>
+                    <div className="flex items-center gap-2">
+                        <span className="tabular min-w-0 flex-1 text-[13px] font-semibold text-fg-soft">Se oculta en {secondsLeft} s</span>
                         <button
                             type="button"
                             onClick={copyValue}

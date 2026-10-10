@@ -140,7 +140,7 @@ function Rail({ modules, active, badges, company }: NavProps & { company: Compan
     return (
         <nav
             aria-label="Módulos"
-            className="sticky top-0 hidden h-dvh flex-col items-center gap-1.5 overflow-y-auto border-r border-line bg-surface px-2 py-4 md:flex lg:hidden"
+            className="sticky top-0 hidden h-dvh flex-col items-center gap-1.5 overflow-y-auto overflow-x-hidden border-r border-line bg-surface px-2 py-4 md:flex lg:hidden"
         >
             {company ? <CompanyMark company={company} size={40} variant="solid" className="mb-3" /> : null}
             {modules.map((module) => {

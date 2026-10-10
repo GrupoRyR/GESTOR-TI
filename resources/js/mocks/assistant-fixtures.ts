@@ -449,7 +449,7 @@ export const CONVERSATION_PASSWORD = conversation(307, [
     MSG_VAULT_QUESTION,
     MSG_VAULT_LINK,
 ]);
-/** C-ChatStates "Contraseña negada" (Paola). */
+/** C-ChatStates "Contraseña negada" (a user without the credential permissions). */
 export const CONVERSATION_REFUSED = conversation(308, [MSG_REFUSED_QUESTION, MSG_REFUSED]);
 /** C-ChatStates "Asistente no disponible". */
 export const CONVERSATION_ERROR = conversation(301, [MSG_SALES_QUESTION, MSG_PROVIDER_ERROR]);

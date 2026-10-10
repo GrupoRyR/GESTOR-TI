@@ -93,3 +93,34 @@ export function inlineSegments(text: string): InlineSegment[] {
     if (cursor < text.length) segments.push({ text: text.slice(cursor), bold: false });
     return segments;
 }
+
+export interface ConversationGroup<T> {
+    /** "Hoy", "Esta semana" or "Antes". */
+    label: string;
+    items: T[];
+}
+
+/** Conversation list sections (C-ChatDesktop): today, the last 6 days, older. Empty sections are skipped. */
+export function conversationGroups<T extends { last_message_at: string }>(items: T[], now: Date = new Date()): ConversationGroup<T>[] {
+    const groups: ConversationGroup<T>[] = [
+        { label: 'Hoy', items: [] },
+        { label: 'Esta semana', items: [] },
+        { label: 'Antes', items: [] },
+    ];
+    for (const item of items) {
+        const days = daysAgo(item.last_message_at, now);
+        const group = days <= 0 ? groups[0] : days < 7 ? groups[1] : groups[2];
+        group?.items.push(item);
+    }
+    return groups.filter((group) => group.items.length > 0);
+}
+
+/**
+ * The person's last question when it still has no answer (the server saved
+ * it and the answer is pending): the page shows "Buscando…" and keeps the
+ * composer off. Null when the last message is an answer or a system card.
+ */
+export function pendingQuestion<T extends { role: string }>(messages: T[]): T | null {
+    const last = messages[messages.length - 1];
+    return last && last.role === 'user' ? last : null;
+}

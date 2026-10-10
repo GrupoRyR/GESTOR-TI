@@ -36,7 +36,7 @@ export function ChatLog({ children, scrollKey, busy = false, className }: ChatLo
             aria-label="Conversación con el Asistente TI"
             aria-busy={busy || undefined}
             tabIndex={0}
-            className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain focus-visible:-outline-offset-2', className)}
+            className={cx('relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain focus-visible:-outline-offset-2', className)}
         >
             {children}
         </div>
