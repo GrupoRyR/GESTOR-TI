@@ -7,6 +7,8 @@
  */
 
 export const DESIGN_SYSTEM_PAGE = 'design-system';
+/** Email templates from `resources/emails/`, previewed by the shell (not the frame). */
+export const EMAILS_PAGE = 'emails';
 
 export interface CatalogVariant {
     /** Unique across mock files: `{mockFile}:{key}`. */
@@ -44,6 +46,7 @@ export interface Catalog {
 
 const MODULES: { key: string; label: string }[] = [
     { key: DESIGN_SYSTEM_PAGE, label: 'Sistema de diseño' },
+    { key: EMAILS_PAGE, label: 'Correos' },
     { key: 'auth', label: 'Autenticación' },
     { key: 'home', label: 'Inicio' },
     { key: 'employees', label: 'Colaboradores' },
@@ -75,17 +78,18 @@ export function mockNameFromPath(path: string): string | null {
 }
 
 function moduleKeyOf(page: string): string {
-    if (page === DESIGN_SYSTEM_PAGE) return DESIGN_SYSTEM_PAGE;
+    if (page === DESIGN_SYSTEM_PAGE || page === EMAILS_PAGE) return page;
     return (page.split('/')[0] ?? page).toLowerCase();
 }
 
 export function typesFileFor(page: string): string | null {
-    if (page === DESIGN_SYSTEM_PAGE) return null;
+    if (page === DESIGN_SYSTEM_PAGE || page === EMAILS_PAGE) return null;
     return `resources/js/types/pages/${moduleKeyOf(page)}.ts`;
 }
 
 function titleOf(page: string): string {
     if (page === DESIGN_SYSTEM_PAGE) return 'Componentes y layouts';
+    if (page === EMAILS_PAGE) return 'Plantillas de correo';
     const parts = page.split('/');
     const rest = parts.slice(1).join('/');
     // A bare "Index" says nothing on its own; keep the module in that case.
@@ -98,7 +102,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }
 
-export function buildCatalog(pagePaths: readonly string[], mockModules: Record<string, unknown>): Catalog {
+export function buildCatalog(
+    pagePaths: readonly string[],
+    mockModules: Record<string, unknown>,
+    emailTemplates: readonly { key: string; label: string }[] = [],
+): Catalog {
     const files = new Set(pagePaths.map(pageNameFromPath).filter((name): name is string => name !== null));
     const pages = new Map<string, CatalogPage>();
     const invalid: CatalogWarning[] = [];
@@ -107,7 +115,7 @@ export function buildCatalog(pagePaths: readonly string[], mockModules: Record<s
     const pageFor = (name: string): CatalogPage => {
         let page = pages.get(name);
         if (page === undefined) {
-            page = { name, title: titleOf(name), hasFile: name === DESIGN_SYSTEM_PAGE || files.has(name), variants: [] };
+            page = { name, title: titleOf(name), hasFile: name === DESIGN_SYSTEM_PAGE || name === EMAILS_PAGE || files.has(name), variants: [] };
             pages.set(name, page);
         }
         return page;
@@ -123,6 +131,20 @@ export function buildCatalog(pagePaths: readonly string[], mockModules: Record<s
             label: view.label,
             props: {},
         });
+    }
+
+    if (emailTemplates.length > 0) {
+        const emails = pageFor(EMAILS_PAGE);
+        for (const template of emailTemplates) {
+            emails.variants.push({
+                id: `${EMAILS_PAGE}:${template.key}`,
+                key: template.key,
+                source: EMAILS_PAGE,
+                page: EMAILS_PAGE,
+                label: template.label,
+                props: {},
+            });
+        }
     }
 
     for (const [path, module] of Object.entries(mockModules)) {

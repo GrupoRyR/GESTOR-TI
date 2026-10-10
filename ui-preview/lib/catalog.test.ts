@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildCatalog,
     DESIGN_SYSTEM_PAGE,
+    EMAILS_PAGE,
     filterCatalog,
     findVariant,
     flattenVariantIds,
@@ -187,5 +188,26 @@ describe('resolveSelection', () => {
             variant: null,
             missingVariant: 'home:missing',
         });
+    });
+});
+
+describe('email templates', () => {
+    const withEmails = buildCatalog(PAGE_PATHS, MOCKS, [
+        { key: 'new-request', label: 'Nueva solicitud' },
+        { key: 'delivered', label: 'Entrega en producción' },
+    ]);
+
+    it('adds a "Correos" group right after the design system, one variant per template', () => {
+        expect(withEmails.groups.map((group) => group.key).slice(0, 2)).toEqual([DESIGN_SYSTEM_PAGE, EMAILS_PAGE]);
+        const emails = withEmails.groups[1];
+        expect(emails?.label).toBe('Correos');
+        expect(emails?.pages[0]).toMatchObject({ name: EMAILS_PAGE, title: 'Plantillas de correo', hasFile: true });
+        expect(emails?.pages[0]?.variants.map((variant) => variant.id)).toEqual(['emails:new-request', 'emails:delivered']);
+        expect(typesFileFor(EMAILS_PAGE)).toBeNull();
+    });
+
+    it('adds no group and no warnings when there are no templates', () => {
+        expect(catalog.groups.some((group) => group.key === EMAILS_PAGE)).toBe(false);
+        expect(withEmails.warnings).toEqual(catalog.warnings);
     });
 });

@@ -1,0 +1,50 @@
+<!-- subject: [{{ project_key }}] Informe semanal: {{ project_name }} al {{ report_date_short }} -->
+<!-- from: {{ company_sender }} -->
+{{ project_title }}
+{{ project_key }} · {{ status_label }}
+Informe semanal al {{ report_date }} · pedido por {{ requested_by }} ({{ request_key }})
+
+EN RESUMEN
+<!-- @if can_view_costs -->{{ summary_with_costs }}<!-- @else -->{{ summary }}<!-- @endif -->
+
+ESTADO Y AVANCE
+<!-- @foreach phases as phase -->
+{{ phase.glyph }} {{ phase.label }}
+<!-- @endforeach -->
+Tareas: {{ tasks_done }} de {{ tasks_total }} hechas
+Criterios de aceptación: {{ criteria_met }} de {{ criteria_total }} cumplidos
+
+HECHO ESTA SEMANA
+<!-- @foreach done_items as item -->
+- {{ item }}
+<!-- @endforeach -->
+
+LO QUE SIGUE
+<!-- @foreach next_items as item -->
+- {{ item }}
+<!-- @endforeach -->
+<!-- @if risks -->
+
+RIESGOS Y BLOQUEOS
+<!-- @foreach risks as risk -->
+! {{ risk.title }} {{ risk.text }}
+<!-- @endforeach -->
+<!-- @endif -->
+<!-- @if can_view_costs -->
+
+TIEMPO Y COSTO (solo lo reciben quienes tienen permiso de ver costos)
+Horas: {{ hours_used }} h de {{ hours_budget }} h · quedan {{ hours_left }} h
+Costo: {{ cost_used }} de {{ cost_budget }} · {{ cost_percent }} % (aviso al 80 %)
+<!-- @if cost_alert -->
+Pasó el 80 % del presupuesto. Ya avisamos a {{ approvers_and }}.
+<!-- @endif -->
+Fecha: proyectada {{ projected_date }} · aprobada {{ approved_date }}<!-- @if days_late --> · {{ days_late }} días tarde<!-- @endif -->
+Si el costo proyectado supera en más del 20 % lo aprobado (más de {{ cost_reapproval_limit }}), el proyecto vuelve a aprobación de {{ approvers_or }}.
+<!-- @endif -->
+
+Ver informe completo: {{ action_url }}
+
+--
+Gestor TI · Grupo RYR · {{ company_name }}
+<!-- @if can_view_costs -->Recibes este informe porque sigues el proyecto {{ project_key }} y puedes ver sus costos.<!-- @else -->Recibes este informe porque pediste el proyecto {{ project_key }} ({{ request_key }}).<!-- @endif --> Lo envía {{ company_sender }}.
+Cambiar mis avisos: {{ preferences_url }}
