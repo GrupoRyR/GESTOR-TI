@@ -48,6 +48,16 @@ return [
             'hint' => 'Las que tú pediste',
             'channels' => ['mail', 'database'],
         ],
+        'ai.rating.requested' => [
+            'label' => 'Calificar lo que me entregaron',
+            'hint' => 'Cuando algo que pediste llega a producción, y un recordatorio a los 3 días',
+            'channels' => ['mail', 'database'],
+        ],
+        'ai.rating.hours' => [
+            'label' => 'Horas que me ahorra',
+            'hint' => 'Una pregunta corta un mes después de la entrega',
+            'channels' => ['mail', 'database'],
+        ],
         'ai.approval.requested' => [
             'label' => 'Aprobaciones pendientes',
             'hint' => 'Una solicitud espera tu aprobación',

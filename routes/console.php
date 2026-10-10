@@ -50,6 +50,13 @@ Schedule::command('ai:hours-reminder')
     ->timezone('America/Bogota')
     ->withoutOverlapping();
 
+// Ratings of delivered requests: reminder at 3 days, closed without rating
+// at 7, "¿cuántas horas te ahorra por semana?" at 30 (stamped, rerun-safe).
+Schedule::command('ai:ratings-lifecycle')
+    ->dailyAt('09:00')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Gate;
  *   of that round is linked to the project (`ai_estimates.ai_project_id`).
  * - Team: the request's assignee (else the actor) as "Líder del
  *   proyecto", plus the people of the estimate as "Desarrollo".
+ * - The base documentation is ready from the templates (PROMPT 6.4.3
+ *   "Plantilla de proyecto nuevo", App\Domain\Ai\DocumentTemplates).
  * - The request moves to "Planificada" (TransitionRequest, requester
  *   notified). A request belongs to one project only.
  *
@@ -33,7 +35,10 @@ use Illuminate\Support\Facades\Gate;
  */
 class ConvertRequestToProject
 {
-    public function __construct(private readonly TransitionRequest $transition) {}
+    public function __construct(
+        private readonly TransitionRequest $transition,
+        private readonly Documents $documents,
+    ) {}
 
     public function handle(AiRequest $request, User $actor, string $name, CarbonImmutable $startDate): AiProject
     {
@@ -88,6 +93,8 @@ class ConvertRequestToProject
                         $project->members()->firstOrCreate(['user_id' => $line->user_id], ['role' => 'Desarrollo', 'position' => $position++]);
                     });
             }
+
+            $this->documents->createProjectBase($project, $actor);
 
             $this->transition->apply($request, RequestStatus::Planned, $actor, "Ahora es el proyecto {$project->key}.");
 

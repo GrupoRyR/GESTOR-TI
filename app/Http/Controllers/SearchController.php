@@ -2,26 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiProduct;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * Top-bar search (`search`, GET `q`). Stage A has a single searchable list,
- * so the query goes to Colaboradores for users who can see it; everybody
- * else goes back with a notice. Stage B replaces this with a global search.
+ * Top-bar search (`search`, GET `q`). Users of the Gestor IA (module
+ * active, AiProductPolicy::viewAny) go to its search (`ai.search`: docs,
+ * requests and products); people who only see Colaboradores go to that
+ * list; everybody else goes back with a notice.
  */
 class SearchController extends Controller
 {
-    public const NOTICE = 'La búsqueda llega en la etapa B.';
+    public const NOTICE = 'No tienes dónde buscar todavía.';
 
     public function __invoke(Request $request): RedirectResponse
     {
-        if (! $request->user()->can('employees.view')) {
-            return redirect()->back(fallback: route('home'))->with('error', self::NOTICE);
+        /** @var User $user */
+        $user = $request->user();
+        $query = trim($request->string('q')->toString());
+        $parameters = $query === '' ? [] : ['q' => $query];
+
+        if ((bool) config('modules.ai.active', false) && $user->can('viewAny', AiProduct::class)) {
+            return redirect()->route('ai.search', $parameters);
         }
 
-        $query = trim($request->string('q')->toString());
+        if ($user->can('employees.view')) {
+            return redirect()->route('employees.index', $parameters);
+        }
 
-        return redirect()->route('employees.index', $query === '' ? [] : ['q' => $query]);
+        return redirect()->back(fallback: route('home'))->with('error', self::NOTICE);
     }
 }

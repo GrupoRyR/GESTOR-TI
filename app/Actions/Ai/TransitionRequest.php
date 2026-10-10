@@ -10,6 +10,7 @@ use App\Enums\Ai\RejectReason;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiRequest;
 use App\Models\User;
+use App\Notifications\AiRatingRequested;
 use App\Notifications\AiRequestStatusChanged;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -106,7 +107,15 @@ class TransitionRequest
         $requester = $request->requester;
 
         if ($requester !== null && $requester->id !== $actor?->id) {
-            $requester->notify(AiRequestStatusChanged::for($request, $note));
+            // Reaching production asks for the rating (PROMPT 6.4.5) instead
+            // of the plain status notice; the daily lifecycle reminds and closes.
+            $asksRating = $to === RequestStatus::InProduction && ! $request->ratings()->where('user_id', $requester->id)->exists();
+
+            if ($asksRating) {
+                $request->forceFill(['rating_requested_at' => now(), 'rating_reminded_at' => null])->save();
+            }
+
+            $requester->notify($asksRating ? AiRatingRequested::for($request, false, $note) : AiRequestStatusChanged::for($request, $note));
         }
 
         return $request;

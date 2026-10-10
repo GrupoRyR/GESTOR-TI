@@ -197,6 +197,26 @@ class AiProduct extends Model
     }
 
     /**
+     * Documentation of the product (PROMPT 6.4.4).
+     *
+     * @return HasMany<AiDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(AiDocument::class, 'ai_product_id');
+    }
+
+    /**
+     * Newest first.
+     *
+     * @return HasMany<AiProductIncident, $this>
+     */
+    public function incidents(): HasMany
+    {
+        return $this->hasMany(AiProductIncident::class)->orderByDesc('started_at')->orderByDesc('id');
+    }
+
+    /**
      * @return HasOne<MonitoredApp, $this>
      */
     public function monitoredApp(): HasOne

@@ -12,7 +12,11 @@ use App\Http\Controllers\AI\ApprovalController;
 use App\Http\Controllers\AI\AreaBoardController;
 use App\Http\Controllers\AI\BacklogController;
 use App\Http\Controllers\AI\BoardController;
+use App\Http\Controllers\AI\DocumentController;
 use App\Http\Controllers\AI\InboxController;
+use App\Http\Controllers\AI\KnowledgeSearchController;
+use App\Http\Controllers\AI\PendingDesignController;
+use App\Http\Controllers\AI\ProductController;
 use App\Http\Controllers\AI\ProjectController;
 use App\Http\Controllers\AI\ProjectCostController;
 use App\Http\Controllers\AI\ProjectReportController;
@@ -45,7 +49,7 @@ use Illuminate\Support\Facades\Route;
 // Inicio (`Home`): IT board or requester home.
 Route::get('/', HomeController::class)->middleware('auth')->name('home');
 
-// Top-bar search. Stage A: Colaboradores only (see SearchController).
+// Top-bar search: Gestor IA search or Colaboradores (see SearchController).
 Route::get('/search', SearchController::class)->middleware('auth')->name('search');
 
 // Authentication (A5). `throttle:login` = per-IP limit (AppServiceProvider);
@@ -245,16 +249,42 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
         ->middleware('signed')
         ->name('costs.attachment');
 
+    // Products, documentation and search (B7, types/pages/ai-knowledge.ts).
+    // Pages: `ai.manage` (+ AiProductPolicy / AiDocumentPolicy); writing
+    // docs: `ai.docs.edit`. `{product}` is the slug, `{doc}` the id.
+    Route::middleware('can:ai.manage')->group(function () {
+        Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+        // TEMPORARY: forms not designed yet (go back with "Disponible pronto.").
+        Route::get('/products/create', PendingDesignController::class)->name('products.create');
+        Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
+        Route::get('/products/{product}/edit', PendingDesignController::class)->name('products.edit');
+        Route::get('/products/{product}/incidents/create', PendingDesignController::class)->name('products.incidents.create');
+
+        Route::get('/docs', [DocumentController::class, 'index'])->name('docs.index');
+        Route::get('/docs/create', [DocumentController::class, 'create'])->name('docs.create');
+        Route::get('/docs/repo', [DocumentController::class, 'repo'])->name('docs.repo');
+        Route::get('/docs/{doc}', [DocumentController::class, 'edit'])->whereNumber('doc')->name('docs.edit');
+        Route::get('/docs/{doc}/history', [DocumentController::class, 'history'])->whereNumber('doc')->name('docs.history');
+        Route::get('/projects/{project}/docs', [DocumentController::class, 'project'])->name('projects.docs');
+
+        Route::middleware('can:ai.docs.edit')->group(function () {
+            Route::post('/docs', [DocumentController::class, 'store'])->name('docs.store');
+            Route::put('/docs/{doc}', [DocumentController::class, 'update'])->whereNumber('doc')->name('docs.update');
+            Route::post('/docs/{doc}/publish', [DocumentController::class, 'publish'])->whereNumber('doc')->name('docs.publish');
+            Route::post('/docs/{doc}/versions/{version}/restore', [DocumentController::class, 'restore'])
+                ->whereNumber(['doc', 'version'])
+                ->name('docs.restore');
+        });
+    });
+    // Module users (AiProductPolicy::viewAny); docs only reach `ai.manage`.
+    Route::get('/search', KnowledgeSearchController::class)->name('search');
+
     // TEMPORARY (Stage B): routes the pages and the GestorLayout tabs
-    // already call, implemented by later tasks (docs/value B7, vault B8,
-    // products B9; the weekly review has no design for its storage yet).
+    // already call, implemented by later tasks (value and vault B8; the
+    // weekly review has no design for its storage yet).
     // Pages redirect to Inicio and actions go back, both with a notice.
-    Route::get('/projects/{project}/docs', StageBPlaceholderController::class)->name('projects.docs');
     Route::post('/reviews', StageBPlaceholderController::class)->name('reviews.store');
     Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
-    Route::get('/products', StageBPlaceholderController::class)->name('products.index');
-    Route::get('/products/{product}', StageBPlaceholderController::class)->name('products.show');
-    Route::get('/docs', StageBPlaceholderController::class)->name('docs.index');
     Route::get('/value', StageBPlaceholderController::class)->name('value.index');
 });
 

@@ -72,6 +72,9 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ?int $merged_into_id
  * @property ?int $backlog_position
  * @property ?Carbon $closed_at
+ * @property ?Carbon $rating_requested_at
+ * @property ?Carbon $rating_reminded_at
+ * @property ?Carbon $hours_saved_asked_at
  * @property Carbon $created_at
  */
 #[Fillable([
@@ -81,7 +84,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
     'area_approval_status', 'size', 'risk', 'impact_money_per_month', 'votes_count', 'priority_score',
     'final_priority', 'priority_overridden', 'evaluated_by_id', 'evaluated_at', 'first_response_due_at',
     'first_responded_at', 'rejection_reason', 'rejection_message', 'closed_at', 'assignee_id', 'merged_into_id',
-    'backlog_position',
+    'backlog_position', 'rating_requested_at', 'rating_reminded_at', 'hours_saved_asked_at',
 ])]
 class AiRequest extends Model
 {
@@ -135,6 +138,9 @@ class AiRequest extends Model
             'first_response_due_at' => 'datetime',
             'first_responded_at' => 'datetime',
             'closed_at' => 'datetime',
+            'rating_requested_at' => 'datetime',
+            'rating_reminded_at' => 'datetime',
+            'hours_saved_asked_at' => 'datetime',
         ];
     }
 

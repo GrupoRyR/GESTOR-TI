@@ -7,11 +7,10 @@ use Illuminate\Http\RedirectResponse;
 
 /**
  * TEMPORARY (Stage B): Gestor IA routes the design pages already call but
- * later tasks implement (docs and value in B7, vault in B8, products in
- * B9, the weekly review). They exist so
- * Ziggy never throws: a page sends the user back to Inicio, an action goes
- * back where it came from, both with a notice, until the real controller
- * replaces them.
+ * later tasks implement (value and vault in B8, the weekly review). They
+ * exist so Ziggy never throws: a page sends the user back to Inicio, an
+ * action goes back where it came from, both with a notice, until the real
+ * controller replaces them.
  */
 class StageBPlaceholderController extends Controller
 {

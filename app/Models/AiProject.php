@@ -243,6 +243,17 @@ class AiProject extends Model
     }
 
     /**
+     * Documentation of the project (PROMPT 6.4.4); the base set comes from
+     * App\Domain\Ai\DocumentTemplates::PROJECT_BASE when it is created.
+     *
+     * @return HasMany<AiDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(AiDocument::class, 'ai_project_id');
+    }
+
+    /**
      * @return HasOne<AiProjectReport, $this>
      */
     public function report(): HasOne

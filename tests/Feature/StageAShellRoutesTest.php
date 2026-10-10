@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\SearchController;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,10 +24,6 @@ class StageAShellRoutesTest extends TestCase
      */
     private const STAGE_B_ROUTES = [
         'ai.vault.index' => [],
-        'ai.projects.docs' => ['project' => 'P-07'],
-        'ai.products.index' => [],
-        'ai.products.show' => ['product' => 'toma-pedidos'],
-        'ai.docs.index' => [],
         'ai.value.index' => [],
     ];
 
@@ -85,28 +83,43 @@ class StageAShellRoutesTest extends TestCase
         $this->get(route('ai.vault.index'))->assertNotFound();
     }
 
-    public function test_search_sends_employee_viewers_to_the_employee_list(): void
+    public function test_search_sends_gestor_users_to_the_gestor_search(): void
     {
         $admin = tap(User::factory()->create())->assignRole('Súper Admin');
 
         $this->actingAs($admin)
             ->get(route('search', ['q' => 'castro']))
-            ->assertRedirect(route('employees.index', ['q' => 'castro']));
+            ->assertRedirect(route('ai.search', ['q' => 'castro']));
 
         $this->actingAs($admin)
+            ->get(route('search'))
+            ->assertRedirect(route('ai.search'));
+    }
+
+    public function test_search_sends_employee_viewers_without_the_gestor_to_the_employee_list(): void
+    {
+        $role = Role::create(['name' => 'Solo colaboradores', 'guard_name' => 'web']);
+        $role->givePermissionTo('employees.view');
+        $viewer = tap(User::factory()->create())->assignRole('Solo colaboradores');
+
+        $this->actingAs($viewer)
+            ->get(route('search', ['q' => 'castro']))
+            ->assertRedirect(route('employees.index', ['q' => 'castro']));
+
+        $this->actingAs($viewer)
             ->get(route('search'))
             ->assertRedirect(route('employees.index'));
     }
 
     public function test_search_goes_back_with_a_notice_for_everybody_else(): void
     {
-        $user = tap(User::factory()->create())->assignRole('Usuario final');
+        $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->from(route('ai.index'))
+            ->from(route('home'))
             ->get(route('search', ['q' => 'factura']))
-            ->assertRedirect(route('ai.index'))
-            ->assertSessionHas('error', 'La búsqueda llega en la etapa B.');
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('error', SearchController::NOTICE);
     }
 
     public function test_search_requires_login(): void
