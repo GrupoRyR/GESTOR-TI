@@ -15,7 +15,7 @@ class ItShowTest extends TriageTestCase
         $request = $this->request();
 
         $this->assertSame(
-            $this->withShared([...self::ACTION_DATA, 'view', 'request', 'evaluation', 'duplicates', 'area_hour_value', 'first_response', 'first_response_business_days', 'brief', 'brief_state', 'now']),
+            $this->withShared([...self::ACTION_DATA, 'view', 'request', 'evaluation', 'duplicates', 'area_hour_value', 'first_response', 'first_response_business_days', 'brief', 'brief_state', 'suggestions', 'ai_availability', 'ai_usage', 'merge_into', 'now']),
             $this->propKeys(route('ai.requests.show', $request)),
         );
     }

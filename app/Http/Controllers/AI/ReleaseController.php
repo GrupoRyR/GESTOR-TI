@@ -10,6 +10,7 @@ use App\Models\AiProduct;
 use App\Models\AiProductVersion;
 use App\Models\User;
 use App\Support\Ai\AiSuggestionAvailability;
+use App\Support\Ai\Presenters\SuggestionPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -22,8 +23,9 @@ use Inertia\Response;
  * that product (404 otherwise).
  *
  * - `ai.releases.show`: the release, its included requests and the notice
- *   preview data. `suggestion` is null until the release-notes suggestion
- *   exists (Stage D6); `ai` / `ai_usage` from AiSuggestionAvailability.
+ *   preview data. `suggestion`: the latest `release_notes` suggestion
+ *   (Stage D6, drafted when the GitHub release arrived; null when the AI
+ *   is off or none exists); `ai` / `ai_usage` from AiSuggestionAvailability.
  * - `ai.releases.notes.update`: "Guardar notas" (App\Actions\Ai\ReleaseNotes::save).
  * - `ai.releases.notify`: "Avisar a N solicitantes" (ReleaseNotes::notify).
  */
@@ -32,6 +34,7 @@ class ReleaseController extends Controller
     public function __construct(
         private readonly ReleaseDetail $detail,
         private readonly AiSuggestionAvailability $ai,
+        private readonly SuggestionPresenter $suggestions,
     ) {}
 
     public function show(Request $http, AiProduct $product, string $release): Response
@@ -47,7 +50,7 @@ class ReleaseController extends Controller
                 'company_id' => (int) $product->primaryCompany()?->id,
             ],
             'release' => $this->detail->for($version),
-            'suggestion' => null,
+            'suggestion' => $this->suggestions->releaseNotes($version, $user),
             'ai' => $this->ai->for($user),
             'ai_usage' => $this->ai->usage($user),
             'now' => now()->toIso8601String(),

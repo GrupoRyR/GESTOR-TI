@@ -48,6 +48,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ?string $hours_per_week
  * @property ?int $people_count
  * @property ?string $expected_result
+ * @property ?string $summary_text "Resumen para TI" from a used AI summary (Stage D6)
  * @property ?string $success_criteria
  * @property ?list<string> $systems
  * @property ?string $systems_notes
@@ -80,7 +81,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 #[Fillable([
     'key', 'company_id', 'area_id', 'requester_id', 'created_by_id', 'type', 'title', 'product_id', 'product_version',
     'problem', 'who_suffers', 'current_process', 'hours_per_week', 'people_count', 'expected_result',
-    'success_criteria', 'systems', 'systems_notes', 'urgency', 'deadline', 'deadline_reason', 'status',
+    'summary_text', 'success_criteria', 'systems', 'systems_notes', 'urgency', 'deadline', 'deadline_reason', 'status',
     'area_approval_status', 'size', 'risk', 'impact_money_per_month', 'votes_count', 'priority_score',
     'final_priority', 'priority_overridden', 'evaluated_by_id', 'evaluated_at', 'first_response_due_at',
     'first_responded_at', 'rejection_reason', 'rejection_message', 'closed_at', 'assignee_id', 'merged_into_id',

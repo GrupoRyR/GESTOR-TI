@@ -2,9 +2,11 @@
 
 namespace App\Actions\Ai;
 
+use App\Domain\Suggestions\Suggestions;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiProductVersion;
 use App\Models\AiRequest;
+use App\Models\AiSuggestion;
 use App\Models\User;
 use App\Notifications\AiReleasePublished;
 use Illuminate\Support\Collection;
@@ -28,23 +30,30 @@ use Illuminate\Validation\ValidationException;
  *   to production stays a TI decision after the requester's validation);
  *   their requesters are still told the release is out.
  *
- * Both are audited (`ai` log) without the notes text.
+ * Both are audited (`ai` log) without the notes text. A `suggestion_id`
+ * must name a `release_notes` suggestion of this version (Stage D6); it is
+ * marked used with the confirmed text.
  */
 class ReleaseNotes
 {
     public const MAX_LENGTH = 5000;
 
-    public function __construct(private readonly TransitionRequest $transition) {}
+    public function __construct(
+        private readonly TransitionRequest $transition,
+        private readonly Suggestions $suggestions,
+    ) {}
 
     public function save(AiProductVersion $version, ?string $notes, ?int $suggestionId, User $actor): AiProductVersion
     {
         Gate::forUser($actor)->authorize('manageVersions', $version->product);
+        $suggestion = $this->suggestions->releaseNotesSuggestion($version, $suggestionId);
 
-        DB::transaction(function () use ($version, $notes, $suggestionId, $actor): void {
+        DB::transaction(function () use ($version, $notes, $suggestion, $suggestionId, $actor): void {
             $locked = $this->lock($version);
             $text = $notes === null || trim($notes) === '' ? null : $notes;
 
             $locked->forceFill(['user_notes' => $text])->save();
+            $this->credit($suggestion, $text, $actor);
             $this->audit($locked, 'ai_release_notes_updated', $actor, $suggestionId, "{$locked->tag}: notas para usuarios guardadas");
         });
 
@@ -62,8 +71,10 @@ class ReleaseNotes
             throw ValidationException::withMessages(['user_notes' => 'Escribe las notas para los usuarios antes de avisar.']);
         }
 
+        $suggestion = $this->suggestions->releaseNotesSuggestion($version, $suggestionId);
+
         /** @var array<int, array{user: User, requests: list<AiRequest>}> $recipients */
-        $recipients = DB::transaction(function () use ($version, $notes, $suggestionId, $actor): array {
+        $recipients = DB::transaction(function () use ($version, $notes, $suggestion, $suggestionId, $actor): array {
             $locked = $this->lock($version);
             $requests = $locked->requests()->with('requester')->orderBy('ai_requests.id')->get();
 
@@ -72,6 +83,7 @@ class ReleaseNotes
             }
 
             $locked->forceFill(['user_notes' => $notes, 'notified_at' => now()])->save();
+            $this->credit($suggestion, $notes, $actor);
             $note = "Publicada en {$locked->product?->name} {$locked->tag}.";
 
             foreach ($requests as $request) {
@@ -96,6 +108,17 @@ class ReleaseNotes
         }
 
         return count($recipients);
+    }
+
+    /**
+     * Stage D6: the AI draft the notes started from is recorded as used,
+     * with the text IT confirmed (never the draft itself).
+     */
+    private function credit(?AiSuggestion $suggestion, ?string $notes, User $actor): void
+    {
+        if ($suggestion !== null && $notes !== null) {
+            $this->suggestions->markAccepted($suggestion, ['body' => $notes], $actor);
+        }
     }
 
     /**

@@ -134,6 +134,15 @@ return [
             'deepseek-reasoner' => ['input' => 0.28, 'cached_input' => 0.028, 'output' => 0.42],
         ],
 
+        // AI suggestions (Stage D6): minimum words of title + problem +
+        // current process + expected result before anything is sent
+        // ("No hay suficiente texto para resumir"), and how many open
+        // requests (newest first, same company) are offered for duplicates.
+        'suggestions' => [
+            'min_words' => 15,
+            'open_requests' => 60,
+        ],
+
         'providers' => [
             'deepseek' => [
                 'label' => 'DeepSeek',

@@ -25,7 +25,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 - [x] D3 · Repos, issues and docs: `ai.products.repository.store`, `ai.projects.repository.store`, `ai.projects.repository.create` (private repo with README, CLAUDE.md, docs/), `ai.tasks.issue.store`; props `Ai/Products/Show.github|repo_link`, `Ai/Projects/Show.repo_link|repo_create`, Board `selected_task_github|issue_created`, `Ai/Tasks/Show.github`; `Ai/Docs/Repo` connected. Route: delegated.
 - [x] D4 · Releases: page `Ai/Releases/Show`, `ai.releases.notes.update`, `ai.releases.notify` (bell + Telegram to each requester, confirmed notes only). Route: delegated.
 - [x] D5 · Brief para Claude: whitelisted `brief` inputs + `brief_state` on request/task/project/board, `brief_omitted`; tests that vault, credentials, costs, rates, hours and internal notes never appear. Route: delegated.
-- [ ] D6 · AI suggestions: `ai_suggestions`, agents, `ai.requests.suggestions.store`, `ai.suggestions.{accept,discard,regenerate,cancel}`, `ai.requests.compare`, `ai.requests.criteria.update`, `size_suggestion_id` on evaluation, `ai_availability`/`ai_usage`/`merge_into`; release-notes suggestion. Route: delegated.
+- [x] D6 · AI suggestions: `ai_suggestions`, agents, `ai.requests.suggestions.store`, `ai.suggestions.{accept,discard,regenerate,cancel}`, `ai.requests.compare`, `ai.requests.criteria.update`, `size_suggestion_id` on evaluation, `ai_availability`/`ai_usage`/`merge_into`; release-notes suggestion. Route: delegated.
 - [ ] D7 · Close: full checks, deploy doc (GitHub App setup, env keys), PRs.
 
 ## Progress / evidence
@@ -302,6 +302,102 @@ Notes for design:
 - No type changes needed. `RequestBriefInput.requester` carries a job title / area (privacy), not a person's name.
 - `TaskBriefInput.pull_request` is always null from the server; the drawer and the task page already merge the task's PR from
   `TaskGitHub` (`withTaskGitHub`), so no "related PR" of another task is sent.
+
+### D6 · AI suggestions — done
+- Commit: the `feat(ai)` commit that adds this block (code, tests and this evidence in one work unit).
+- Route: delegated (writer trigger: migration, model, factory, 5 domain classes, job, presenter, controller, 4 controllers/actions wired, routes, config; 6 test files + 1 updated).
+- Test-first: 29 new tests (`tests/Feature/Ai/Suggestions/{SuggestionRoutesTest,SuggestionPagesTest,SuggestionFormsTest,SuggestionInputTest,ReleaseNotesSuggestionTest}`)
+  plus the prop-key list of `Triage/ItShowTest`, written first and observed RED (30 of 36 failing in those files: routes `ai.requests.suggestions.store`,
+  `ai.suggestions.*`, `ai.requests.compare`, `ai.requests.criteria.update`, model `AiSuggestion` and props missing), then GREEN.
+- Checks: `php artisan test --filter='Suggestion|Compare|Criteria|Evaluation|Release'` 50/50 (742 assertions); full suite 1068/1068 passed (11712 assertions);
+  `vendor/bin/pint --test` passed; `npm run typecheck` passed.
+- Size: ~1,870 authored code lines (with docblocks) + ~1,000 test lines, above the ~400 heuristic: the request suggestions, the forms that credit them and
+  the release draft share one table, one whitelist builder, one generator and one presenter, kept together so the leak test and the cancel race cover all kinds.
+
+Schema (`2026_10_29_000001_create_ai_suggestions_table`):
+- `ai_suggestions`: `subject` morph (`AiRequest` / `AiProductVersion`, class names), `kind` (summary|duplicate|criteria|size|release_notes), `state`
+  (generating|ready|accepted|discarded|error|cancelled), `batch` uuid (rows of one provider call), `provider`, `model`, `payload` json (the TS payload),
+  `accepted_value` json, `accepted_by_id/at`, `discarded_by_id/at`, `discard_reason` (≤ 500), `input_hashes` json (sha1 per whitelisted field),
+  `error` json (`SuggestionError`), `ai_interaction_id`, `requested_by_id` (null for the release draft), `superseded_at`.
+- `ai_requests.summary_text`: "Resumen para TI" once a summary is used (`RequestSuggestions.summary_text`). No company column: suggestions are child
+  data reached only through the request (company scope + AiRequestPolicy::evaluate) or the release's product (view + manageVersions).
+
+Classes:
+- `App\Models\AiSuggestion` (+ factory; scopes `current` = not cancelled nor superseded, `of($subject)`).
+- `App\Domain\Suggestions\SuggestionInput`: the whitelist builder (below) and the input hashes.
+- `App\Domain\Suggestions\RequestSuggestionAgent` / `ReleaseNotesAgent` (laravel/ai `Agent`, `MaxSteps(1)`, `RetryTransientStep`, JSON out),
+  called only through `AiRuntime::run()`.
+- `App\Domain\Suggestions\SuggestionAnswer`: defensive JSON parsing (text around ignored, types checked, lengths cut; criteria ≤ 6 with ids 1..n,
+  size in `EffortSize`, duplicates only keys that were offered, ≤ 3, `level` alto|medio).
+- `App\Domain\Suggestions\SuggestionGenerator` (+ `App\Jobs\GenerateSuggestions`, 1 try, timeout 150 s) and `App\Domain\Suggestions\Suggestions` (actions).
+- `App\Support\Ai\Presenters\SuggestionPresenter` (`Suggestion`, `RequestSuggestions`, release suggestion, duplicate for Compare).
+- `App\Http\Controllers\AI\SuggestionController`.
+
+Routes (`can:ai.manage`; every action re-checks the subject):
+- `ai.requests.suggestions.store` POST `/ai/requests/{request}/suggestions` → back. Refused (`suggestion`) when the AI is not ready or every kind exists.
+- `ai.suggestions.accept` POST `/ai/suggestions/{suggestion}/accept` `{value?}` (≤ 5.000, blank refused) → `accepted_value`; summary also writes
+  `ai_requests.summary_text` (the only write to a request). `ai.suggestions.discard` `{reason?}` (≤ 500). `ai.suggestions.regenerate`, `ai.suggestions.cancel`.
+  State errors arrive on `suggestion` ("Esta sugerencia ya no se puede usar.", "Esta sugerencia ya se está generando.", "Esta sugerencia ya no se está generando.").
+- `ai.requests.compare` GET `/ai/requests/{request}/compare/{other}` → `Ai/Requests/Compare` `{current, other, suggestion, now}` (`viewInternal` on both;
+  404 without an AI duplicate suggestion of `request` pointing to `other`). `CompareSide` = summary, problem, expected result, systems.
+- `ai.requests.criteria.update` PUT `/ai/requests/{request}/criteria` `{criteria: {id|null, text}[], suggestion_id}`: 1–20 lines, text ≤ 500; rows synced by
+  id (positions 1..n, missing rows deleted, new rows created); ids of another request and changes to a criterion the requester already validated are
+  refused on `criteria`; `suggestion_id` must be a criteria suggestion of the request (`suggestion_id` error), marked accepted with the saved texts.
+  Flash "Criterios guardados.".
+- `ai.requests.evaluation.update` accepts `size_suggestion_id` (nullable integer): marked accepted only when it is a size suggestion of the request and the
+  saved size equals its payload; otherwise ignored.
+- `ai.releases.notes.update` / `ai.releases.notify`: `suggestion_id` must be a `release_notes` suggestion of that version (`suggestion_id` error); it is marked
+  accepted with the confirmed text. Requesters still receive only the confirmed `user_notes` (asserted).
+
+Props:
+- `Ai/Requests/Show` IT view: `suggestions` (closure, partial reload `only: ['suggestions']` covered with X-Inertia-Version + flushHeaders), `ai_availability`
+  (`AiSuggestionAvailability`), `ai_usage`, `merge_into` (`?unir=KEY`, case-insensitive: another open, unmerged request in the viewer's company scope, else null).
+  `suggestions` is null unless availability is `ready`, and null when nothing was suggested; per kind the newest current row; duplicates newest first (discarded kept).
+  The requester view never has any of the four keys (asserted `missing`).
+- `Ai/Releases/Show`: `suggestion` = newest current `release_notes` suggestion (null when the AI is not ready or none exists).
+
+AI input whitelist (`SuggestionInput`; leak tests `SuggestionInputTest` and `ReleaseNotesSuggestionTest`):
+- Request: `{request: {title, problem, current_process, expected_result, app}}` (app = product name, else the systems the requester named), and for
+  duplicates `open_requests: [{key, title}]` = up to 60 newest open, unmerged requests of the same company (never finished ones or other companies).
+- Release: `{product, tag, requests: [{key, title}], technical_notes}`; technical notes line by line.
+- Every free text goes through `BriefText` (SecretGuard, money amounts, quotes of the request's internal notes): an unsafe field or title is dropped whole,
+  an unsafe technical-notes line is dropped. Never sent: requester/people names and emails, hours, people, who suffers, success criteria, systems notes,
+  costs, rates, estimates, area hour value, comments, internal notes, attachments, vault.
+- Prompts (agent instructions) are in Spanish; the input is the JSON above; answers are Spanish JSON.
+
+Call strategy and states:
+- "Sugerir con IA" = one batch, ONE provider call (`suggestion.request`) for summary + criteria + size + duplicates; rows are created `generating` for
+  summary/criteria/size (the mock shows `duplicates: []` while generating) and duplicate rows are created when found. "Volver a sugerir" = one call for
+  that kind (`suggestion.summary|criteria|size|duplicates`; a duplicate regenerate uses a placeholder row, deleted when nothing is found). Release draft =
+  `suggestion.release_notes`.
+- Execution: database queue (`GenerateSuggestions` dispatched after commit); the cron worker runs it within a minute. Each finished kind supersedes the
+  older rows of its kind; duplicates keep discarded rows and a discarded request never comes back for the same request.
+- Cancel: only `generating` → `cancelled` (never sent to the page; the previous suggestion of the kind shows again). The generator writes only rows still
+  `generating` (conditional update), so a cancel always wins; a batch whose rows were all cancelled is not sent.
+- `stale` is computed on presentation: a `ready` row whose `input_hashes` differ from the subject's current ones → `state: 'stale'`,
+  `stale: {reason: "Cambió el resultado esperado" | "Cambiaron el problema y el resultado esperado", at: subject updated_at}`. Accept still works.
+- Errors (`SuggestionError`, message "No se pudo generar la sugerencia."): `ai_timeout` ("DeepSeek no respondió a tiempo. La solicitud no cambió."),
+  `ai_error`, `bad_answer`, `ai_off`, `subject_missing`; `too_short` (title + problem + current process + expected result under
+  `gestor.ai.suggestions.min_words` = 15 words after unsafe fields are dropped): no call, only a summary row "No hay suficiente texto para resumir." /
+  "GIA-n tiene menos de 15 palabras. Pídele más detalle a quien la envió.".
+- Release draft: `AiProductVersion` `saved` hook (new row or newly set `github_release_id`) → `Suggestions::draftReleaseNotes()` when the AI is ready, the
+  version was not notified and no current draft exists; queued after the webhook transaction commits, so included requests are attached.
+  `source_note` = "Hecha con el título de GIA-118 y las notas técnicas del release. No usa costos ni notas internas." (plural with several keys).
+- Audit (`ai` log, ids and kind only, never text): `ai_suggestion_accepted`, `ai_suggestion_discarded`.
+
+Decisions:
+- The release page has no "Sugerir" button (ai-github.ts only lists discard/regenerate), so the draft is created when the GitHub release arrives (model
+  hook; D2 handlers and their tests unchanged). Releases imported while the AI was off get no draft (regenerate needs an existing row).
+- Discard is allowed on accepted/error rows; accept on ready (or stale) and accepted rows (Jhon may re-use an edited summary).
+- `ai_availability` off → `suggestions: null` (as the mocks); stored suggestions come back when the AI is ready again.
+
+Notes for design:
+- Nothing polls yet: while any suggestion is `generating`, `RequestSuggestions` should `router.reload({ only: ['suggestions'] })` every few seconds (the
+  queue worker runs every minute on cPanel), and the release page should reload `only: ['suggestion']` (its `useState(props.suggestion)` also ignores new props).
+- The release page cannot ask for a first draft when none exists (`suggestion: null` with the AI ready); consider a "Sugerir notas" button (needs a route).
+- Errors of accept/discard/regenerate/cancel and "Sugerir con IA" arrive on `errors.suggestion`; criteria errors on `criteria`, `criteria.N.text`,
+  `suggestion_id`; release `suggestion_id` errors on `suggestion_id`.
+- `Suggestion.provider` is the label of the provider that answered ("DeepSeek"), the configured one while generating.
 
 ## Open questions (for Jhon)
 - GitHub organization name, App registration (app id, private key, webhook secret go to `.env`).

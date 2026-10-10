@@ -13,9 +13,11 @@ use App\Models\AiRequest;
 use App\Models\AiRequestComment;
 use App\Models\Scopes\CompanyScope;
 use App\Models\User;
+use App\Support\Ai\AiSuggestionAvailability;
 use App\Support\Ai\Presenters\ItDetailPresenter;
 use App\Support\Ai\Presenters\RequesterDetailPresenter;
 use App\Support\Ai\Presenters\RequestPresenter;
+use App\Support\Ai\Presenters\SuggestionPresenter;
 use App\Support\Ai\Presenters\TriagePresenter;
 use App\Support\Ai\RequesterCopy;
 use App\Support\Paginated;
@@ -47,6 +49,8 @@ class RequestController extends Controller
         private readonly TriagePresenter $triage,
         private readonly FirstResponse $firstResponse,
         private readonly BriefInputs $briefs,
+        private readonly SuggestionPresenter $suggestions,
+        private readonly AiSuggestionAvailability $ai,
     ) {}
 
     public function mine(Request $http): Response
@@ -109,7 +113,9 @@ class RequestController extends Controller
     /**
      * `ItShowProps`: full detail with internal notes, evaluation, possible
      * duplicates (the first one is `similar_to`) and the action data.
-     * `merge_candidates` only on its partial reload (`{ q }`).
+     * `merge_candidates` only on its partial reload (`{ q }`). Stage D6:
+     * `suggestions` (null unless the AI is ready), `ai_availability`,
+     * `ai_usage` and `merge_into`; the requester view never has them.
      */
     private function itView(Request $http, AiRequest $request, User $user): Response
     {
@@ -137,9 +143,31 @@ class RequestController extends Controller
             'first_response_business_days' => $this->firstResponse->businessDays(),
             'brief' => $brief = $this->briefs->forRequest($request, $user),
             'brief_state' => $brief === null ? null : BriefInputs::state($http),
+            // Stage D6: closure so the page reloads `only: ['suggestions']` while generating.
+            'suggestions' => fn () => $this->suggestions->forRequest($request, $user),
+            'ai_availability' => $this->ai->for($user),
+            'ai_usage' => $this->ai->usage($user),
+            'merge_into' => $this->mergeInto($http, $request),
             'now' => now()->toIso8601String(),
             'merge_candidates' => Inertia::optional(fn () => InboxController::mergeCandidates((string) $http->query('q', ''), $request)),
         ]);
+    }
+
+    /**
+     * `?unir=GIA-121` from Compare: that request preselected in MergeDialog,
+     * only when it is another open request in the viewer's company scope.
+     */
+    private function mergeInto(Request $http, AiRequest $request): ?string
+    {
+        $key = strtoupper(trim((string) $http->query('unir', '')));
+
+        if ($key === '' || $key === $request->key) {
+            return null;
+        }
+
+        $other = AiRequest::query()->where('key', $key)->first();
+
+        return $other === null || $other->status->isFinished() || $other->merged_into_id !== null ? null : $other->key;
     }
 
     /**

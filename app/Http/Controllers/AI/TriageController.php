@@ -12,6 +12,7 @@ use App\Actions\Ai\TransitionRequest;
 use App\Domain\Ai\BusinessDays;
 use App\Domain\Ai\Money;
 use App\Domain\Ai\TriagePeople;
+use App\Domain\Suggestions\Suggestions;
 use App\Enums\Ai\CommentVisibility;
 use App\Enums\Ai\EffortSize;
 use App\Enums\Ai\RejectReason;
@@ -32,7 +33,7 @@ use Illuminate\Validation\Rule;
  * check `ai.manage`; each action re-checks `evaluate`/`transition` on the
  * request (company access). Every answer goes back with a flash message.
  *
- * - `ai.requests.evaluation.update` PUT  EvaluationPayload (first response)
+ * - `ai.requests.evaluation.update` PUT  EvaluationPayload (first response; `size_suggestion_id`, Stage D6)
  * - `ai.requests.notes.store`       POST `{ body }` internal note
  * - `ai.requests.reject`            POST RejectPayload
  * - `ai.requests.ask`               POST `{ question }` → Necesita información
@@ -47,30 +48,37 @@ class TriageController extends Controller
 
     private const TEXT_MAX = 2000;
 
-    public function evaluate(Request $http, AiRequest $request, EvaluateRequest $evaluate): RedirectResponse
+    public function evaluate(Request $http, AiRequest $request, EvaluateRequest $evaluate, Suggestions $suggestions): RedirectResponse
     {
         $data = $http->validate([
             'size' => ['nullable', Rule::enum(EffortSize::class)],
             'urgency' => ['nullable', Rule::enum(Urgency::class)],
             'risk' => ['required', Rule::enum(RiskLevel::class)],
             'priority_final' => ['nullable', 'integer', 'between:0,100'],
+            // Stage D6: the size suggestion Jhon used ("Usar M"); credited only when the saved size matches it.
+            'size_suggestion_id' => ['nullable', 'integer'],
         ], [
             'size.*' => 'Escoge una talla (S, M, L o XL).',
             'urgency.*' => 'Escoge la urgencia.',
             'risk.*' => 'Escoge el riesgo que reduce.',
             'priority_final.*' => 'La prioridad va de 0 a 100.',
+            'size_suggestion_id.*' => 'La sugerencia de talla no es válida.',
         ]);
 
-        return $this->attempt(function () use ($http, $request, $evaluate, $data): string {
+        return $this->attempt(function () use ($http, $request, $evaluate, $suggestions, $data): string {
+            $size = isset($data['size']) ? EffortSize::from($data['size']) : null;
+
             $evaluate->handle(
                 $request,
                 $this->user($http),
-                isset($data['size']) ? EffortSize::from($data['size']) : null,
+                $size,
                 isset($data['urgency']) ? Urgency::from($data['urgency']) : null,
                 RiskLevel::from($data['risk']),
                 isset($data['priority_final']) ? (int) $data['priority_final'] : null,
                 Money::impactPerMonth($request),
             );
+
+            $suggestions->creditSize($request, isset($data['size_suggestion_id']) ? (int) $data['size_suggestion_id'] : null, $size, $this->user($http));
 
             return "Evaluación de {$request->key} guardada.";
         });

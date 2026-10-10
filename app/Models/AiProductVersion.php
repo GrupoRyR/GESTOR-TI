@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Suggestions\Suggestions;
 use App\Enums\Ai\ProductVersionSource;
 use App\Models\Scopes\CompanyScope;
 use Database\Factories\AiProductVersionFactory;
@@ -46,6 +47,18 @@ class AiProductVersion extends Model
     protected $attributes = [
         'source' => 'manual',
     ];
+
+    protected static function booted(): void
+    {
+        // Stage D6: a GitHub release gets an AI draft of its user notes once
+        // the webhook transaction commits (only while the AI is ready; IT
+        // edits and confirms it on `Ai/Releases/Show`).
+        static::saved(function (AiProductVersion $version): void {
+            if ($version->github_release_id !== null && ($version->wasRecentlyCreated || $version->wasChanged('github_release_id'))) {
+                app(Suggestions::class)->draftReleaseNotes($version);
+            }
+        });
+    }
 
     /**
      * @return array<string, string>

@@ -32,6 +32,7 @@ use App\Http\Controllers\AI\RequestWizardController;
 use App\Http\Controllers\AI\RequirementController;
 use App\Http\Controllers\AI\RoadmapController;
 use App\Http\Controllers\AI\StageBPlaceholderController;
+use App\Http\Controllers\AI\SuggestionController;
 use App\Http\Controllers\AI\TaskController;
 use App\Http\Controllers\AI\TimeEntryController;
 use App\Http\Controllers\AI\TimerController;
@@ -167,6 +168,16 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
         Route::post('/requests/{request}/backlog', [TriageController::class, 'backlog'])->name('requests.backlog');
         Route::post('/requests/{request}/remind', [TriageController::class, 'remind'])->name('requests.remind');
         Route::post('/approvals/{request}/remind', [ApprovalController::class, 'remind'])->name('approvals.remind');
+
+        // Stage D6 · AI suggestions (types/pages/ai-triage.ts, ai-github.ts):
+        // never applied by themselves; each action re-checks the subject.
+        Route::post('/requests/{request}/suggestions', [SuggestionController::class, 'store'])->name('requests.suggestions.store');
+        Route::get('/requests/{request}/compare/{other}', [SuggestionController::class, 'compare'])->name('requests.compare');
+        Route::put('/requests/{request}/criteria', [SuggestionController::class, 'criteria'])->name('requests.criteria.update');
+        Route::post('/suggestions/{suggestion}/accept', [SuggestionController::class, 'accept'])->name('suggestions.accept');
+        Route::post('/suggestions/{suggestion}/discard', [SuggestionController::class, 'discard'])->name('suggestions.discard');
+        Route::post('/suggestions/{suggestion}/regenerate', [SuggestionController::class, 'regenerate'])->name('suggestions.regenerate');
+        Route::post('/suggestions/{suggestion}/cancel', [SuggestionController::class, 'cancel'])->name('suggestions.cancel');
 
         Route::get('/backlog', [BacklogController::class, 'index'])->name('backlog.index');
         Route::put('/backlog/order', [BacklogController::class, 'reorder'])->name('backlog.reorder');
