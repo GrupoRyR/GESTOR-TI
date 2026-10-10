@@ -35,7 +35,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
 
 ## Progress / evidence
 
-### E1 · MCP + OAuth foundation — done
+### E1 · MCP + OAuth foundation — done (`fc9fc3b`)
 - Route: delegated direct (writer trigger: 2+ non-trivial files).
 - Packages: `laravel/mcp` v1.0.1 (`^1.0`), `laravel/passport` v13.9.0 (`^13.9`).
 - Published only: `routes/ai.php`, `config/mcp.php`, `config/passport.php`, Passport migrations for auth codes, access tokens, refresh tokens and clients (renamed `2026_10_30_00000N_*` to keep the order; device codes dropped). No vendor views published: the consent views are our own.
