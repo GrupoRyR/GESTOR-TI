@@ -1,5 +1,11 @@
 <?php
 
+use App\Domain\Assistant\Tools\DeliverCredentialTool;
+use App\Domain\Assistant\Tools\SearchKnowledgeTool;
+use App\Domain\Assistant\Tools\SearchProductsTool;
+use App\Domain\Assistant\Tools\SearchRequestsTool;
+use App\Domain\Assistant\Tools\ShowCardTool;
+use App\Domain\Assistant\Tools\ShowProductTool;
 use App\Telegram\Handlers\ApprovalCallbackHandler;
 
 /*
@@ -111,6 +117,17 @@ return [
             ],
         ],
 
+        // Prices in USD per million tokens, per model id (App\Services\Ai\AiPricing):
+        // `input` = input without cache (cache miss), `cached_input` = cache
+        // hit, `output` = output. Cost of a call = uncached × input + cached ×
+        // cached_input + output × output. A model missing here costs 0 and is
+        // logged. DeepSeek list prices (api-docs.deepseek.com/quick_start/pricing,
+        // V3.2, checked Oct 2026; confirm before go-live).
+        'prices' => [
+            'deepseek-chat' => ['input' => 0.28, 'cached_input' => 0.028, 'output' => 0.42],
+            'deepseek-reasoner' => ['input' => 0.28, 'cached_input' => 0.028, 'output' => 0.42],
+        ],
+
         'providers' => [
             'deepseek' => [
                 'label' => 'DeepSeek',
@@ -159,6 +176,39 @@ return [
     | and updates (all of them are imported).
     */
     'assistant' => [
+        // Read-only tools of the assistant (PROMPT 6.8.2, 6.8.4), in the order
+        // the provider receives them (keep it stable: it is part of the cached
+        // prefix). Each class implements App\Domain\Assistant\Tools\AssistantTool;
+        // later stages add `estado_apps`, `tickets`, `inventario`,
+        // `consultar_sap` here without touching the engine.
+        'tools' => [
+            SearchKnowledgeTool::class,
+            ShowCardTool::class,
+            SearchProductsTool::class,
+            ShowProductTool::class,
+            SearchRequestsTool::class,
+            DeliverCredentialTool::class,
+        ],
+
+        // Context kept per conversation (PROMPT 6.8.2: 30 minutes).
+        'context_minutes' => 30,
+
+        // Greeting suggestions of an empty chat (`first_open_suggestions`).
+        'suggestions' => [
+            '¿Quién recibe el informe de ventas diario?',
+            '¿Cómo me conecto a la VPN?',
+            '¿Qué es un pedido bloqueado por cartera?',
+            '¿Cómo saco la antigüedad de cartera?',
+        ],
+
+        // Password delivery: a credential notice can be shown ("Mostrar") by
+        // its owner during `reveal_minutes` after the delivery; each time
+        // the value stays visible `reveal_seconds` (design: 30, max 30).
+        'credentials' => [
+            'reveal_minutes' => 10,
+            'reveal_seconds' => 30,
+        ],
+
         'import' => [
             'disk' => 'local',
             'max_kb' => (int) env('ASSISTANT_IMPORT_MAX_KB', 10 * 1024),

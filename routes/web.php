@@ -35,6 +35,8 @@ use App\Http\Controllers\AI\TriageController;
 use App\Http\Controllers\AI\ValueController;
 use App\Http\Controllers\AI\VaultController;
 use App\Http\Controllers\AI\WeekController;
+use App\Http\Controllers\Assistant\ChatController;
+use App\Http\Controllers\Assistant\CredentialController;
 use App\Http\Controllers\Assistant\DraftController;
 use App\Http\Controllers\Assistant\ImportController;
 use App\Http\Controllers\Assistant\KnowledgeController;
@@ -346,8 +348,20 @@ Route::middleware(['module:employees', 'auth'])->prefix('employees')->name('empl
 
 // Asistente TI (Stage C, types/pages/assistant-*.ts).
 Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assistant.')->group(function () {
-    // TEMPORARY until C3 (assistant engine + `Assistant/Chat`).
-    Route::inertia('/', 'Assistant/Index')->name('index');
+    // Chat (C3, types/pages/assistant-chat.ts). The page is open to the
+    // module (no-access state without `assistant.use`); every write needs
+    // `assistant.use`. Password delivery also checks `assistant.credentials`
+    // and `credentials.view` (CredentialDelivery, CredentialController).
+    // Questions: 20 per minute per person (each one may call the AI).
+    Route::get('/', [ChatController::class, 'index'])->name('index');
+    Route::middleware('can:assistant.use')->group(function () {
+        Route::post('/conversations', [ChatController::class, 'storeConversation'])->name('conversations.store');
+        Route::post('/messages', [ChatController::class, 'storeMessage'])->middleware('throttle:assistant-ask')->name('messages.store');
+        Route::post('/messages/{message}/retry', [ChatController::class, 'retry'])->middleware('throttle:assistant-ask')->name('messages.retry');
+        Route::post('/messages/{message}/pick', [ChatController::class, 'pick'])->name('people.pick');
+        Route::post('/messages/{message}/reveal', [CredentialController::class, 'reveal'])->middleware('throttle:credentials-reveal')->name('credentials.reveal');
+        Route::post('/messages/{message}/copied', [CredentialController::class, 'copied'])->name('credentials.copied');
+    });
 
     // Knowledge base (C1, types/pages/assistant-knowledge.ts). List and card:
     // `assistant.use` or `assistant.knowledge.manage` (KnowledgeItemPolicy),

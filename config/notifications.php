@@ -116,6 +116,13 @@ return [
             'hint' => 'Cada lunes, las fichas de la base de conocimiento que llevan 6 meses sin revisión',
             'channels' => ['mail', 'database'],
         ],
+        'assistant.credential.revealed' => [
+            'label' => 'Contraseñas mostradas en el chat del Asistente',
+            'hint' => 'Cada vez que alguien ve en el chat una contraseña que entregó el Asistente TI',
+            'channels' => ['telegram', 'database'],
+            // PROMPT 6.8.2: every delivery is audited and noticed by Telegram.
+            'required_channels' => ['telegram', 'database'],
+        ],
 
     ],
 

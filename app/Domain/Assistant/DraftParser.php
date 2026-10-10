@@ -6,9 +6,10 @@ use App\Models\User;
 use Illuminate\Container\Attributes\Bind;
 
 /**
- * Turns the text after `/aprender` into a proposed card. C2 ships the
- * heuristic parser (no AI); the assistant engine (C3) can bind a parser
- * that asks the AI provider, keeping this contract.
+ * Turns the text after `/aprender` into a proposed card. AppServiceProvider
+ * binds App\Domain\Assistant\AiDraftParser (C3, AI provider) while the
+ * provider is ready, else HeuristicDraftParser (C2, no AI); the attribute
+ * below is the fallback binding.
  *
  * `fields` holds only the type fields the text gave; `origins` says, for a
  * type field key, `company`, `area` or `owner`, whether the value came

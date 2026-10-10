@@ -5,6 +5,7 @@ namespace App\Support\Assistant\Presenters;
 use App\Domain\Assistant\KnowledgeTypes;
 use App\Models\AiProduct;
 use App\Models\Area;
+use App\Models\AssistantCitation;
 use App\Models\KnowledgeItem;
 use App\Models\User;
 use App\Support\Ai\Presenters\RequestPresenter;
@@ -83,11 +84,26 @@ final class KnowledgePresenter
             'related_products' => $products->map(fn (AiProduct $product) => RequestPresenter::productRef($product))->values()->all(),
             'last_reviewed_at' => $item->last_reviewed_at?->toIso8601String(),
             'last_reviewed_by' => $item->lastReviewedBy !== null ? RequestPresenter::person($item->lastReviewedBy) : null,
-            // Citations arrive with the assistant engine (C3).
-            'usage_count_month' => 0,
-            'last_cited_at' => null,
-            'last_cited_by' => null,
+            ...($manage ? self::usage($item) : ['usage_count_month' => 0, 'last_cited_at' => null, 'last_cited_by' => null]),
             'recent_changes' => $manage ? self::changes($item) : [],
+        ];
+    }
+
+    /**
+     * Assistant citations (C3): answers that cited the card this calendar
+     * month (Bogotá), and the last one with whose chat it was.
+     *
+     * @return array{usage_count_month: int, last_cited_at: ?string, last_cited_by: ?array<string, mixed>}
+     */
+    public static function usage(KnowledgeItem $item): array
+    {
+        $monthStart = now('America/Bogota')->startOfMonth()->setTimezone((string) config('app.timezone'));
+        $last = AssistantCitation::query()->where('knowledge_item_id', $item->id)->with('user.employee')->latest('cited_at')->latest('id')->first();
+
+        return [
+            'usage_count_month' => AssistantCitation::query()->where('knowledge_item_id', $item->id)->where('cited_at', '>=', $monthStart)->count(),
+            'last_cited_at' => $last?->cited_at->toIso8601String(),
+            'last_cited_by' => $last?->user !== null ? RequestPresenter::person($last->user) : null,
         ];
     }
 
