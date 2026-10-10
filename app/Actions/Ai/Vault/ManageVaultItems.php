@@ -12,9 +12,8 @@ use Illuminate\Support\Facades\DB;
  * logged and noticed through RecordVaultAccess. A new value on update
  * stamps `last_rotated_at` (the rotation clock restarts).
  *
- * The item edit form is not designed yet (`ai.vault.edit` is TEMPORARY):
- * these actions are the backend it will call. Callers check
- * `ai.vault.access` and the open vault session.
+ * Called by the item form (VaultItemController, C-VaultItemForm), which
+ * checks `ai.vault.access` (middleware `vault`) and the open vault session.
  */
 final class ManageVaultItems
 {

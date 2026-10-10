@@ -282,17 +282,6 @@ class VaultAccessTest extends VaultTestCase
         $this->assertSame('web', $lock->channel);
     }
 
-    public function test_the_item_edit_form_is_pending_design(): void
-    {
-        $item = $this->item();
-
-        $this->actingAs($this->jhon)
-            ->from(route('ai.vault.index'))
-            ->get(route('ai.vault.edit', $item))
-            ->assertRedirect(route('ai.vault.index'))
-            ->assertSessionHas('error', 'Disponible pronto.');
-    }
-
     public function test_the_vault_fails_closed_without_its_own_key(): void
     {
         $this->item();

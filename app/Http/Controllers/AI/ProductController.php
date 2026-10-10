@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\AI;
 
+use App\Domain\Ai\IncidentForm;
 use App\Enums\Ai\ProductStatus;
 use App\Enums\Ai\RequestStatus;
 use App\Http\Controllers\Controller;
@@ -34,7 +35,8 @@ use Inertia\Response;
  *   keep the other filters.
  * - `Ai/Products/Show`: the product sheet with versions, open requests of
  *   the context, docs, incidents and the explanatory notes. Health is the
- *   Stage B placeholder `{ enabled: false }`.
+ *   Stage B placeholder `{ enabled: false }`. `incident_form` sets up the
+ *   "Registrar incidente" drawer (ProductIncidentController stores it).
  *
  * Money is null without `ai.costs.view`.
  */
@@ -45,7 +47,10 @@ class ProductController extends Controller
 
     private const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-    public function __construct(private readonly CurrentCompany $companies) {}
+    public function __construct(
+        private readonly CurrentCompany $companies,
+        private readonly IncidentForm $incidentForm,
+    ) {}
 
     public function index(Request $http): Response
     {
@@ -86,6 +91,15 @@ class ProductController extends Controller
 
     public function show(Request $http, AiProduct $product): Response
     {
+        return $this->sheet($http, $product, false);
+    }
+
+    /**
+     * The product sheet; `$incidentOpen` starts the "Registrar incidente"
+     * drawer open (deep link `ai.products.incidents.create`, failed store).
+     */
+    public function sheet(Request $http, AiProduct $product, bool $incidentOpen): Response
+    {
         $user = $this->user($http);
         Gate::authorize('view', $product);
         $product->loadMissing(ProductPresenter::RELATIONS);
@@ -116,6 +130,7 @@ class ProductController extends Controller
             'hours_note' => $this->hoursNote($product),
             'cost_note' => $this->costNote($product, $user),
             'request_notes' => (object) $requests->mapWithKeys(fn (AiRequest $request) => [$request->key => $this->requestNote($request)])->all(),
+            'incident_form' => $this->incidentForm->setup($product, $user, $incidentOpen, (array) $http->old()),
             'now' => now()->toIso8601String(),
         ]);
     }

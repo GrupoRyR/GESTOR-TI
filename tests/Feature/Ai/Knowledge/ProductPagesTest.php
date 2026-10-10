@@ -131,7 +131,7 @@ class ProductPagesTest extends KnowledgeTestCase
         $product = $this->product();
 
         $this->assertSame(
-            $this->withShared(['product', 'health', 'incidents', 'hours_note', 'cost_note', 'request_notes', 'now']),
+            $this->withShared(['product', 'health', 'incidents', 'hours_note', 'cost_note', 'request_notes', 'incident_form', 'now']),
             $this->propKeys(route('ai.products.show', $product)),
         );
 
@@ -206,18 +206,5 @@ class ProductPagesTest extends KnowledgeTestCase
                 ->where('product.versions', [])
                 ->where('product.docs', [])
             );
-    }
-
-    public function test_pending_product_forms_go_back_with_a_notice(): void
-    {
-        $product = $this->product();
-
-        foreach ([route('ai.products.create'), route('ai.products.edit', $product), route('ai.products.incidents.create', $product)] as $url) {
-            $this->actingAs($this->jhon)
-                ->from(route('ai.products.show', $product))
-                ->get($url)
-                ->assertRedirect(route('ai.products.show', $product))
-                ->assertSessionHas('error', 'Disponible pronto.');
-        }
     }
 }

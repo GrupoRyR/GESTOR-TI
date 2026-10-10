@@ -46,10 +46,11 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ProductStatus $status
  * @property ?string $current_version
  * @property ?string $notion_url
+ * @property string $kind web | robot | integration | mobile ("Tipo de app")
  */
 #[Fillable([
     'slug', 'name', 'description', 'owner_user_id', 'owner_name', 'url', 'repository', 'stack', 'hosting',
-    'ai_provider', 'ai_model', 'monthly_cost', 'monthly_cost_currency', 'status', 'current_version', 'notion_url',
+    'ai_provider', 'ai_model', 'monthly_cost', 'monthly_cost_currency', 'status', 'kind', 'current_version', 'notion_url',
 ])]
 class AiProduct extends Model
 {
@@ -66,8 +67,12 @@ class AiProduct extends Model
      */
     private const NOT_OPEN_STATUSES = [RequestStatus::InProduction, RequestStatus::Rejected, RequestStatus::Closed];
 
+    /** Design `ProductKind`. */
+    public const KINDS = ['web', 'robot', 'integration', 'mobile'];
+
     protected $attributes = [
         'status' => 'development',
+        'kind' => 'web',
         'monthly_cost_currency' => 'COP',
     ];
 
@@ -317,7 +322,7 @@ class AiProduct extends Model
         return LogOptions::defaults()
             ->useLogName('ai')
             ->logOnly([
-                'slug', 'name', 'owner_user_id', 'owner_name', 'url', 'repository', 'stack', 'hosting',
+                'slug', 'name', 'description', 'kind', 'owner_user_id', 'owner_name', 'url', 'repository', 'stack', 'hosting',
                 'ai_provider', 'ai_model', 'monthly_cost', 'status', 'current_version',
             ])
             ->logOnlyDirty()

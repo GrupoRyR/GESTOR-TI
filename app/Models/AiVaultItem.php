@@ -59,6 +59,9 @@ class AiVaultItem extends Model
     /** Design `VaultSecretType`. */
     public const TYPES = ['api_key', 'user_password', 'connection_string', 'token'];
 
+    /** Design `VaultItem.product` of an item without product or project. */
+    public const NO_OWNER = 'Sin proyecto ni producto';
+
     /**
      * @return array<string, string>
      */
@@ -120,6 +123,6 @@ class AiVaultItem extends Model
      */
     public function ownerLabel(): string
     {
-        return $this->product?->name ?? $this->project?->name ?? 'Sin proyecto ni producto';
+        return $this->product?->name ?? $this->project?->name ?? self::NO_OWNER;
     }
 }

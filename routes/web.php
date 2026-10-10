@@ -15,8 +15,9 @@ use App\Http\Controllers\AI\BoardController;
 use App\Http\Controllers\AI\DocumentController;
 use App\Http\Controllers\AI\InboxController;
 use App\Http\Controllers\AI\KnowledgeSearchController;
-use App\Http\Controllers\AI\PendingDesignController;
 use App\Http\Controllers\AI\ProductController;
+use App\Http\Controllers\AI\ProductFormController;
+use App\Http\Controllers\AI\ProductIncidentController;
 use App\Http\Controllers\AI\ProjectController;
 use App\Http\Controllers\AI\ProjectCostController;
 use App\Http\Controllers\AI\ProjectReportController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\AI\TimerController;
 use App\Http\Controllers\AI\TriageController;
 use App\Http\Controllers\AI\ValueController;
 use App\Http\Controllers\AI\VaultController;
+use App\Http\Controllers\AI\VaultItemController;
 use App\Http\Controllers\AI\WeekController;
 use App\Http\Controllers\Assistant\ChatController;
 use App\Http\Controllers\Assistant\CredentialController;
@@ -262,11 +264,15 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
     // docs: `ai.docs.edit`. `{product}` is the slug, `{doc}` the id.
     Route::middleware('can:ai.manage')->group(function () {
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-        // TEMPORARY: forms not designed yet (go back with "Disponible pronto.").
-        Route::get('/products/create', PendingDesignController::class)->name('products.create');
+        // Product form (C5, C-ProductForm). No destroy: "Retirado" is the way out.
+        Route::get('/products/create', [ProductFormController::class, 'create'])->name('products.create');
+        Route::post('/products', [ProductFormController::class, 'store'])->name('products.store');
         Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
-        Route::get('/products/{product}/edit', PendingDesignController::class)->name('products.edit');
-        Route::get('/products/{product}/incidents/create', PendingDesignController::class)->name('products.incidents.create');
+        Route::get('/products/{product}/edit', [ProductFormController::class, 'edit'])->name('products.edit');
+        Route::put('/products/{product}', [ProductFormController::class, 'update'])->name('products.update');
+        // Incident drawer (C5, C-IncidentForm): `create` is the deep link that opens it.
+        Route::get('/products/{product}/incidents/create', [ProductIncidentController::class, 'create'])->name('products.incidents.create');
+        Route::post('/products/{product}/incidents', [ProductIncidentController::class, 'store'])->name('products.incidents.store');
 
         Route::get('/docs', [DocumentController::class, 'index'])->name('docs.index');
         Route::get('/docs/create', [DocumentController::class, 'create'])->name('docs.create');
@@ -307,8 +313,12 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
         Route::post('/lock', [VaultController::class, 'lock'])->name('lock');
         Route::post('/{item}/reveal', [VaultController::class, 'reveal'])->whereNumber('item')->middleware('throttle:20,1')->name('reveal');
         Route::post('/{item}/copied', [VaultController::class, 'copied'])->whereNumber('item')->name('copied');
-        // TEMPORARY: the item form is not designed yet (goes back with "Disponible pronto.").
-        Route::get('/{item}/edit', PendingDesignController::class)->whereNumber('item')->name('edit');
+        // Item form (C5, C-VaultItemForm): also needs an open vault session.
+        Route::get('/create', [VaultItemController::class, 'create'])->name('create');
+        Route::post('/', [VaultItemController::class, 'store'])->name('store');
+        Route::get('/{item}/edit', [VaultItemController::class, 'edit'])->whereNumber('item')->name('edit');
+        Route::put('/{item}', [VaultItemController::class, 'update'])->whereNumber('item')->name('update');
+        Route::delete('/{item}', [VaultItemController::class, 'destroy'])->whereNumber('item')->name('destroy');
     });
 
     // TEMPORARY (Stage B): the weekly review has no design for its storage
