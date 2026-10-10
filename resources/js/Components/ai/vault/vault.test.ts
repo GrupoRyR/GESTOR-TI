@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REVEAL_SECONDS, revealLeft, rotationState, rotationText, sessionLeft, startReveal, tickReveal, vaultAlerts } from './vault';
+import { deleteConfirmMatches, nextRotation, nextRotationText, REVEAL_SECONDS, revealLeft, rotationBase, rotationState, rotationText, sessionLeft, startReveal, tickReveal, vaultAlerts } from './vault';
 
 const T0 = Date.parse('2026-10-07T09:40:00-05:00');
 
@@ -85,5 +85,52 @@ describe('vault session', () => {
         const open = { state: 'open' as const, confirmed_at: '2026-10-07T09:39:00-05:00', expires_at: '2026-10-07T09:49:12-05:00' };
         expect(sessionLeft(open, new Date(T0))).toBe(552);
         expect(sessionLeft({ state: 'locked' }, new Date(T0))).toBe(0);
+    });
+});
+
+describe('delete confirmation', () => {
+    it('matches only the exact item name', () => {
+        expect(deleteConfirmMatches('DEEPSEEK_API_KEY', 'DEEPSEEK_API_KEY')).toBe(true);
+        expect(deleteConfirmMatches('deepseek_api_key', 'DEEPSEEK_API_KEY')).toBe(false);
+        expect(deleteConfirmMatches('DEEPSEEK_API', 'DEEPSEEK_API_KEY')).toBe(false);
+        expect(deleteConfirmMatches('', 'DEEPSEEK_API_KEY')).toBe(false);
+    });
+
+    it('ignores spaces around what was typed (pasting often adds one)', () => {
+        expect(deleteConfirmMatches(' DEEPSEEK_API_KEY ', 'DEEPSEEK_API_KEY')).toBe(true);
+    });
+
+    it('never matches an empty name', () => {
+        expect(deleteConfirmMatches('', '')).toBe(false);
+    });
+});
+
+describe('next rotation date', () => {
+    it('adds the rotation days to the last rotation', () => {
+        expect(nextRotation('2026-07-21', 90)).toBe('2026-10-19');
+        expect(nextRotation('2026-10-07', 90)).toBe('2027-01-05');
+    });
+
+    it('accepts an instant and uses its calendar date', () => {
+        expect(nextRotation('2026-07-21T10:00:00-05:00', 30)).toBe('2026-08-20');
+    });
+
+    it('returns null without rotation or without a base date', () => {
+        expect(nextRotation('2026-07-21', null)).toBeNull();
+        expect(nextRotation('2026-07-21', 0)).toBeNull();
+        expect(nextRotation(null, 90)).toBeNull();
+    });
+
+    it('counts from today once a new value is typed', () => {
+        expect(rotationBase({ lastRotatedAt: '2026-07-21', today: '2026-10-07', valueChanged: false })).toBe('2026-07-21');
+        expect(rotationBase({ lastRotatedAt: '2026-07-21', today: '2026-10-07', valueChanged: true })).toBe('2026-10-07');
+        expect(rotationBase({ lastRotatedAt: null, today: '2026-10-07', valueChanged: false })).toBe('2026-10-07');
+    });
+
+    it('describes the next date for the form', () => {
+        expect(nextRotationText('2026-10-19', '2026-10-07')).toBe('19 oct · en 12 días');
+        expect(nextRotationText('2026-10-08', '2026-10-07')).toBe('8 oct · mañana');
+        expect(nextRotationText('2027-01-05', '2026-10-07')).toBe('5 ene 2027 · en 90 días');
+        expect(nextRotationText(null, '2026-10-07')).toBe('Sin rotación');
     });
 });
