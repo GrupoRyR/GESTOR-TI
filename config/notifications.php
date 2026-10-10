@@ -90,6 +90,12 @@ return [
             'hint' => 'Un proyecto pasó lo aprobado y espera que lo apruebes otra vez',
             'channels' => ['mail', 'telegram', 'database'],
         ],
+        // Gestor IA · GitHub releases (Stage D4).
+        'ai.release.published' => [
+            'label' => 'Entregas publicadas',
+            'hint' => 'Cuando sale una versión con lo que pediste, con las notas de lo que cambió',
+            'channels' => ['telegram', 'database'],
+        ],
         'ai.hours.reminder' => [
             'label' => 'Recordatorio de horas',
             'hint' => 'El viernes, si no cargaste horas en la semana',

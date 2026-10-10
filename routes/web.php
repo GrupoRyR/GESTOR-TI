@@ -25,6 +25,7 @@ use App\Http\Controllers\AI\ProjectCostController;
 use App\Http\Controllers\AI\ProjectReportController;
 use App\Http\Controllers\AI\RatingController;
 use App\Http\Controllers\AI\ReapprovalController;
+use App\Http\Controllers\AI\ReleaseController;
 use App\Http\Controllers\AI\RequestController;
 use App\Http\Controllers\AI\RequestInteractionController;
 use App\Http\Controllers\AI\RequestWizardController;
@@ -305,6 +306,14 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
         Route::post('/projects/{project}/tasks/{task}/issue', [GitHubController::class, 'storeIssue'])
             ->scopeBindings()
             ->name('tasks.issue.store');
+    });
+
+    // Stage D4 · Releases (types/pages/ai-github.ts `Ai/Releases/Show`),
+    // `ai.manage`: `{release}` is the tag of a version of `{product}`.
+    Route::middleware('can:ai.manage')->group(function () {
+        Route::get('/products/{product}/releases/{release}', [ReleaseController::class, 'show'])->name('releases.show');
+        Route::put('/products/{product}/releases/{release}/notes', [ReleaseController::class, 'update'])->name('releases.notes.update');
+        Route::post('/products/{product}/releases/{release}/notify', [ReleaseController::class, 'notify'])->name('releases.notify');
     });
 
     // Module users (AiProductPolicy::viewAny); docs only reach `ai.manage`.

@@ -172,7 +172,7 @@ final class ProductActivity
                 'summary' => (string) $version->summary,
                 'published_at' => ($version->published_at ?? $version->released_at ?? $version->created_at ?? now())->toIso8601String(),
                 'request_keys' => $version->requests->sortBy('id')->map(fn (AiRequest $request) => $request->key)->values()->all(),
-                'notified_count' => $version->notified_at === null ? 0 : $version->requests->count(),
+                'notified_count' => ReleaseDetail::notifiedCount($version),
                 'url' => (string) $version->release_url,
             ])
             ->values()

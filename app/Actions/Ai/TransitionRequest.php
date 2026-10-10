@@ -28,7 +28,10 @@ use Illuminate\Validation\ValidationException;
  *
  * The note is public (timeline and requester notification); internal
  * remarks go to internal notes. The requester is not notified of moves
- * they made themselves.
+ * they made themselves. `$notifyRequester = false` is for callers that
+ * send their own notice for the same event (a GitHub release notifies
+ * once per requester, App\Actions\Ai\ReleaseNotes); the rating is still
+ * marked as requested because that notice asks for it.
  */
 class TransitionRequest
 {
@@ -48,7 +51,7 @@ class TransitionRequest
         return $this->apply($request, $to, $actor, $note, $reason);
     }
 
-    public function apply(AiRequest $request, RequestStatus $to, ?User $actor, ?string $note = null, ?RejectReason $reason = null): AiRequest
+    public function apply(AiRequest $request, RequestStatus $to, ?User $actor, ?string $note = null, ?RejectReason $reason = null, bool $notifyRequester = true): AiRequest
     {
         $from = $request->status;
 
@@ -115,7 +118,9 @@ class TransitionRequest
                 $request->forceFill(['rating_requested_at' => now(), 'rating_reminded_at' => null])->save();
             }
 
-            $requester->notify($asksRating ? AiRatingRequested::for($request, false, $note) : AiRequestStatusChanged::for($request, $note));
+            if ($notifyRequester) {
+                $requester->notify($asksRating ? AiRatingRequested::for($request, false, $note) : AiRequestStatusChanged::for($request, $note));
+            }
         }
 
         return $request;

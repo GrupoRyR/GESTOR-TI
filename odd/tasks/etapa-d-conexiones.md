@@ -23,7 +23,7 @@ Connect the Gestor IA with GitHub (GitHub App, repo links, one-click issues, sig
 - [x] D1 · GitHub foundation: `github_repositories` (installed repos + polymorphic product/project link: branch, read_docs, receive_events, linked_by/at), `github_webhook_events`, `users.github_login`; `GitHubApp` client (JWT, installation token, repos, contents, issues, create repo); `GiaKeys` matcher; page `Admin/Integrations/GitHub` + `admin.integrations.github{,.update,.events.retry,.disconnect}`; Integraciones card. Route: delegated (writer trigger).
 - [x] D2 · Webhook: `POST /api/github/webhook` (HMAC `X-Hub-Signature-256`, rate limit), store event, queued processor; `issues`/`pull_request` (task → En revisión / Hecho, activity), `workflow_run` (CI), `push` to main (deploy), `release` (product version + included `GIA-…` since previous release); failed-event reprocess. Route: delegated.
 - [x] D3 · Repos, issues and docs: `ai.products.repository.store`, `ai.projects.repository.store`, `ai.projects.repository.create` (private repo with README, CLAUDE.md, docs/), `ai.tasks.issue.store`; props `Ai/Products/Show.github|repo_link`, `Ai/Projects/Show.repo_link|repo_create`, Board `selected_task_github|issue_created`, `Ai/Tasks/Show.github`; `Ai/Docs/Repo` connected. Route: delegated.
-- [ ] D4 · Releases: page `Ai/Releases/Show`, `ai.releases.notes.update`, `ai.releases.notify` (bell + Telegram to each requester, confirmed notes only). Route: delegated.
+- [x] D4 · Releases: page `Ai/Releases/Show`, `ai.releases.notes.update`, `ai.releases.notify` (bell + Telegram to each requester, confirmed notes only). Route: delegated.
 - [ ] D5 · Brief para Claude: whitelisted `brief` inputs + `brief_state` on request/task/project/board, `brief_omitted`; tests that vault, credentials, costs, rates, hours and internal notes never appear. Route: delegated.
 - [ ] D6 · AI suggestions: `ai_suggestions`, agents, `ai.requests.suggestions.store`, `ai.suggestions.{accept,discard,regenerate,cancel}`, `ai.requests.compare`, `ai.requests.criteria.update`, `size_suggestion_id` on evaluation, `ai_availability`/`ai_usage`/`merge_into`; release-notes suggestion. Route: delegated.
 - [ ] D7 · Close: full checks, deploy doc (GitHub App setup, env keys), PRs.
@@ -186,6 +186,66 @@ Notes for design:
 - Issue dialog: GitHub/no-repo/duplicate errors arrive on `title`; credential/money/internal-note refusals on `body`; no GitHub login on `assignee_id`.
 - `IssueAssignee.github_login` is sent as `@login` (null without a login), like `GitHubActor.login`.
 - If a future board call uses `only` after "Crear issue", `issue_created` is still included (`Inertia::always`).
+
+### D4 · Releases — done
+- Route: delegated (writer trigger: action, domain builder, availability class, notification, controller, form request, routes, config; 1 test file).
+- Test-first: 9 new tests (`tests/Feature/GitHub/ReleasePageTest`) written first and observed RED (9 of 9 failing: routes `ai.releases.*`
+  and the `ai.release.published` event missing), then GREEN.
+- Checks: `php artisan test --filter='Release'` 12/12 (201 assertions); full suite 1031/1031 passed (11079 assertions);
+  `vendor/bin/pint --test` passed; `npm run typecheck` passed.
+- Size: ~560 authored code lines (with docblocks) + ~330 test lines, above the ~400 heuristic: page, notes and notify share one release
+  builder and one action, kept together so the notice and the page preview stay consistent.
+
+Routes (`can:ai.manage` + AiProductPolicy::view; writes also `manageVersions`), `App\Http\Controllers\AI\ReleaseController`:
+- `ai.releases.show` GET `/ai/products/{product}/releases/{release}` (`{release}` = tag of a version of that product, else 404).
+- `ai.releases.notes.update` PUT `.../notes`, body `{user_notes, suggestion_id}` → flash "Notas guardadas.".
+- `ai.releases.notify` POST `.../notify`, same body → flash "Se avisó a N solicitante(s).". Errors keyed `user_notes`.
+
+Props `Ai/Releases/Show`: `product {slug, name, company_id (primary company)}`, `release` (`App\Domain\GitHub\ReleaseDetail`),
+`suggestion: null` (D6), `ai` / `ai_usage` (`App\Support\Ai\AiSuggestionAvailability`, reusable by D6 on the request page), `now`.
+
+Classes:
+- `ReleaseDetail`: `Release` from the version row; `included` oldest first with real status, requester name, company short name, request
+  area and `found_in_pr`; `author` = Gestor person by `github_login`, else the login; `compare` = previous release of the same repo
+  ("v1.8.1...v1.8.2", `{repo}/compare/...`), null for the first; `repo` = linked repo full name; `technical_notes` '' when the body is empty.
+  `notifiedCount()` = distinct requesters once notified (0 before); `ProductActivity` releases use it too (was the request count).
+- `AiSuggestionAvailability::for(user)` = `hidden` without `ai.manage`, else `AiRuntime::status()`; `usage(user)` only for `off_cap`:
+  `spent_label`/`cap_label` "US$ 10,50", `resumes_on` = first day of next month in Bogotá ("1 de noviembre").
+- `App\Actions\Ai\ReleaseNotes`: `save()` (notes kept as typed; blank → null) and `notify()`; both lock the version row and are audited
+  in the `ai` log (`ai_release_notes_updated`, `ai_release_notified`: product, tag, notes length, suggestion_id, request keys, requester
+  count; never the notes text).
+- `App\Notifications\AiReleasePublished` (event `ai.release.published`, default channels Telegram + bell, user preferences apply).
+- `TransitionRequest::apply(..., bool $notifyRequester = true)`: the release passes false.
+
+Decisions:
+- One notice per requester per release: `notify()` moves requests with `TransitionRequest::apply(..., notifyRequester: false)` (history,
+  first response, `rating_requested_at` still stamped because the release notice asks for the rating), then sends one
+  `AiReleasePublished` per distinct requester listing all of their requests. So no `AiRatingRequested`/`AiRequestStatusChanged` is sent
+  for the same event (asserted). A request moved to production manually before the release already got its rating notice; the release
+  notice is a separate event.
+- Only requests "En pruebas" move to "En producción" (the machine's only path; ValidateAcceptance keeps production a TI decision after the
+  requester validates). Requests in other statuses keep theirs, and their requesters are still notified because the release includes them
+  (the page counts recipients from `included`). Requests stay linked through the existing `ai_product_version_request` pivot;
+  `ai_requests.product_version` is not overwritten (it is the version the requester reported).
+- Idempotent: a second notify, and any notes change after notifying, are refused with `user_notes` "Ya se avisó a los solicitantes de esta
+  versión." Notify needs non-blank notes ("Escribe las notas para los usuarios antes de avisar.") and at least one included request
+  ("Esta versión no incluye solicitudes: no hay a quién avisar."). Max 5.000 characters.
+- `suggestion_id` is validated (nullable integer) and recorded only in the audit until `ai_suggestions` exists (D6 links it and marks the
+  suggestion accepted).
+- The notice carries only the confirmed user notes: never technical notes, costs or internal notes (asserted).
+
+Telegram / bell text (FOR JHON'S APPROVAL), mirrors `lib/releaseNotice.ts`:
+- Title: "{Producto} {tag} · Ya está disponible".
+- Body: "Hola, {nombre}. Ya está disponible lo que pediste: {título} ({GIA-…}) y {título} ({GIA-…}), en {Producto} {tag}." + the confirmed
+  notes + "¿Cómo te fue? Califica la entrega en un minuto." Button "Calificar" → rating page of the first request.
+- Preferences label "Entregas publicadas", hint "Cuando sale una versión con lo que pediste, con las notas de lo que cambió".
+
+Notes for design:
+- `ReleaseRequest.status` is typed `'in_production'`, but before notifying an included request may still be "En pruebas" (or another status
+  if it was not tested): the server sends the real status. Please widen it to `RequestStatusKey`; `GestorDid` says "y la pasó a En
+  producción" for every request even before the notice — consider "la pasará a En producción al avisar" while `notified_at` is null.
+- `ReleaseSummary.url` / `Release.url` stay the GitHub release URL; the product page already links the tag with `route('ai.releases.show')`.
+- Errors of notify/update arrive on `user_notes` (the page already shows them).
 
 ## Open questions (for Jhon)
 - GitHub organization name, App registration (app id, private key, webhook secret go to `.env`).
