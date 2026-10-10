@@ -6,6 +6,7 @@ import { Icon } from '@/Components/ui/Icon';
 import { MarkdownPreview } from '@/Components/ui/MarkdownPreview';
 import { cx } from '@/Components/ui/utils';
 import { GestorLayout } from '@/Layouts/GestorLayout';
+import { can } from '@/lib/can';
 import { formatRelative, formatShortDate } from '@/lib/format';
 import { route } from '@/lib/route';
 import type { DocsRepoProps } from '@/types/pages/ai-knowledge';
@@ -13,10 +14,9 @@ import type { PageProps } from '@/types/shared';
 
 const fileName = (path: string) => path.replace(/\/$/, '').split('/').pop() ?? path;
 
-/** B-DocsRepo: Markdown files read from GitHub, read-only. Connects in Stage D. */
+/** B-DocsRepo: Markdown files read from the product's GitHub repository, read-only. */
 export default function DocsRepo(props: PageProps<DocsRepoProps>) {
     const { products, product_slug, repo, now } = props;
-    const showBanner = !repo.connected || repo.sample;
 
     return (
         <GestorLayout
@@ -37,26 +37,26 @@ export default function DocsRepo(props: PageProps<DocsRepoProps>) {
                     />
                 </div>
 
-                {showBanner ? (
-                    <div role="note" className="flex items-start gap-3 rounded-card border border-status-scheduled/25 bg-status-scheduled-bg p-4 text-sm leading-normal text-fg">
-                        <Icon name="info" size={18} className="mt-0.5 shrink-0 text-status-scheduled" />
-                        <span>
-                            <b>Se conecta en la etapa D.</b> Aquí se leen los archivos tal como están en GitHub; no se copian ni se editan desde el Gestor. Para
-                            cambiarlos, edítalos en el repositorio y aparecen aquí en la siguiente lectura.
-                            {repo.connected ? ' Lo que ves ahora es una muestra.' : ''}
-                        </span>
-                    </div>
-                ) : null}
+                <p className="-mt-2 max-w-[70ch] text-[13px] leading-normal text-fg-muted">
+                    Se leen tal como están en GitHub; no se copian ni se editan desde el Gestor. Para cambiarlos, edítalos en el repositorio y aparecen aquí en la siguiente lectura.
+                </p>
 
                 {!repo.connected ? (
                     <EmptyState
                         icon="pull-request"
-                        title="Este producto aún no tiene el repositorio conectado"
-                        description="Cuando se conecte GitHub verás aquí el README, el CHANGELOG y la carpeta docs/ de cada producto, siempre en su última versión."
+                        title="Este producto aún no tiene el repositorio vinculado"
+                        description="Al vincularlo verás aquí el README, el CHANGELOG y la carpeta docs/, siempre en su última versión."
                         actions={
-                            <a href={route('ai.docs.index')} className={buttonClasses({ variant: 'secondary' })}>
-                                Ver la documentación del Gestor
-                            </a>
+                            <>
+                                {can(props.auth.user, 'ai.github.manage') ? (
+                                    <a href={route('ai.products.show', { product: product_slug, vincular: 1 })} className={buttonClasses({ variant: 'dark' })}>
+                                        Vincular repositorio
+                                    </a>
+                                ) : null}
+                                <a href={route('ai.docs.index')} className={buttonClasses({ variant: 'secondary' })}>
+                                    Ver la documentación del Gestor
+                                </a>
+                            </>
                         }
                     />
                 ) : (

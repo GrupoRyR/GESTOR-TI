@@ -817,7 +817,7 @@ export const TASKS: Task[] = [
         subtasks_done: 2,
         subtasks_total: 5,
         position: 1,
-        github: { issue: { number: 38, state: 'open' }, pr: { number: 41, state: 'review' }, ci: 'passing' },
+        // No issue yet (approved Stage D decision): "Crear issue en GitHub" makes #57.
         // 01:12:40 at NOW_ISO.
         timer: { running: true, started_at: '2026-10-07T08:27:20-05:00', person_id: PEOPLE.jhon.id },
     }),

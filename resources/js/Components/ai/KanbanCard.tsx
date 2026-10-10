@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { CiStatusLabel } from '@/Components/github/CiStatusLabel';
+import { GitHubRefChip } from '@/Components/github/GitHubKeyChip';
 import { Avatar } from '@/Components/ui/Avatar';
 import { Icon } from '@/Components/ui/Icon';
 import { cx } from '@/Components/ui/utils';
+import { reviewReason } from '@/lib/taskGitHub';
 import type { KanbanColumnKey, Task } from '@/types/ai';
 import { KANBAN_COLUMNS } from './KanbanColumn';
 import { TimerButton } from './TimerButton';
@@ -28,6 +31,10 @@ export interface KanbanCardProps {
     onDragEnd?: (event: DragEvent<HTMLElement>) => void;
     /** Lifted look of the card being dragged. */
     dragging?: boolean;
+    /** Request key of the project ("GIA-139"): explains why a PR moved the card to review. */
+    requestKey?: string | null;
+    /** The issue was just created from the Gestor ("Issue #57 nuevo"). */
+    newIssue?: boolean;
 }
 
 function MoveMenu({ task, onMove }: { task: Task; onMove: (column: KanbanColumnKey) => void }) {
@@ -114,13 +121,26 @@ function MoveMenu({ task, onMove }: { task: Task; onMove: (column: KanbanColumnK
  * assignee, due date, subtasks, GitHub chips and the timer. Drag it between
  * columns, or use "Mover a…" with keyboard or touch.
  */
-export function KanbanCard({ task, onOpen, onMove, onTimerStart, onTimerStop, clockStartAt, onDragStart, onDragEnd, dragging = false }: KanbanCardProps) {
+export function KanbanCard({
+    task,
+    onOpen,
+    onMove,
+    onTimerStart,
+    onTimerStop,
+    clockStartAt,
+    onDragStart,
+    onDragEnd,
+    dragging = false,
+    requestKey = null,
+    newIssue = false,
+}: KanbanCardProps) {
     const running = task.timer?.running === true;
     const blocked = task.blocked_by !== null;
     const done = task.column === 'done';
     const assignee = task.assignees[0];
     const pr = task.github?.pr;
     const issue = task.github?.issue;
+    const reason = reviewReason(task.column, pr ?? null, requestKey);
 
     return (
         <li
@@ -184,22 +204,12 @@ export function KanbanCard({ task, onOpen, onMove, onTimerStart, onTimerStop, cl
                         <span className="sr-only"> subtareas</span>
                     </span>
                 ) : null}
-                {pr && pr.state !== 'merged' ? (
-                    <span className="inline-flex h-[22px] items-center gap-1 rounded-[8px] bg-status-maintenance-bg px-[7px] text-xs font-bold whitespace-nowrap text-status-maintenance">
-                        <Icon name="pull-request" size={12} />
-                        PR #{pr.number}
-                    </span>
-                ) : pr ? (
-                    <span className="inline-flex items-center gap-1 text-xs whitespace-nowrap text-fg-muted">
-                        <Icon name="pull-request" size={12} />
-                        PR #{pr.number}
-                    </span>
+                {pr ? (
+                    <GitHubRefChip kind="pr" number={pr.number} note={pr.state === 'merged' ? 'fusionado' : pr.state === 'closed' ? 'cerrado' : undefined} />
                 ) : issue && !done ? (
-                    <span className="inline-flex h-[22px] items-center gap-1 rounded-[8px] bg-subtle px-[7px] text-xs font-semibold whitespace-nowrap text-fg-soft">
-                        <Icon name="issue" size={12} />
-                        Issue #{issue.number}
-                    </span>
+                    <GitHubRefChip kind="issue" number={issue.number} note={newIssue ? 'nuevo' : undefined} />
                 ) : null}
+                {pr && pr.state !== 'merged' && pr.state !== 'closed' && task.github?.ci ? <CiStatusLabel status={task.github.ci} /> : null}
                 {!done && !running && onTimerStart && onTimerStop ? (
                     <TimerButton
                         taskKey={task.key}
@@ -211,6 +221,15 @@ export function KanbanCard({ task, onOpen, onMove, onTimerStart, onTimerStop, cl
                     />
                 ) : null}
             </div>
+
+            {reason ? (
+                <p className="flex items-start gap-1.5 text-xs leading-[1.35] font-semibold text-status-maintenance">
+                    <span className="mt-px">
+                        <Icon name="pull-request" size={13} />
+                    </span>
+                    {reason}
+                </p>
+            ) : null}
 
             {running && onTimerStart && onTimerStop ? (
                 <TimerButton

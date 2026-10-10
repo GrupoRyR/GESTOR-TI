@@ -16,6 +16,7 @@ import type {
     InboxIndexProps,
     InboxQuick,
     ItShowProps,
+    RequestsCompareProps,
     TeamMember,
     WeekIndexProps,
     WeekItem,
@@ -34,9 +35,21 @@ import {
     REQUEST_GIA_148,
     requestByKey,
     REQUESTS,
+    TIMELINE_GIA_139,
     TODAY,
     WIP_LIMIT,
 } from './ai-fixtures';
+import {
+    AI_USAGE_CAP,
+    BRIEF_REQUEST_GIA_139,
+    SUGGESTION_ERROR,
+    SUGGESTION_GENERATING,
+    SUGGESTION_STALE,
+    SUGGESTION_SUMMARY_GIA_148_READY,
+    SUGGESTION_TOO_SHORT,
+    SUGGESTIONS_GIA_148,
+} from './github-fixtures';
+import type { RequestSuggestions, Suggestion } from '@/types/suggestions';
 import { DERIVADOS, SEGUREX, sharedFor, type MockVariant } from './shared';
 
 // ---- shared pieces ------------------------------------------------------------
@@ -189,6 +202,161 @@ const showGia151: PageProps<ItShowProps> = {
     area_hour_value: 45_000,
     first_response: GIA_151.first_response,
     first_response_business_days: FIRST_RESPONSE_DAYS,
+    now: NOW_ISO,
+};
+
+/** GIA-139 already in development (P-07): IT opens "Brief para Claude" (D-BriefRequest, D-BriefPhone). */
+const GIA_139: RequestDetail = {
+    ...requestByKey('GIA-139'),
+    answers: {
+        problem: BRIEF_REQUEST_GIA_139.problem,
+        current_process: BRIEF_REQUEST_GIA_139.current_process ?? null,
+        expected_result: BRIEF_REQUEST_GIA_139.expected_result ?? '',
+        success_criteria: null,
+        systems: ['Visualizador de cartera', 'SAP Business One'],
+        systems_notes: null,
+        deadline: null,
+        deadline_reason: null,
+    },
+    attachments: [],
+    criteria: [],
+    timeline: TIMELINE_GIA_139,
+    comments: [],
+    internal_notes: [
+        {
+            id: 43,
+            author: PEOPLE.jhon,
+            is_it: true,
+            body: 'La vista de cartera ya trae el código del asesor; la zona hay que cruzarla con la lista de Ventas.',
+            created_at: '2026-09-29T10:00:00-05:00',
+        },
+    ],
+    estimate: null,
+    approval: null,
+    rating: null,
+    followers_count: 3,
+};
+
+const showGia139: PageProps<ItShowProps> = {
+    ...sharedFor('jhon'),
+    ...ACTION_DATA,
+    view: 'it',
+    request: GIA_139,
+    evaluation: { impact: { hours_per_week: 4, people: 5, money: null, risk: 'medium' }, size: 'L', urgency: 'high', priority_suggested: 74, priority_final: 82 },
+    duplicates: [],
+    area_hour_value: null,
+    first_response: GIA_139.first_response,
+    first_response_business_days: FIRST_RESPONSE_DAYS,
+    brief: BRIEF_REQUEST_GIA_139,
+    now: NOW_ISO,
+};
+
+// ---- Stage D · AI suggestions on the request (D-SuggestRequest, D-SuggestStates, D-SuggestPhone) ----
+
+/**
+ * GIA-148 before Jhon evaluates it: no size yet and no rule-based duplicate
+ * (the AI found GIA-121, the rules did not), as in D-SuggestRequest.
+ */
+const showGia148Fresh: PageProps<ItShowProps> = {
+    ...showGia148,
+    evaluation: { ...showGia148.evaluation, size: null, priority_suggested: null },
+    duplicates: [],
+    ai_availability: 'ready',
+};
+
+const SUGGESTIONS_148: RequestSuggestions = {
+    summary: SUGGESTIONS_GIA_148.summary,
+    summary_text: SUGGESTIONS_GIA_148.summary.payload?.text ?? null,
+    duplicates: [SUGGESTIONS_GIA_148.duplicate, SUGGESTIONS_GIA_148.duplicate_discarded],
+    criteria: SUGGESTIONS_GIA_148.criteria,
+    size: SUGGESTIONS_GIA_148.size,
+};
+
+const asKind = <K extends Suggestion['kind']>(seed: Suggestion<'summary'>, kind: K, id: number): Suggestion<K> => ({ ...seed, id, kind, payload: null }) as Suggestion<K>;
+
+const SUGGESTIONS_GENERATING: RequestSuggestions = {
+    summary: SUGGESTION_GENERATING,
+    summary_text: null,
+    duplicates: [],
+    criteria: asKind(SUGGESTION_GENERATING, 'criteria', 9014),
+    size: asKind(SUGGESTION_GENERATING, 'size', 9015),
+};
+
+const SUGGESTIONS_ERROR: RequestSuggestions = { ...SUGGESTIONS_148, summary: SUGGESTION_ERROR, summary_text: null, criteria: null, size: null, duplicates: [] };
+
+const SUGGESTIONS_STALE: RequestSuggestions = {
+    ...SUGGESTIONS_148,
+    summary: SUGGESTION_STALE,
+    summary_text: null,
+    size: { ...SUGGESTIONS_GIA_148.size, state: 'stale', stale: SUGGESTION_STALE.stale },
+};
+
+/** Phone board (D-SuggestPhone): the summary still waits for Jhon. */
+const SUGGESTIONS_PHONE: RequestSuggestions = {
+    ...SUGGESTIONS_148,
+    summary: SUGGESTION_SUMMARY_GIA_148_READY,
+    summary_text: null,
+    duplicates: [SUGGESTIONS_GIA_148.duplicate],
+};
+
+/** GIA-150 as IT sees it when it is too short to summarize (D-SuggestStates). */
+const GIA_150_SHORT: RequestDetail = {
+    ...requestByKey('GIA-150'),
+    answers: {
+        problem: 'Comparar precios de proveedores.',
+        current_process: null,
+        expected_result: 'Una tabla en el Portafolio.',
+        success_criteria: null,
+        systems: ['Portafolio de productos'],
+        systems_notes: null,
+        deadline: null,
+        deadline_reason: null,
+    },
+    attachments: [],
+    criteria: [],
+    timeline: [{ id: 61, kind: 'status', family: 'gray', title: 'Recibida', quote: null, detail: null, actor: null, at: '2026-10-06T16:00:00-05:00' }],
+    comments: [],
+    internal_notes: [],
+    estimate: null,
+    approval: null,
+    rating: null,
+    followers_count: 1,
+};
+
+const showGia150Short: PageProps<ItShowProps> = {
+    ...sharedFor('jhon'),
+    ...ACTION_DATA,
+    view: 'it',
+    request: GIA_150_SHORT,
+    evaluation: { impact: { hours_per_week: 6, people: 8, money: null, risk: 'low' }, size: null, urgency: 'high', priority_suggested: null, priority_final: null },
+    duplicates: [],
+    area_hour_value: null,
+    first_response: GIA_150_SHORT.first_response,
+    first_response_business_days: FIRST_RESPONSE_DAYS,
+    suggestions: { summary: SUGGESTION_TOO_SHORT, summary_text: null, duplicates: [], criteria: null, size: null },
+    ai_availability: 'ready',
+    now: NOW_ISO,
+};
+
+// ---- Stage D · duplicate comparison (D-SuggestDuplicate) ---------------------
+
+type ComparePage = PageProps<RequestsCompareProps>;
+
+const compareGia148: ComparePage = {
+    ...sharedFor('jhon'),
+    current: {
+        request: REQUEST_GIA_148,
+        problem: REQUEST_GIA_148.answers.problem,
+        expected_result: REQUEST_GIA_148.answers.expected_result,
+        systems: REQUEST_GIA_148.answers.systems,
+    },
+    other: {
+        request: requestByKey('GIA-121'),
+        problem: 'Los asesores no saben cuándo SAP frena un pedido por cartera. Quieren una alerta para avisarle al cliente antes de que llame.',
+        expected_result: 'Alerta dentro de Toma Pedidos con el pedido bloqueado.',
+        systems: ['Toma Pedidos SAP'],
+    },
+    suggestion: SUGGESTIONS_GIA_148.duplicate,
     now: NOW_ISO,
 };
 
@@ -507,7 +675,7 @@ const weekJhon: WeekPage = {
 
 export const variants: Record<
     string,
-    MockVariant<InboxPage> | MockVariant<ShowPage> | MockVariant<ApprovalsPage> | MockVariant<ApprovalPage> | MockVariant<BacklogPage> | MockVariant<AreasPage> | MockVariant<WeekPage>
+    MockVariant<InboxPage> | MockVariant<ShowPage> | MockVariant<ComparePage> | MockVariant<ApprovalsPage> | MockVariant<ApprovalPage> | MockVariant<BacklogPage> | MockVariant<AreasPage> | MockVariant<WeekPage>
 > = {
     // Inbox
     inbox: { page: 'Ai/Inbox/Index', label: 'Bandeja · todas (Jhon, Todas)', props: inboxAll },
@@ -519,6 +687,17 @@ export const variants: Record<
     // Request detail (IT)
     'show-it': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI (GIA-148, duplicada)', props: showGia148 },
     'show-it-hour-value': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI con valor de hora (GIA-151, Leonardo)', props: showGia151 },
+    'show-it-brief-closed': { page: 'Ai/Requests/Show', label: 'Solicitud · vista de TI con botón Brief para Claude (GIA-139)', props: showGia139 },
+    request_brief: {
+        page: 'Ai/Requests/Show',
+        label: 'Brief para Claude · solicitud GIA-139, vista previa',
+        props: { ...showGia139, brief_state: { open: true } },
+    },
+    request_brief_copied: {
+        page: 'Ai/Requests/Show',
+        label: 'Brief para Claude · solicitud GIA-139, copiado',
+        props: { ...showGia139, brief_state: { open: true, copied: true } },
+    },
     'show-it-save-error': {
         page: 'Ai/Requests/Show',
         label: 'Solicitud · error al guardar la evaluación (GIA-148)',
@@ -530,6 +709,69 @@ export const variants: Record<
                 },
             }),
         },
+    },
+
+    // Stage D · AI suggestions
+    'show-it-suggestions': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · GIA-148 (resumen usado, duplicado, criterios, talla)',
+        props: { ...showGia148Fresh, suggestions: SUGGESTIONS_148 },
+    },
+    'suggestions-generating': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · generando',
+        props: { ...showGia148Fresh, suggestions: SUGGESTIONS_GENERATING },
+    },
+    'suggestions-error': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · error (ai_timeout)',
+        props: { ...showGia148Fresh, suggestions: SUGGESTIONS_ERROR },
+    },
+    'suggestions-off-admin-key': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · apagadas, falta la clave (admin)',
+        props: { ...showGia148Fresh, ai_availability: 'off_no_key', suggestions: null },
+    },
+    'suggestions-off-admin-cap': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · apagadas, tope mensual (admin)',
+        props: { ...showGia148Fresh, ai_availability: 'off_cap', ai_usage: AI_USAGE_CAP, suggestions: null },
+    },
+    'suggestions-hidden': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · ocultas (sin bloque ni nota, Leonardo)',
+        props: { ...showGia148Fresh, ...sharedFor('leonardo'), ai_availability: 'hidden', suggestions: null },
+    },
+    'suggestions-too-short': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · texto muy corto (GIA-150)',
+        props: showGia150Short,
+    },
+    'suggestions-stale': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · la solicitud cambió después',
+        props: { ...showGia148Fresh, suggestions: SUGGESTIONS_STALE },
+    },
+    'suggestions-none-yet': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · sin sugerencias todavía (Sugerir con IA)',
+        props: { ...showGia148Fresh, suggestions: null },
+    },
+    'suggestions-phone': {
+        page: 'Ai/Requests/Show',
+        label: 'Sugerencias de IA · celular (resumen por usar, duplicado, talla)',
+        props: { ...showGia148Fresh, suggestions: SUGGESTIONS_PHONE },
+    },
+    compare: { page: 'Ai/Requests/Compare', label: 'Comparar duplicado · GIA-148 vs GIA-121', props: compareGia148 },
+    'compare-not-duplicate-open': {
+        page: 'Ai/Requests/Compare',
+        label: 'Comparar duplicado · “No es duplicado” abierto',
+        props: { ...compareGia148, not_duplicate_open: true },
+    },
+    'show-it-merge-from-compare': {
+        page: 'Ai/Requests/Show',
+        label: 'Solicitud · Unir con GIA-121 desde Comparar (diálogo abierto)',
+        props: { ...showGia148Fresh, suggestions: SUGGESTIONS_148, merge_into: 'GIA-121' },
     },
 
     // Approvals

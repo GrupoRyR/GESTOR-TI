@@ -1,7 +1,8 @@
 /**
  * Mocks for Administración: Empresas (list + edit, wizard per step and with
  * server errors), Áreas, Usuarios, Roles y permisos, Integraciones and
- * Auditoría. Unknown real facts stay as bracket placeholders.
+ * Auditoría, plus Integraciones › GitHub (Stage D, D-GitHubSetup). Unknown
+ * real facts stay as bracket placeholders.
  */
 import type {
     AdminAreasIndexProps,
@@ -9,6 +10,7 @@ import type {
     AdminCompaniesCreateProps,
     AdminCompaniesIndexProps,
     AdminCompany,
+    AdminIntegrationsGitHubProps,
     AdminIntegrationsIndexProps,
     AdminRole,
     AdminRolesIndexProps,
@@ -20,8 +22,10 @@ import type {
     PermissionGroup,
     RoleOption,
 } from '@/types/pages/admin';
-import type { PageProps, Paginated } from '@/types/shared';
-import { ANDINA, DERIVADOS, SEGUREX, sharedFor, type MockVariant } from './shared';
+import type { PageProps, Paginated, Permission, SharedProps } from '@/types/shared';
+import { NOW_ISO } from './ai-fixtures';
+import { FAILED_WEBHOOK_EVENTS, GITHUB_CONNECTION, GITHUB_ORG, REPOS, WEBHOOK_STATS } from './github-fixtures';
+import { ANDINA, DERIVADOS, SEGUREX, sharedFor, type MockUserKey, type MockVariant } from './shared';
 
 type CompaniesPage = PageProps<AdminCompaniesIndexProps>;
 type WizardPage = PageProps<AdminCompaniesCreateProps>;
@@ -30,7 +34,8 @@ type UsersPage = PageProps<AdminUsersIndexProps>;
 type RolesPage = PageProps<AdminRolesIndexProps>;
 type IntegrationsPage = PageProps<AdminIntegrationsIndexProps>;
 type AuditPage = PageProps<AdminAuditIndexProps>;
-type AdminPage = CompaniesPage | WizardPage | AreasPage | UsersPage | RolesPage | IntegrationsPage | AuditPage;
+type GitHubPage = PageProps<AdminIntegrationsGitHubProps>;
+type AdminPage = CompaniesPage | WizardPage | AreasPage | UsersPage | RolesPage | IntegrationsPage | AuditPage | GitHubPage;
 
 const VAULT_HOLDER = 'Jhon Castro';
 
@@ -417,6 +422,28 @@ const integrationsProps = {
     },
 } satisfies IntegrationsPage;
 
+// ---- Integraciones › GitHub ---------------------------------------------------
+
+function without(key: MockUserKey, ...permissions: Permission[]): SharedProps {
+    const removed: string[] = permissions;
+    const shared = sharedFor(key);
+    const user = shared.auth.user;
+    return { ...shared, auth: { user: { ...user, permissions: user.permissions.filter((permission) => !removed.includes(permission)) } } };
+}
+
+const INSTALL_URL = 'https://github.com/apps/[APP DEL GESTOR]/installations/new';
+
+const githubProps = {
+    ...sharedFor('jhon'),
+    connection: GITHUB_CONNECTION,
+    install_url: INSTALL_URL,
+    repos: REPOS,
+    stats: WEBHOOK_STATS,
+    failed_events: FAILED_WEBHOOK_EVENTS.map((event) => ({ ...event, fix_product_slug: event.error_code === 'repo_not_linked' ? 'robotcamara' : null })),
+    // "Última entrega hace 4 min".
+    now: NOW_ISO,
+} satisfies GitHubPage;
+
 // ---- Auditoría --------------------------------------------------------------
 
 const AUDIT_ENTRIES: AuditEntry[] = [
@@ -699,6 +726,33 @@ export const variants: Record<string, MockVariant<AdminPage>> = {
             telegram: { status: 'off', bot_username: null, linked_users: 0, last_message_at: null, webhook_ok: false },
             ai: { ...integrationsProps.ai, status: 'off', monthly_cap_usd: null, month_spend_usd: 0 },
         } satisfies IntegrationsPage,
+    },
+
+    // Integraciones › GitHub
+    'integrations-github': { page: 'Admin/Integrations/GitHub', label: 'GitHub · conectada', props: githubProps },
+    'integrations-github-not-connected': {
+        page: 'Admin/Integrations/GitHub',
+        label: 'GitHub · sin conectar',
+        props: {
+            ...githubProps,
+            connection: {
+                ...GITHUB_CONNECTION,
+                connected: false,
+                organization: GITHUB_ORG,
+                installed_repos_count: 0,
+                permissions: [],
+                private_key_configured: false,
+                webhook: { ...GITHUB_CONNECTION.webhook, configured: false, last_delivery_at: null },
+            },
+            repos: [],
+            stats: { month: 'octubre', received: 0, processed: 0, failed: 0 },
+            failed_events: [],
+        } satisfies GitHubPage,
+    },
+    'integrations-github-no-permission': {
+        page: 'Admin/Integrations/GitHub',
+        label: 'GitHub · sin permiso (sin ai.github.manage)',
+        props: { ...githubProps, ...without('leonardo', 'ai.github.manage') } satisfies GitHubPage,
     },
 
     // Auditoría

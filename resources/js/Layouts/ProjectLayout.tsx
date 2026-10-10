@@ -37,10 +37,12 @@ export interface ProjectLayoutProps {
     counts?: Parameters<typeof GestorLayout>[0]['counts'];
     badges?: Record<string, number>;
     headerActions?: ReactNode;
+    /** Buttons at the end of the project title row (Stage D: "Brief para Claude" on the summary). */
+    projectActions?: ReactNode;
     children: ReactNode;
 }
 
-function ProjectHeaderBar({ shared, project, tab }: { shared: SharedProps; project: ProjectHeader; tab: ProjectTab }) {
+function ProjectHeaderBar({ shared, project, tab, actions }: { shared: SharedProps; project: ProjectHeader; tab: ProjectTab; actions?: ReactNode }) {
     const company = shared.companies.find((item) => item.id === project.company_id);
     const phase = requestStatus(project.status).phase;
     const params = { project: project.key };
@@ -77,6 +79,7 @@ function ProjectHeaderBar({ shared, project, tab }: { shared: SharedProps; proje
                         </span>
                     ))}
                 </span>
+                {actions ? <div className="flex w-full flex-wrap gap-2 lg:w-auto">{actions}</div> : null}
             </div>
             <Tabs label="Secciones del proyecto" items={items} current={tab} tone="neutral" size="sm" className="-mx-1" />
         </div>
@@ -84,7 +87,7 @@ function ProjectHeaderBar({ shared, project, tab }: { shared: SharedProps; proje
 }
 
 /** GestorLayout on "Proyectos" plus the project header and its sub-tabs. */
-export function ProjectLayout({ shared, title, project, tab, breadcrumb, counts, badges, headerActions, children }: ProjectLayoutProps) {
+export function ProjectLayout({ shared, title, project, tab, breadcrumb, counts, badges, headerActions, projectActions, children }: ProjectLayoutProps) {
     return (
         <GestorLayout
             shared={shared}
@@ -95,7 +98,7 @@ export function ProjectLayout({ shared, title, project, tab, breadcrumb, counts,
             badges={badges}
             breadcrumb={breadcrumb}
             headerActions={headerActions}
-            subheader={<ProjectHeaderBar shared={shared} project={project} tab={tab} />}
+            subheader={<ProjectHeaderBar shared={shared} project={project} tab={tab} actions={projectActions} />}
         >
             {children}
         </GestorLayout>

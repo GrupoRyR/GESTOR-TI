@@ -38,8 +38,20 @@
  * - `admin.integrations.mail.test`       POST  —                   "Enviarme un correo de prueba"
  * - `admin.integrations.telegram.test`   POST  —                   "Enviarme un mensaje de prueba"
  * - `admin.integrations.github.update`   PUT   —                   `{ organization }`
+ * - `admin.integrations.github`          GET   —                   "Configurar GitHub" (needs `ai.github.manage`, Stage D)
  * - `admin.integrations.ai.update`       PUT   —                   `{ provider, model, monthly_cap_usd|null }`
  *   (GitHub install goes to the external `github.install_url`, not a Laravel route.)
+ *
+ * GitHub — `Admin/Integrations/GitHub` (Stage D, D-GitHubSetup; permission `ai.github.manage`)
+ * - `admin.integrations.github`               GET     —                 "Configurar GitHub" on the Integraciones card
+ * - `admin.integrations.github.events.retry`  POST    `{ event: id }`   "Reprocesar" a failed webhook event (queued again)
+ * - `admin.integrations.github.disconnect`    DELETE  —                 "Desconectar GitHub" after a ConfirmDialog; keeps
+ *                                                                       stored events and existing links
+ * - `ai.products.show`                        GET     `{ product: slug }` query `{ vincular: 1 }`  "Vincularlo" on a
+ *                                                                       `repo_not_linked` event (opens the repo dialog)
+ *   ("Conectar GitHub" and "Cambiar repositorios en GitHub" go to external github.com URLs.)
+ *   Everything on the page comes from the server's GitHub App settings and the stored webhook events;
+ *   the app private key and the webhook secret live in .env and are only sent as `configured: boolean`.
  *
  * Auditoría — `Admin/Audit/Index`
  * - `admin.audit.index`            GET    query `{ causer_id?, module?, sensitive_only?, range, page? }`
@@ -50,7 +62,9 @@
  * - `can_change_tenant` (Súper Admin only, audited) shows "Cambiar" on the Microsoft tenant field.
  * - `ai.vault.access` is never a role permission: shown as a locked row/note naming `vault.holder_name`.
  * - `ai.projects.approve` belongs only to "Aprobador de proyectos" by default.
+ * - `ai.github.manage` the GitHub page (NoPermission without it; the server refuses retry and disconnect).
  */
+import type { GitHubConnection, GitHubRepo, WebhookEvent, WebhookStats } from '@/types/github';
 import type { Company, CompanyColors, FormErrors, Paginated, Permission } from '@/types/shared';
 
 // ---- Empresas ---------------------------------------------------------------
@@ -251,6 +265,27 @@ export interface IntegrationsProps {
 }
 
 export type AdminIntegrationsIndexProps = IntegrationsProps;
+
+// ---- Integraciones › GitHub --------------------------------------------------
+
+/** A failed webhook event, with where to fix it when the repo is not linked. */
+export interface FailedWebhookEvent extends WebhookEvent {
+    /** Product whose repo dialog fixes a `repo_not_linked` error ("Vincularlo"); null otherwise. */
+    fix_product_slug: string | null;
+}
+
+export interface AdminIntegrationsGitHubProps {
+    /** `connected: false` shows the "Conectar GitHub" state only. */
+    connection: GitHubConnection;
+    /** github.com URL to install the GitHub App on the organization; null until the organization is saved. */
+    install_url: string | null;
+    /** Repositories with the app installed (empty when not connected). */
+    repos: GitHubRepo[];
+    stats: WebhookStats;
+    /** Failed events still pending, newest first. */
+    failed_events: FailedWebhookEvent[];
+    now: string;
+}
 
 // ---- Auditoría --------------------------------------------------------------
 

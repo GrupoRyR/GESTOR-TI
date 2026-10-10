@@ -221,6 +221,24 @@ const ICONS = {
     'kb-flow': <path d="M4 7h12M13 4l3 3-3 3M20 17H8M11 14l-3 3 3 3" />,
     'kb-procedure': <path d="M10 6h10M10 12h10M10 18h10M4 6l1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17" />,
     'kb-glossary': <path d="M6 5a2 2 0 0 1 2-2h11v14H8a2 2 0 0 0-2 2zM6 19a2 2 0 0 0 2 2h11v-4M10 7.5h5" />,
+    /** Neutral mark of AI suggestions (Stage D); never paired with status colors. */
+    sparkle: <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16v4M17 18h4" />,
+    branch: (
+        <>
+            <circle cx="6" cy="6" r="2" />
+            <circle cx="6" cy="18" r="2" />
+            <circle cx="18" cy="8" r="2" />
+            <path d="M6 8v8M18 10a6 6 0 0 1-6 6H8" />
+        </>
+    ),
+    commit: (
+        <>
+            <circle cx="12" cy="12" r="3.5" />
+            <path d="M3 12h5.5M15.5 12H21" />
+        </>
+    ),
+    merge: <path d="M6 3v6a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 21v-6" />,
+    rocket: <path d="M5 15c-1.5 1.5-2 4-2 6 2 0 4.5-.5 6-2M9 15l-3-3c2-6 7-9 14-9 0 7-3 12-9 14zM14.5 9.5h.01" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof ICONS;

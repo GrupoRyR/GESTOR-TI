@@ -320,97 +320,111 @@
     background: repeating-linear-gradient(135deg, #d69a00 0 10px, #17191c 10px 20px);
 }
 
-/* Rendered Markdown (lib/markdown → MarkdownPreview). */
-.md-prose {
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--color-fg);
-    overflow-wrap: anywhere;
+/*
+ * Rendered Markdown (lib/markdown → MarkdownPreview). In the components
+ * layer so a utility on the element (`text-sm` in previews) sets the base
+ * size; headings scale from it in em.
+ */
+@layer components {
+    .md-prose {
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--color-fg);
+        overflow-wrap: anywhere;
 
-    > * + * {
-        margin-top: 0.85em;
-    }
-    h1,
-    h2,
-    h3 {
-        font-family: var(--font-display);
-        font-weight: 700;
-        line-height: 1.2;
-        letter-spacing: -0.02em;
-    }
-    h1 {
-        font-size: 26px;
-    }
-    h2 {
-        font-size: 20px;
-        margin-top: 1.4em;
-    }
-    h3 {
-        font-size: 17px;
-        margin-top: 1.2em;
-    }
-    ul,
-    ol {
-        padding-left: 1.4em;
-    }
-    ul {
-        list-style: disc;
-    }
-    ol {
-        list-style: decimal;
-    }
-    li + li {
-        margin-top: 0.25em;
-    }
-    a {
-        font-weight: 600;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-    }
-    strong {
-        font-weight: 700;
-    }
-    code {
-        font-family: var(--font-mono);
-        font-size: 0.9em;
-        padding: 0.1em 0.35em;
-        border-radius: 6px;
-        background: var(--color-subtle);
-    }
-    pre {
-        padding: 12px 14px;
-        border-radius: var(--radius-control);
-        background: var(--color-subtle);
-        overflow-x: auto;
-    }
-    pre code {
-        padding: 0;
-        background: none;
-    }
-    blockquote {
-        padding-left: 14px;
-        border-left: 3px solid var(--color-line-strong);
-        color: var(--color-fg-soft);
-    }
-    table {
-        display: block;
-        max-width: 100%;
-        overflow-x: auto;
-        border-collapse: collapse;
-        font-size: 14px;
-    }
-    th,
-    td {
-        padding: 8px 12px;
-        border: 1px solid var(--color-line);
-        text-align: left;
-    }
-    th {
-        background: var(--color-subtle);
-        font-weight: 700;
-    }
-    hr {
-        border: 0;
-        border-top: 1px solid var(--color-line);
+        > * + * {
+            margin-top: 0.85em;
+        }
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-weight: 700;
+            line-height: 1.25;
+        }
+        h1 {
+            font-family: var(--font-display);
+            font-size: 1.4em;
+            letter-spacing: -0.02em;
+        }
+        h2 {
+            font-size: 1.1em;
+            margin-top: 1.2em;
+        }
+        h3,
+        h4 {
+            font-size: 1em;
+            margin-top: 1em;
+        }
+        h1 + p {
+            margin-top: 0.4em;
+        }
+        > :first-child {
+            margin-top: 0;
+        }
+        ul,
+        ol {
+            padding-left: 1.4em;
+        }
+        ul {
+            list-style: disc;
+        }
+        ol {
+            list-style: decimal;
+        }
+        li + li {
+            margin-top: 0.25em;
+        }
+        a {
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        strong {
+            font-weight: 700;
+        }
+        code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            padding: 0.1em 0.35em;
+            border-radius: 6px;
+            background: var(--color-subtle);
+        }
+        pre {
+            padding: 12px 14px;
+            border-radius: var(--radius-control);
+            background: var(--color-subtle);
+            overflow-x: auto;
+        }
+        pre code {
+            padding: 0;
+            background: none;
+        }
+        blockquote {
+            padding-left: 14px;
+            border-left: 3px solid var(--color-line-strong);
+            color: var(--color-fg-soft);
+        }
+        table {
+            display: block;
+            max-width: 100%;
+            overflow-x: auto;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th,
+        td {
+            padding: 8px 12px;
+            border: 1px solid var(--color-line);
+            text-align: left;
+        }
+        th {
+            background: var(--color-subtle);
+            font-weight: 700;
+        }
+        hr {
+            border: 0;
+            border-top: 1px solid var(--color-line);
+        }
     }
 }

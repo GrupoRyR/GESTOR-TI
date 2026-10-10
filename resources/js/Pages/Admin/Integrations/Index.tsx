@@ -9,6 +9,7 @@ import { Select } from '@/Components/ui/Select';
 import { TextField } from '@/Components/ui/TextField';
 import { cx } from '@/Components/ui/utils';
 import { AdminLayout } from '@/Layouts/AdminLayout';
+import { can } from '@/lib/can';
 import { formatRelative } from '@/lib/format';
 import { route } from '@/lib/route';
 import type { AdminIntegrationsIndexProps, IntegrationsProps } from '@/types/pages/admin';
@@ -198,7 +199,7 @@ function TelegramCard({ telegram }: { telegram: IntegrationsProps['telegram'] })
     );
 }
 
-function GithubCard({ github }: { github: IntegrationsProps['github'] }) {
+function GithubCard({ github, canManage }: { github: IntegrationsProps['github']; canManage: boolean }) {
     const form = useForm({ organization: github.organization ?? '' });
     const connected = github.status === 'connected';
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -214,7 +215,7 @@ function GithubCard({ github }: { github: IntegrationsProps['github'] }) {
             subtitle={
                 connected
                     ? `${github.repositories_count} ${github.repositories_count === 1 ? 'repositorio' : 'repositorios'} con la app instalada. Crea issues desde las tareas y recibe pull requests y releases.`
-                    : 'Para crear issues desde las tareas y recibir pull requests y releases. Se usa desde la etapa D.'
+                    : 'Para crear issues desde las tareas y recibir pull requests, CI y releases de cada producto.'
             }
         >
             <form onSubmit={submit} noValidate className="flex flex-1 flex-col gap-3">
@@ -228,6 +229,11 @@ function GithubCard({ github }: { github: IntegrationsProps['github'] }) {
                     spellCheck={false}
                 />
                 <div className="mt-auto flex flex-col gap-2">
+                    {canManage ? (
+                        <Button variant="secondary" href={route('admin.integrations.github')}>
+                            {connected ? 'Ver webhook, eventos y repositorios' : 'Configurar GitHub'}
+                        </Button>
+                    ) : null}
                     {form.isDirty ? (
                         <Button type="submit" variant="secondary" loading={form.processing}>
                             Guardar organización
@@ -372,7 +378,7 @@ export default function AdminIntegrationsIndex(props: PageProps<AdminIntegration
                     <MicrosoftCard microsoft={microsoft} companyById={companyById} />
                     <MailCard mail={mail} companyById={companyById} />
                     <TelegramCard telegram={telegram} />
-                    <GithubCard github={github} />
+                    <GithubCard github={github} canManage={can(props.auth.user, 'ai.github.manage')} />
                     <AiCard ai={ai} />
                 </div>
             </div>
