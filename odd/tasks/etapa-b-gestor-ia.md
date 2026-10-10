@@ -26,8 +26,8 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 - [x] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
 - [x] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
 - [x] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
-- [ ] B7 · Documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard.
-- [ ] B8 · Vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
+- [x] B7 · Products pages, documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved). The value dashboard (`Ai/Value/Index`, `ai-value-vault.ts`) moved to B8 with the vault.
+- [ ] B8 · Value dashboard (`Ai/Value/Index`, ROI with area hour values and project costs) and vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
 - [x] B9 · Design delivered (PR #10, `docs/design/stage-b-contract.md`); merged into the chain as `2a804cb` (package.json: Inertia v3 kept + `markdown-it`; lock regenerated; typecheck, 300 vitest, build and 637 PHP tests green). B5–B8 now wire the pages together with their domain: B5 `ai-projects.ts` (projects, board, tasks, requirements, report), B6 `Ai/Projects/Costs`, `Ai/TimeEntries/Create`, `admin-costs.ts`, B7 `ai-knowledge.ts` + ratings lifecycle, B8 `ai-value-vault.ts`. Not designed (keep out): product create/edit, incident create, vault item edit.
 
 ## Progress / evidence
@@ -290,5 +290,55 @@ Notes for design:
 
 Open (pending from Jhon): USD → COP rate for AI spend (`ai.usd_cop_rate`, 4000 placeholder); whether a monthly cost should count once (as the page adds it) or per elapsed month.
 
+### B7 · Products, documentation, search and ratings lifecycle — done (commit `b97ce8d` `feat(ai): add products, documentation, search and ratings lifecycle`)
+- Route: delegated (writer trigger: 25 new code files across migration, models, domain, actions, presenters, controllers, policy, notifications, command, routes; 6 test files).
+- Test-first: 5 new feature files + 1 unit file + `StageAShellRoutesTest` updated (46 tests) written first and observed RED (36 of 46 failing: routes, `Documents`, models and command missing), then GREEN.
+- Checks: `php artisan test` 761/761 passed; `vendor/bin/pint` + `vendor/bin/pint --test` passed; `npm run typecheck` passed; `route:list --path=ai/products` 5 routes (create/edit/incidents.create TEMPORARY),
+  `--path=ai/docs` 9 routes, `--path=ai/search` 1 route; `schedule:list` shows `0 9 * * * ai:ratings-lifecycle` (Bogotá); new migration up/rollback/up + `db:seed` + `AiDemoSeeder` on a temp SQLite file OK (file deleted).
+  MySQL-only FULLTEXT paths (docs title+body, requests title+problem) not run here (verify on the server).
+- Size: ~2590 authored code lines + ~1030 test lines, above the ~400 heuristic: products, docs and search share presenters (`DocSummary` on the product page and in search) and one contract file (`ai-knowledge.ts`).
+
+Decisions:
+- Schema (one migration): `ai_documents` (owner = `ai_project_id` XOR `ai_product_id` with real FKs instead of a morph pair: there is no morph map and AI spend already stores class names;
+  title, slug unique per owner, template = design `DocTemplate`, `body` = working copy, `visibility` company|it|project, `not_applicable`, `repository_path`, `version` = last published, author/updated_by,
+  soft deletes, MySQL FULLTEXT title+body), `ai_document_revisions` (version unique per doc, body, summary, user, created_at), `ai_product_incidents` (no form: always empty today),
+  `ai_requests.rating_requested_at|rating_reminded_at|hours_saved_asked_at`.
+- Docs model: autosave (`ai.docs.update`, `{markdown, version?}`) writes the working copy only; "Publicar versión" (`ai.docs.publish`, `{summary, version?}`) adds revision n+1; create adds version 1
+  ("Primera versión."); restore (`ai.docs.restore {doc, version}`) copies that version into the working copy and publishes it as a new version ("Restaurada la versión N."), nothing is deleted.
+  Optimistic concurrency: an optional `version` body field = the version the editor started from; a stale one answers a `markdown` error (the design does not send it yet).
+- Secrets guard (`App\Domain\Ai\SecretGuard`, every saved/published body and template): assigned passwords (`password=`, `contraseña:`), assigned API keys/secrets/tokens, any `-----BEGIN … -----` block,
+  AWS access keys, `sk-…` and GitHub tokens → 422 "El documento parece tener una contraseña o una llave…". Naming a variable (`DEEPSEEK_API_KEY`) is allowed.
+- Templates (`App\Domain\Ai\DocumentTemplates`, keys of `DocTemplate`): ficha, requerimientos y criterios, arquitectura y datos ("nunca contraseñas"), prompts y modelos, registro de decisiones, manual de
+  usuario, manual técnico y de despliegue, acta de entrega, blank. Visibility: user manual + delivery record `company`, ficha/requerimientos/decisiones `project`, the technical ones `it`.
+  `ConvertRequestToProject` now creates the project base set (ficha, requerimientos, arquitectura, prompts, decisiones, acta) filled with the objective, the origin key and the acceptance criteria.
+- Docs pages are IT pages (`ai.manage`, contract "Permissions"); `AiDocumentPolicy::view` also needs the owner in the company context; writing needs `ai.docs.edit` (route + policy).
+  `ai.projects.docs` (no design page) renders `Ai/Docs/Index` with only that project's docs (`ai.manage` + AiProjectPolicy::manage). Tree order: products, then projects; owner name, template order, title.
+  History: default selection = the version before the current one, against the current; choosing the current compares it with the previous; diff lines go older → newer (`App\Domain\Ai\LineDiff`, LCS,
+  remove-all/add-all above 1M cells). `Ai/Docs/Repo` sends `{ connected: false }` (Stage D reads GitHub); `product_slug` = the asked product or the first visible one.
+- Products (`ai.manage`): the index filters in PHP over `AiProduct::visibleTo` (`q` on name/stack/owner/slug, `company_id` only in "Todas", `area_id`, `state`; counts ignore only the state filter).
+  Show: versions with their requests, open requests of the company context (10, newest first), docs, incidents, `health` `{enabled:false}`, `next_version` null (no planned version stored),
+  `requests_from_button_this_month` 0 (the Kit RYR button does not record its origin), `hours_note` from the 30-day answers ("4 h a la semana, según 1 persona que la usa"),
+  `cost_note` from hosting + AI provider (null without `ai.costs.view`), `request_notes` = "Proyecto P-n · entrega proyectada 14 nov" (project due date) else "{solicitante} · {estado}".
+  Product create/edit and incident create: TEMPORARY `PendingDesignController` (back with "Disponible pronto.").
+- Search (`ai.search`, `App\Domain\Ai\KnowledgeSearch`): keywords of `DuplicateFinder::keywords`; MySQL FULLTEXT (docs title+body, requests title+problem), other drivers score the newest 500 in PHP; products in PHP.
+  Finished requests are found too. Highlights are UTF-16 `[start,end)` ranges of whole-word prefixes, accent- and case-insensitive (`App\Domain\Ai\Highlighter`); doc snippets are the body around the first match.
+  Visibility: requests through CompanyScope (module users see their company's, as the roadmap), products through `visibleTo`, docs only for `ai.manage`. Access: module users (`AiProductPolicy::viewAny`).
+  `type_counts` ignore the type filter; `company_counts` (only `companies.view_all`) ignore the company filter, start at 0 for every active company and honour the type filter; 20 hits per type.
+  The top-bar `search` goes to `ai.search` for module users (module active), to Colaboradores for `employees.view` without the Gestor, else back with "No tienes dónde buscar todavía.".
+- Ratings lifecycle (6.4.5): reaching "En producción" sends `AiRatingRequested` (new event `ai.rating.requested`, with the public note) instead of the status notice when the requester has not rated;
+  `ai:ratings-lifecycle` daily 09:00 Bogotá: 3 days unrated → one reminder; 7 days unrated → "Cerrada" with note "Se cerró sin calificación…" (status notice); 30 days after production (in production or
+  closed, within 60 days so old deliveries are not asked) without an answer → `AiHoursSavedQuestion` (new event `ai.rating.hours`, links `ai.ratings.hours.create`). The start is the latest move to production.
+- Placeholders kept (TEMPORARY): `ai.reviews.store`, `ai.vault.index`, `ai.value.index` (B8), `ai.products.create|edit|incidents.create` (not designed).
+
+Notes for design:
+- Autosave/publish accept an optional `version` (the version the editor loaded) for conflict detection; `Ai/Docs/Edit` does not send it yet.
+- `ProductDetail.next_version` is always null and `requests_from_button_this_month` always 0 until versions are planned/imported (Stage D) and the Kit RYR button records its origin.
+- `ProductIncident` has no create form (`ai.products.incidents.create` goes back with "Disponible pronto."); `ProductHealth` is always `{ enabled: false }` in Stage B.
+- Search is open to requesters (requests and products of their company) but `Ai/Search/Index` is drawn in IT mode; docs never reach requesters because the docs pages are IT-only.
+- `ai.projects.docs` has no page of its own: it renders `Ai/Docs/Index` filtered to the project (no ProjectLayout header).
+
+Open (app owner): the global `TrimStrings` middleware trims `markdown` (leading indentation and the trailing newline of a doc are lost on autosave); exempting it needs
+`$middleware->trimStrings(except: ['markdown'])` in `bootstrap/app.php` (outside this task's surface).
+
 ## Next step
-B7 · Documentation (markdown + revisions + templates + search, `ai-knowledge.ts`), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard (`Ai/Value/Index`, ROI with area hour values and project costs).
+B8 · Value dashboard (`Ai/Value/Index`: hours saved, cost, satisfaction and ROI with area hour values and project costs) and vault (`ai-value-vault.ts`: items encrypted with `VAULT_KEY`, reauth, 30 s reveal, auto-lock, access log + Telegram, rotation reminders).
