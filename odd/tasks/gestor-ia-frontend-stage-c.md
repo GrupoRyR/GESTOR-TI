@@ -57,7 +57,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
   - The incident drawer on `Ai/Products/Show` (`Ai/Products/Incidents/Create`).
   - `Ai/Vault/Edit`.
   - `docs/design/telegram-format.md`, the backend's answer and button format examples from `C-TelegramAnswers` and `C-TelegramActions`.
-- [ ] T6 Handoff. Route: inline.
+- [x] T6 Handoff. Route: inline.
   - `docs/design/stage-c-contract.md`.
   - A gallery check of every new page.
   - The PR.
@@ -80,6 +80,7 @@ Out of scope: PHP, routes, controllers, the Telegram bot itself, Stage D (GitHub
 - T3 `264afc4` Knowledge Index/Show/Create/Edit (15 variants, types help drawer, steps editor, related picker; helpers knowledgeQuery + knowledgeFields test-first) — 357 tests. Delegated writer checked most variants with Playwright; glossary/data_flow shows not visually checked. Parent re-ran typecheck + tests.
 - T4 `e8ac746` Import Create/Mapping/Preview, Drafts, Unanswered (12 variants; routes added: assistant.import.update, assistant.import.destroy; approve allowed with missing optional fields; helpers importPreview + curation test-first) — 378 tests. Delegated writer checked all variants 390/834/1440 light/dark; parent re-ran typecheck + tests.
 - T5 `f0bea10` Ai/Products/Create+Edit, incident drawer on Show (+ deep link), Ai/Vault/Edit+Create, docs/design/telegram-format.md; helpers slug + vault rotation/delete-confirm test-first — 393 tests. Writer spot-checked variants; parent re-ran typecheck, tests, build.
+- T6 inline: `docs/design/stage-c-contract.md`, Stage B contract pending section updated; parent spot-checked Chat credential_revealed (390 dark) and Knowledge show_glossary (1440 light) in the gallery; PR stacked on Stage B.
 
 ## Next step
-T6 handoff.
+Jhon reviews the gallery; merge #8, retarget #10 and then this PR.
