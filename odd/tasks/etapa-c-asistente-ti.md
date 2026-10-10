@@ -27,7 +27,7 @@ Plus the three Stage B forms that had no design: product create/edit, incident r
 - [x] C2 · Curation: Excel import (upload, mapping, preview, apply, errors file), `/aprender` drafts (create, approve with title+company, discard with reason), unanswered questions; pages `Assistant/Import/*`, `Assistant/Drafts/Index`, `Assistant/Unanswered/Index`. Route: delegated (writer trigger: 2+ non-trivial files).
 - [x] C3 · Assistant engine + chat: `laravel/ai` agent with DeepSeek, tool catalog (`buscar_conocimiento`, `ver_ficha`, `buscar_productos`, `ver_producto`, `buscar_solicitudes_gestor_ia`, `entregar_credencial`), conversations (30 min context), `ai_interactions` logging with cached tokens + cost, monthly cap 80/100 %, statuses; page `Assistant/Chat` (messages store/retry, sources, credential notice + reveal + copied, vault links). Route: delegated (writer trigger: 2+ non-trivial files).
 - [x] C4 · Telegram assistant: questions via the bot (typing, after-response), `/aprender`, credential delivery as a separate message deleted after 60 s, formats and buttons per `telegram-format.md`. Route: delegated (writer trigger: 2+ non-trivial files).
-- [ ] C5 · Pending Stage B forms: `Ai/Products/Create|Edit`, incident drawer (`ai.products.incidents.store`), `Ai/Vault/Create|Edit` (+ store/update/destroy with typed-name confirmation). Remove their TEMPORARY routes.
+- [x] C5 · Pending Stage B forms: `Ai/Products/Create|Edit`, incident drawer (`ai.products.incidents.store`), `Ai/Vault/Create|Edit` (+ store/update/destroy with typed-name confirmation). Remove their TEMPORARY routes. Route: delegated (writer trigger: 2+ non-trivial files).
 
 ## Progress / evidence
 
@@ -138,5 +138,64 @@ Notes for design (no visual change needed):
 - Drafts page opened from the bot always carries `?borrador={id}&desde=telegram`.
 - The person-choice message keeps its text and loses its buttons after a tap (not specified in the board).
 
+### C5 · Pending Stage B forms
+- Schema `2026_10_25_000001_add_form_columns_to_ai_products`: `ai_products.kind` (web|robot|integration|mobile, default web); `ai_product_incidents` + `impact`, `description`, `resolution`, `origin` (manual, default), `notified_user_ids` json.
+- Products (`ai.manage`, AiProductPolicy create/update): `AI\ProductFormController` (`ai.products.create|store|edit|update`), `App\Domain\Ai\ProductForm` (options, blank/stored values, old input), `ProductRequest`, `App\Actions\Ai\SaveProduct`. Routes `POST ai/products`, `PUT ai/products/{product}`; no destroy route (DELETE answers 405).
+- Incidents (`ai.manage`): `AI\ProductIncidentController` (`ai.products.incidents.create` = `ProductController::sheet($product, open: true)`, `ai.products.incidents.store`), `App\Domain\Ai\IncidentForm` (`incident_form` on every Show), `ProductIncidentRequest` (failed store redirects to `incidents.create`, so Show renders with shared `errors`, `incident_form.open = true` and the old input turned back into `IncidentFormData`), `App\Actions\Ai\RegisterProductIncident`, `App\Notifications\ProductIncidentRegistered`.
+- Vault (`vault` middleware + open `VaultSession`): `AI\VaultItemController` (`ai.vault.create` GET `ai/vault/create`, `ai.vault.store` POST `ai/vault`, `ai.vault.edit`, `ai.vault.update` PUT `ai/vault/{item}`, `ai.vault.destroy` DELETE `ai/vault/{item}`), `App\Support\Vault\VaultItemForm` (rules, owner resolution, choices, typed-name check), through `ManageVaultItems` (access log create/update/delete + `VaultAccessed` Telegram notice). `AiVaultItem::NO_OWNER`.
+- TEMPORARY `ai.products.create|edit|incidents.create`, `ai.vault.edit` and `PendingDesignController` removed (nothing else used it: `ai.reviews.store` is `StageBPlaceholderController`, `employees.create` its own controller).
+- Tests (RED observed first: 37 tests, 8 failures + 23 errors): `tests/Feature/Ai/Knowledge/{ProductFormsTest, ProductIncidentsTest}`, `tests/Feature/Ai/Vault/VaultItemFormsTest`; `ProductPagesTest` Show contract + `incident_form`, placeholder tests removed from `ProductPagesTest` and `VaultAccessTest`.
+- Checks: `php artisan test` 943 passed (9991 assertions); `vendor/bin/pint` fixed 4 files, `vendor/bin/pint --test` pass; `npm run typecheck` pass; `route:list --path=ai/products` 8 routes, `--path=ai/vault` 10 routes, no placeholders; migrate up/rollback/up on a temp SQLite file OK. Commit `224d91f`.
+
+Decisions (C5):
+- Types win over the brief: the product form has no monthly cost, AI provider/model, repository or Notion fields (`ProductFormData` does not carry them; the repository shows "Se conecta en la etapa D"), so nothing is gated by `ai.costs.*` here and those columns keep their seeded values.
+- Product companies: the chosen ones; the primary company is the area's company. Area: the chosen one becomes primary and replaces the previous primary; secondary areas of the chosen companies stay (areas of companies no longer chosen are dropped).
+- Linkable requests: open requests without product (every company, products are multi-company) plus the ones already linked; unlinking a key in the form clears `product_id`. A new current version creates its `ai_product_versions` row ("Versión registrada en la ficha del producto.", source manual).
+- Slug unique also against soft-deleted products ("Ese slug ya lo usa X. Prueba con otro."); version `v1.2.3`; URL empty, `http(s)://…` or a `[URL DE …]` placeholder; `hosts` = GoDaddy, Vercel, Equipo local, Servidor de SAP (+ the stored value when it is another one).
+- Owners = active users. Clearing the owner keeps `owner_name` (free-text fallback) as the shown owner.
+- Activity: model `created`/`updated` (now also `description`, `kind`) + `product_relations` (companies, area, request keys); incidents `product_incident` on the product.
+- Incidents: Bogotá wall time, not in the future (1 min slack), end ≥ start; `notify_ids` must be `ai.manage` holders (`notify_people`); the owner is notified only when it is an active user (`notify_owner` default false otherwise; `owner_label` "[DUEÑO]" when unknown). Notification event: there is no own catalog entry and `config/notifications.php` was outside the edit surface, so `ProductIncidentRegistered` rides `alert.critical` (critical impact) or `alert.info` (others) — mail, Telegram and bell by default.
+- Vault: the session check comes before validation (a locked vault never answers with field errors) and redirects to `ai.vault.index` (`{item}` when there is one) with "La bóveda está cerrada. Confirma tu identidad con Microsoft para cambiar credenciales.". Validation errors go back without flashing `value` or `confirm_name` (Laravel's `dontFlash` does not list `value`). "Proyecto" = product name, else project name; choices = pairs of stored items + non-retired products and non-closed projects × both environments; `?product=&environment=` preselects only a listed pair. Rotation 30/60/90/180 or null; empty username → null; a new value stamps `last_rotated_at`.
+- Delete: server-side typed-name check on `confirm_name` (trimmed, case-sensitive, like `deleteConfirmMatches`); error key `confirm_name` "Escribe el nombre exacto de la credencial para eliminarla.".
+
+Notes for design (action needed):
+- `VaultItemForm.tsx` `destroy()` sends no body today; the server requires `confirm_name`: change to `router.delete(route('ai.vault.destroy', { item }), { data: { confirm_name: confirmText }, … })` and add `confirm_name` to the `ai.vault.destroy` line of the `ai-value-vault.ts` header. Until then "Eliminar credencial" answers with the `confirm_name` error (not shown by the form).
+- Product form success flashes: "Producto creado." / "Cambios guardados."; incident "Incidente registrado."; vault "Credencial guardada." / "Cambios guardados." / "Credencial eliminada.".
+- `requests` lists every open unlinked request of every company (newest first); it may grow long.
+
+## Stage C summary
+
+What was built (C0–C5):
+- Knowledge base (cards K-NNN, 5 types, visibility "Solo TI"/"Toda la empresa", links, glossary synonyms, FULLTEXT search, 6-month review reminder).
+- Curation: Excel/CSV import (mapping, preview, apply, errors file), `/aprender` drafts (approve/merge/discard), unanswered questions.
+- Asistente TI engine (Laravel AI SDK + DeepSeek, 5 read-only tools + credential delivery, 30-min context, `ai_interactions` cost log, monthly cap 80/100 %) and the chat page; password reveal 30 s with audit and Telegram notice.
+- Telegram assistant: questions, `/aprender` with buttons, password as a separate message deleted after 60 s.
+- Pending Stage B forms: product create/edit, incident drawer, vault item create/edit/delete.
+
+How to test on the server:
+1. Chat (`/assistant`) as Jhon: ask about a card ("¿Quién envía el informe de cartera?") → answer with "Fuentes"; ask something undocumented → appears in "Preguntas sin respuesta"; `/aprender …` → draft in "Borradores".
+2. Import: download the template, fill a row, upload, map, preview, apply; check the errors file with a bad row.
+3. Telegram (linked account): ask the bot a question (typing, answer with sources); `/aprender …` → Aprobar/Descartar buttons; "contraseña de Office de Juan Pérez" → notice + separate message that disappears after 60 s; Jhon gets the reveal notice.
+4. Products: "Agregar producto", edit one (change area/state to Retirado), "Registrar incidente" (open and resolved) → notice to the chosen people.
+5. Vault: unlock with Microsoft, "Nueva credencial", "Cambiar valor" (empty value keeps it), delete typing the name (after the design fix above) → Telegram notice for each change.
+
+Server steps:
+- `composer install --no-dev` with the new packages `laravel/ai` (^1.2) and `openspout/openspout` (^5.3) (already in composer.json/lock).
+- `php artisan migrate --force` (Stage C: `2026_10_22_000001` … `2026_10_25_000001`).
+- `php artisan config:cache && php artisan route:cache`; cron `schedule:run` adds `assistant:knowledge-review-reminders` (Mondays 08:00 Bogotá).
+- Optional demo cards: `php artisan db:seed --class=AssistantDemoSeeder` (never in production with real data).
+
+Environment keys: `DEEPSEEK_API_KEY` (without it the assistant shows `off_no_key`), `ASSISTANT_IMPORT_MAX_KB` (optional, default 10240), plus the Stage B ones (`VAULT_KEY`, Telegram bot token/webhook). `.env.example` was not editable from this worktree: add both keys there.
+
+Open questions for Jhon:
+- DeepSeek prices in `gestor.ai.prices` (USD per million tokens: input, cached input, output) — confirm before go-live.
+- Monthly cap value (Settings `ai.monthly_cost_cap_usd`, shown as "US$ 20" in the design) and who receives the cap alerts (today `settings.manage`: Jhon and Leonardo).
+- Telegram texts written by the backend where the format had none (no access, rate limit, `/aprender` without permission, approve blocked, password notices) — design must approve.
+- `/aprender` permission differs: app chat lets `assistant.use` create drafts; Telegram requires `assistant.knowledge.manage`. Align?
+- Placeholders still open: `[NOMBRE DEL BOT]`, `[TOPE MENSUAL]`, `[FRECUENCIA]`/`[VERSIÓN]` in sample cards, `[RUTA EN SAP]`, `[DUEÑO]`/`[URL DE …]` of the seeded products.
+- Product incidents: add an own notification event (`ai.product.incident`) to `config/notifications.php` instead of riding `alert.*`?
+
+Remaining TEMPORARY routes: `ai.reviews.store` (weekly review, `StageBPlaceholderController`) and `employees.create` (manual employee creation, redirects with a notice).
+
 ## Next step
-C5 (pending Stage B forms): `Ai/Products/Create|Edit`, incident drawer (`ai.products.incidents.store`), `Ai/Vault/Create|Edit` (+ store/update/destroy with typed-name confirmation); remove their TEMPORARY routes.
+Push slices `stage-c/*` and open PRs; then Stage D.
