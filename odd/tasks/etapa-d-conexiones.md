@@ -187,7 +187,7 @@ Notes for design:
 - `IssueAssignee.github_login` is sent as `@login` (null without a login), like `GitHubActor.login`.
 - If a future board call uses `only` after "Crear issue", `issue_created` is still included (`Inertia::always`).
 
-### D4 · Releases — done
+### D4 · Releases — done (`1e84a97`)
 - Route: delegated (writer trigger: action, domain builder, availability class, notification, controller, form request, routes, config; 1 test file).
 - Test-first: 9 new tests (`tests/Feature/GitHub/ReleasePageTest`) written first and observed RED (9 of 9 failing: routes `ai.releases.*`
   and the `ai.release.published` event missing), then GREEN.
