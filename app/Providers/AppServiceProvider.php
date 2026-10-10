@@ -85,6 +85,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('telegram-webhook', fn (Request $request) => Limit::perMinute(120)
             ->by('telegram-webhook:'.$request->ip()));
 
+        // GitHub webhook (PROMPT §8): per-IP limit; GitHub sends bursts
+        // (push + workflow_run + pull_request) from a few hook addresses.
+        RateLimiter::for('github-webhook', fn (Request $request) => Limit::perMinute(300)
+            ->by('github-webhook:'.$request->ip()));
+
         // `telegram` notification channel (App\Notifications\GestorNotification).
         Notification::resolved(function (ChannelManager $channels): void {
             $channels->extend('telegram', fn ($app) => $app->make(TelegramChannel::class));

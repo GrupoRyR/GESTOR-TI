@@ -30,6 +30,9 @@ use Illuminate\Validation\ValidationException;
  *   goes to "En pruebas" with its requests (the requester validates the
  *   acceptance criteria). Later moves (production, closing) stay manual.
  * - Writes "movió T3 Endpoint de zonas a En revisión" to the activity feed.
+ *
+ * The actor is null for system moves (GitHub webhooks whose author is not
+ * a Gestor person).
  */
 class MoveTask
 {
@@ -38,7 +41,7 @@ class MoveTask
         private readonly TransitionRequest $transition,
     ) {}
 
-    public function handle(AiTask $task, string $columnKey, ?int $position, User $actor): void
+    public function handle(AiTask $task, string $columnKey, ?int $position, ?User $actor): void
     {
         /** @var AiProject $project */
         $project = $task->project;
@@ -114,7 +117,7 @@ class MoveTask
         }
     }
 
-    private function advanceProject(AiProject $project, AiProjectColumn $target, User $actor): void
+    private function advanceProject(AiProject $project, AiProjectColumn $target, ?User $actor): void
     {
         if ($project->status === RequestStatus::Planned && $target->key === Board::IN_PROGRESS) {
             $project->forceFill(['status' => RequestStatus::InDevelopment, 'started_at' => $project->started_at ?? now()])->save();
@@ -138,7 +141,7 @@ class MoveTask
         }
     }
 
-    private function moveRequests(AiProject $project, RequestStatus $from, RequestStatus $to, User $actor): void
+    private function moveRequests(AiProject $project, RequestStatus $from, RequestStatus $to, ?User $actor): void
     {
         $project->requests()->where('ai_requests.status', $from->value)->get()
             ->each(fn (AiRequest $request) => $this->transition->apply($request, $to, $actor));

@@ -1,0 +1,14 @@
+{
+  "ref": "refs/heads/main",
+  "before": "0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e",
+  "after": "c0ffee1234567890abcdef1234567890abcdef12",
+  "deleted": false,
+  "compare": "https://github.com/GrupoRyR/portafolio/compare/0f9e8d7c6b5a...c0ffee123456",
+  "commits": [
+    {"id": "5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b", "message": "GIA-139 tipos de asesor y zona", "timestamp": "2026-10-07T08:05:00-05:00", "url": "https://github.com/GrupoRyR/portafolio/commit/5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b", "author": {"name": "Jhon Castro", "username": "jhonc"}},
+    {"id": "c0ffee1234567890abcdef1234567890abcdef12", "message": "Merge pull request #41 from GrupoRyR/gia-139-t3-endpoint-zonas\n\nGIA-139 · T3 Endpoint de zonas", "timestamp": "2026-10-07T08:38:00-05:00", "url": "https://github.com/GrupoRyR/portafolio/commit/c0ffee1234567890abcdef1234567890abcdef12", "author": {"name": "Leonardo Herrera", "username": "leoh"}}
+  ],
+  "head_commit": {"id": "c0ffee1234567890abcdef1234567890abcdef12", "message": "Merge pull request #41 from GrupoRyR/gia-139-t3-endpoint-zonas", "timestamp": "2026-10-07T08:38:00-05:00", "url": "https://github.com/GrupoRyR/portafolio/commit/c0ffee1234567890abcdef1234567890abcdef12", "author": {"name": "Leonardo Herrera", "username": "leoh"}},
+  "repository": {"id": 501, "full_name": "GrupoRyR/portafolio", "name": "portafolio", "default_branch": "main"},
+  "sender": {"login": "leoh"}
+}

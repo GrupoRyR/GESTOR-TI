@@ -27,6 +27,9 @@ use Illuminate\Support\Carbon;
  * @property ?list<string> $branches
  * @property ?int $installation_id
  * @property ?Carbon $last_synced_at
+ * @property ?array<string, array<string, mixed>> $ci latest CI run per branch (`CiRun`)
+ * @property ?array<string, mixed> $last_deploy last push to the linked branch (`Deploy` without provider)
+ * @property ?list<array<string, mixed>> $recent_commits newest first (`CommitSummary`)
  * @property ?string $linkable_type
  * @property ?int $linkable_id
  * @property ?string $branch
@@ -58,6 +61,9 @@ class GitHubRepository extends Model
             'branches' => 'array',
             'installation_id' => 'integer',
             'last_synced_at' => 'datetime',
+            'ci' => 'array',
+            'last_deploy' => 'array',
+            'recent_commits' => 'array',
             'read_docs' => 'boolean',
             'receive_events' => 'boolean',
             'linked_at' => 'datetime',
@@ -113,6 +119,14 @@ class GitHubRepository extends Model
             'linked_by_id' => $linkedBy?->getKey(),
             'linked_at' => now(),
         ])->save();
+    }
+
+    /**
+     * Branch used for CI and deploys: the linked branch, else the default one.
+     */
+    public function trackedBranch(): string
+    {
+        return $this->branch ?? $this->default_branch;
     }
 
     /**

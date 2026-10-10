@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GitHub\WebhookController as GitHubWebhookController;
 use App\Http\Controllers\Telegram\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,3 +24,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('/telegram/webhook/{secret}', WebhookController::class)
     ->middleware('throttle:telegram-webhook')
     ->name('telegram.webhook');
+
+// GitHub App webhook (D2, PROMPT §7.2): `X-Hub-Signature-256` checked with
+// hash_equals in the controller (401 on mismatch, 403 without secret).
+// Stored once per `X-GitHub-Delivery` and processed on the queue.
+Route::post('/github/webhook', GitHubWebhookController::class)
+    ->middleware('throttle:github-webhook')
+    ->name('github.webhook');

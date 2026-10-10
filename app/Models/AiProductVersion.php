@@ -25,8 +25,19 @@ use Illuminate\Support\Carbon;
  * @property ?string $notes
  * @property ProductVersionSource $source
  * @property ?string $release_url
+ * @property ?string $tag "v1.8.2" (GitHub release)
+ * @property ?int $github_release_id
+ * @property ?int $github_repository_id
+ * @property ?Carbon $published_at
+ * @property ?string $author_login
+ * @property ?string $technical_notes release body as GitHub sent it
+ * @property ?string $user_notes notes IT confirmed for requesters (Stage D4)
+ * @property ?Carbon $notified_at requesters notified (Stage D4)
  */
-#[Fillable(['ai_product_id', 'version', 'released_at', 'summary', 'notes', 'source', 'release_url'])]
+#[Fillable([
+    'ai_product_id', 'version', 'released_at', 'summary', 'notes', 'source', 'release_url', 'tag', 'github_release_id',
+    'github_repository_id', 'published_at', 'author_login', 'technical_notes', 'user_notes', 'notified_at',
+])]
 class AiProductVersion extends Model
 {
     /** @use HasFactory<AiProductVersionFactory> */
@@ -44,6 +55,9 @@ class AiProductVersion extends Model
         return [
             'source' => ProductVersionSource::class,
             'released_at' => 'date',
+            'github_release_id' => 'integer',
+            'published_at' => 'datetime',
+            'notified_at' => 'datetime',
         ];
     }
 
@@ -64,7 +78,16 @@ class AiProductVersion extends Model
     {
         return $this->belongsToMany(AiRequest::class, 'ai_product_version_request')
             ->withoutGlobalScope(CompanyScope::class)
+            ->withPivot('found_in_pr')
             ->withTimestamps();
+    }
+
+    /**
+     * @return BelongsTo<GitHubRepository, $this>
+     */
+    public function githubRepository(): BelongsTo
+    {
+        return $this->belongsTo(GitHubRepository::class);
     }
 
     public function isCurrent(): bool
