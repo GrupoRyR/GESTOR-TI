@@ -31,13 +31,13 @@ Out of scope: Blade files, Mailables and Notifications (owned by the app agent).
 Branch `claude/diseno-gestor-ia-correos` is stacked on Stage E (`claude/diseno-gestor-ia-etapa-e`, PR #34). One PR.
 
 ## Tasks
-- [ ] T1 Templates, rule tests and gallery preview.
+- [x] T1 Templates, rule tests and gallery preview.
   - **Templates:** the shared layout (header per company, footer) and 7 templates: `new-request`, `request-received`, `status-changed`, `it-question`, `delivered`, `requirement` and `project-report` (with an optional costs block). Each template also has a plain-text version.
   - **Tests:** Vitest rule tests written first.
   - **Gallery:** an emails section in the `ui-preview` gallery (600 / 358, light / dark client simulation, both companies).
   - **Docs:** the variables README.
   - **Route:** delegated.
-- [ ] T2 Handoff.
+- [x] T2 Handoff.
   - `docs/design/email-templates-contract.md` and the PR.
   - **Route:** inline.
 
@@ -48,6 +48,8 @@ Branch `claude/diseno-gestor-ia-correos` is stacked on Stage E (`claude/diseno-g
 
 ## Progress
 - 2026-10-10: branch created from the Stage E head (`e6b5846`, 496 tests); document created.
+- T1 `8273110` 7 templates (.html + .txt), partials, samples.json, README variables, emails.test.ts rule tests, gallery Correos section with emailRender helper — 598 tests. Parent replaced hardcoded approver names with approvers_and/approvers_or.
+- T2 inline: `docs/design/email-templates-contract.md`; PR stacked on Stage E.
 
 ## Next step
-T1.
+Jhon reviews the gallery; merge the stacked PRs in order (#8, #10, #11, #20, #34, this one). Then the mini design-system manual.
