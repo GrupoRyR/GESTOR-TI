@@ -19,7 +19,7 @@ Read this first when resuming the design work for Gestor TI RYR (after a context
 | Contracts for the app agent | `docs/design/stage-a-contract.md`, `docs/design/stage-b-contract.md` |
 | Task logs (ODD) | `odd/tasks/gestor-ia-frontend-stage-a.md`, `odd/tasks/gestor-ia-frontend-stage-b.md` (Engram mirrors `odd/gestor-ia-frontend-stage-{a,b}/tasks`) |
 | Briefs reused for delegation | `docs/design/briefs/stage-b-mockups-brief.md` (canvas writers: format rules + shared mock facts), `docs/design/briefs/stage-b-pages-brief.md` (page writers: contract rules), `docs/design/briefs/build-canvas-page.py` (rebuilds a canvas page index from board sizes) |
-| Preview | `npm run dev:preview` → http://localhost:5174 (`.claude/launch.json` "ui-preview"). Frame URL: `frame.html#page=<Inertia name>&variant=<mockfile>:<key>&vp=phone|tablet|desktop&theme=light|dark&brand=example|segurex|derivados|andina` |
+| Preview | `npm run dev:preview` → http://localhost:5174 (`.claude/launch.json` "ui-preview"). Frame URL: `frame.html#page=<Inertia name>&variant=<mockfile>:<key>&theme=light|dark&brand=example|segurex|derivados|andina` (the viewport belongs to the gallery hash, not the frame) |
 
 ## 3. Branches, PRs, commits
 - **Stage A** — branch `claude/diseno-gestor-ia-a5a314`, PR [GrupoRyR/GESTOR-TI#8](https://github.com/GrupoRyR/GESTOR-TI/pull/8) → `main` (open). Commits 7e819e3, 6b81f4c, 2a67910, 974e54b, b85b5bd, b78a45d. 15 pages, 124 tests.
@@ -68,4 +68,4 @@ Placeholders still open: Edward's job title, Telegram bot name, AI monthly cap, 
 - **Stage E · Conector MCP**: mockups published 2026-10-10 on canvas page "Etapa E · Conector MCP" (7 boards, brief `docs/design/briefs/stage-e-mockups-brief.md`), waiting for Jhon's approval. The connector is a personal setting under Perfil.
 - Stage E approved and coded 2026-10-10 (branch `claude/diseno-gestor-ia-etapa-e`, contract `docs/design/stage-e-contract.md`).
 - **Email templates**: mockups published 2026-10-10 on canvas page "Plantillas de correo" (11 boards M-*, brief `docs/design/briefs/email-mockups-brief.md`), approved and coded 2026-10-10 (branch `claude/diseno-gestor-ia-correos`, `resources/emails/`, contract `docs/design/email-templates-contract.md`). Stacked PR chain to merge in order: #8, #10, #11, #20, #34.
-- Then the mini design-system manual (§5.5 of the design prompt).
+- **Mini design-system manual**: `docs/design/design-system.md` (+ index `docs/design/README.md`), branch `claude/diseno-gestor-ia-manual`, 2026-10-10. With it, every deliverable of the design prompt is done; what remains is merging the PR chain and supporting the app agent.
