@@ -33,4 +33,4 @@ Domain types shared by all of them: `types/ai.ts`. Example data for every page: 
 `only:['similar']` (wizard, `{q}`), `['draft_saved_at']` (wizard autosave), `['merge_candidates']` (`{q}`), `['selected']` (approvals), `['selected_area']`, `['selected_task']` (board, `?tarea=`), `['compare']` (doc history), `['saved_at','version']` (doc autosave), `['repo']`, `['selected','access_log','revealed']` (vault).
 
 ## Pending (not designed in Stage B)
-Forms for creating/editing a product (`ai.products.create`, `ai.products.edit`), registering an incident (`ai.products.incidents.create`) and editing a vault item (`ai.vault.edit`). AI suggestions and GitHub actions are Stage D (shown disabled). Mock numbers (rates $ 160.000/h, hour values, metrics) are sample data.
+The product, incident and vault item forms were designed in Stage C (see [stage-c-contract.md](stage-c-contract.md)). AI suggestions and GitHub actions are Stage D (shown disabled). Mock numbers (rates $ 160.000/h, hour values, metrics) are sample data.

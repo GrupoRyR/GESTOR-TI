@@ -327,6 +327,9 @@ export default function VaultIndex(props: PageProps<VaultIndexProps>) {
             >
                 <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
                     <nav aria-label="Credenciales" className="order-2 flex min-w-0 flex-col gap-2 lg:order-1">
+                        <Button variant="secondary" icon="plus" href={route('ai.vault.create')}>
+                            Nueva credencial
+                        </Button>
                         <label className="flex h-11 items-center gap-2 rounded-control bg-surface px-3 text-sm ring-1 ring-line ring-inset has-focus-visible:outline-2 has-focus-visible:outline-fg">
                             <Icon name="search" size={16} className="text-fg-muted" />
                             <input

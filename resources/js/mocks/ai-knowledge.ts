@@ -3,6 +3,8 @@
  * (sees costs, edits docs), Leonardo Herrera without `ai.costs.view` or
  * `ai.docs.edit`, empty and filtered states. Entities come from ai-fixtures;
  * only page copy (notes, search snippets, repository sample) lives here.
+ * Stage C adds the product form (C-ProductForm, Toma Pedidos SAP) and the
+ * incident drawer (C-IncidentForm, "Los pedidos no sincronizan con SAP B1").
  */
 import type { DocSummary, Product, ProductDetail, ProductState } from '@/types/ai';
 import type {
@@ -14,6 +16,13 @@ import type {
     DocsIndexProps,
     DocsRepoProps,
     Highlighted,
+    IncidentFormData,
+    IncidentFormSetup,
+    LinkableRequest,
+    ProductFormData,
+    ProductFormOptions,
+    ProductsCreateProps,
+    ProductsEditProps,
     ProductsIndexProps,
     ProductsShowProps,
     RepoState,
@@ -32,6 +41,8 @@ import {
     productBySlug,
     PRODUCTS,
     requestByKey,
+    REQUESTS,
+    TODAY,
     VERSIONS_VISUALIZADOR,
 } from './ai-fixtures';
 import { SEGUREX, sharedFor, type MockUserKey, type MockVariant } from './shared';
@@ -88,6 +99,40 @@ const VISUALIZADOR: ProductDetail = {
     requests_from_button_this_month: 3,
 };
 
+// ---- Incident drawer -------------------------------------------------------------
+
+const BLANK_INCIDENT: IncidentFormData = {
+    title: '',
+    started_on: TODAY,
+    started_time: '09:40',
+    impact: null,
+    description: '',
+    status: 'open',
+    ended_on: '',
+    ended_time: '',
+    resolution: '',
+    notify_ids: [PEOPLE.jhon.id, PEOPLE.leonardo.id],
+    notify_owner: true,
+};
+
+const incidentSetup = (owner: string, overrides: Partial<IncidentFormSetup> = {}): IncidentFormSetup => ({
+    open: false,
+    defaults: BLANK_INCIDENT,
+    notify_people: [PEOPLE.jhon, PEOPLE.leonardo],
+    owner_label: owner,
+    reporter: PEOPLE.jhon,
+    ...overrides,
+});
+
+/** C-IncidentForm as designed. */
+const INCIDENT_SAP: IncidentFormData = {
+    ...BLANK_INCIDENT,
+    title: 'Los pedidos no sincronizan con SAP B1',
+    started_time: '08:10',
+    impact: 'high',
+    description: 'Desde las 8:10 a. m. los pedidos quedan en "pendiente de sincronizar" y no llegan a SAP B1. Los asesores no pueden despachar.',
+};
+
 type ShowPage = PageProps<ProductsShowProps>;
 
 const productJhon: ShowPage = {
@@ -101,7 +146,94 @@ const productJhon: ShowPage = {
         'GIA-139': 'Proyecto P-07 · entrega proyectada 14 nov',
         'GIA-151': 'Diego Restrepo · llegó con el botón “Pedir mejora”',
     },
+    incident_form: incidentSetup(VISUALIZADOR.owner),
     now: '2026-10-07T09:53:00-05:00',
+};
+
+const TOMA_PEDIDOS: ProductDetail = {
+    ...productBySlug('toma-pedidos'),
+    versions: [
+        {
+            tag: 'v2.4.0',
+            date: '2026-09-10',
+            summary: 'Versión en uso por los asesores de Ventas de Segurex.',
+            request_keys: [],
+            current: true,
+        },
+    ],
+    next_version: null,
+    requests: [requestByKey('GIA-148'), requestByKey('GIA-121'), requestByKey('GIA-113')],
+    docs: [docById(7), docById(8), docById(9)],
+    requests_from_button_this_month: 1,
+};
+
+const productTomaPedidos: ShowPage = {
+    ...productJhon,
+    product: TOMA_PEDIDOS,
+    hours_note: null,
+    cost_note: null,
+    request_notes: {},
+    incident_form: incidentSetup(TOMA_PEDIDOS.owner, { open: true, defaults: INCIDENT_SAP }),
+    now: NOW_ISO,
+};
+
+// ---- Product form -----------------------------------------------------------------
+
+const CLOSED_STATUSES = ['rejected', 'closed', 'in_production'];
+
+/** Open requests without a product, plus the ones of Toma Pedidos SAP. */
+const LINKABLE: LinkableRequest[] = REQUESTS.filter(
+    (request) => !CLOSED_STATUSES.includes(request.status) && (request.product === null || request.product.slug === 'toma-pedidos'),
+).map(({ key, title, status }) => ({ key, title, status }));
+
+const FORM_OPTIONS: ProductFormOptions = {
+    areas: AREA_OPTIONS,
+    owners: [PEOPLE.paola, PEOPLE.jhon, PEOPLE.leonardo],
+    hosts: ['GoDaddy', 'Vercel', 'Equipo local', 'Servidor de SAP'],
+    requests: LINKABLE,
+};
+
+const BLANK_PRODUCT: ProductFormData = {
+    name: '',
+    slug: '',
+    company_ids: [],
+    area_id: null,
+    owner_id: null,
+    description: '',
+    request_keys: [],
+    version: 'v0.1.0',
+    state: 'development',
+    kind: 'web',
+    stack: '',
+    host: '',
+    url: '',
+};
+
+type ProductCreatePage = PageProps<ProductsCreateProps>;
+
+const productCreate: ProductCreatePage = { ...sharedFor('jhon'), ...FORM_OPTIONS, form: BLANK_PRODUCT };
+
+type ProductEditPage = PageProps<ProductsEditProps>;
+
+const productEdit: ProductEditPage = {
+    ...sharedFor('jhon'),
+    ...FORM_OPTIONS,
+    product: { slug: 'toma-pedidos', name: 'Toma Pedidos SAP', company_id: SEGUREX.id },
+    form: {
+        name: 'Toma Pedidos SAP',
+        slug: 'toma-pedidos',
+        company_ids: [SEGUREX.id],
+        area_id: AREAS.ventas.id,
+        owner_id: null,
+        description: 'Los asesores toman los pedidos de sus clientes y la app los envía a SAP B1 por el Service Layer.',
+        request_keys: ['GIA-148', 'GIA-121', 'GIA-113'],
+        version: 'v2.4.0',
+        state: 'production',
+        kind: 'web',
+        stack: 'Laravel',
+        host: 'GoDaddy',
+        url: '[URL DE TOMA PEDIDOS]',
+    },
 };
 
 const CAMARAS: ProductDetail = {
@@ -297,6 +429,8 @@ export const variants: Record<
     string,
     | MockVariant<ProductsPage>
     | MockVariant<ShowPage>
+    | MockVariant<ProductCreatePage>
+    | MockVariant<ProductEditPage>
     | MockVariant<IndexPage>
     | MockVariant<EditPage>
     | MockVariant<CreatePage>
@@ -341,7 +475,61 @@ export const variants: Record<
     'product-development': {
         page: 'Ai/Products/Show',
         label: 'Producto · Cámaras, en desarrollo y sin datos',
-        props: { ...productJhon, product: CAMARAS, hours_note: null, cost_note: 'Corre en un equipo local: sin costo de hosting', request_notes: {} },
+        props: { ...productJhon, product: CAMARAS, hours_note: null, cost_note: 'Corre en un equipo local: sin costo de hosting', request_notes: {}, incident_form: incidentSetup(CAMARAS.owner) },
+    },
+    'product-incident': {
+        page: 'Ai/Products/Show',
+        label: 'Producto · registrar incidente (Toma Pedidos SAP)',
+        props: productTomaPedidos,
+    },
+    'product-incident-resolved': {
+        page: 'Ai/Products/Show',
+        label: 'Producto · registrar incidente ya resuelto',
+        props: {
+            ...productTomaPedidos,
+            incident_form: incidentSetup(TOMA_PEDIDOS.owner, {
+                open: true,
+                defaults: {
+                    ...INCIDENT_SAP,
+                    status: 'resolved',
+                    ended_on: TODAY,
+                    ended_time: '09:25',
+                    resolution: 'Venció la sesión del Service Layer. Se renovó y los pedidos pendientes se reenviaron solos.',
+                },
+            }),
+        },
+    },
+    'product-incident-errors': {
+        page: 'Ai/Products/Show',
+        label: 'Producto · incidente resuelto con campos faltantes',
+        props: {
+            ...productTomaPedidos,
+            incident_form: incidentSetup(TOMA_PEDIDOS.owner, { open: true, defaults: { ...INCIDENT_SAP, status: 'resolved' } }),
+            errors: {
+                ended_at: 'Escribe cuándo terminó el incidente.',
+                resolution: 'Cuenta qué lo causó y cómo se solucionó.',
+            },
+        },
+    },
+    'product-create': { page: 'Ai/Products/Create', label: 'Nuevo producto · formulario vacío', props: productCreate },
+    'product-create-errors': {
+        page: 'Ai/Products/Create',
+        label: 'Nuevo producto · con errores de validación',
+        props: {
+            ...productCreate,
+            form: { ...BLANK_PRODUCT, name: 'Portafolio Derivados', slug: 'portafolio', company_ids: [2], version: 'v1.0', stack: 'PHP', host: 'GoDaddy' },
+            errors: {
+                slug: 'Ese slug ya lo usa Portafolio de productos. Prueba con otro.',
+                area_id: 'Elige el área que usa la app.',
+                version: 'Usa el formato v1.2.3.',
+            },
+        },
+    },
+    'product-edit': { page: 'Ai/Products/Edit', label: 'Editar producto · Toma Pedidos SAP', props: productEdit },
+    'product-edit-no-permission': {
+        page: 'Ai/Products/Edit',
+        label: 'Editar producto · sin permiso (sin ai.manage)',
+        props: { ...productEdit, ...without('leonardo', 'ai.manage') },
     },
 
     // Docs

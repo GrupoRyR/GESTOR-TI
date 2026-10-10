@@ -3,9 +3,19 @@
  * is the only holder of `ai.vault.access`; Leonardo Herrera and Paola Ríos
  * get the Denied page. Every secret here is an obviously fake sample
  * (`sk-muestra-…`). The value figures are sample data for the design.
+ * Stage C adds the credential form (C-VaultItemForm): DEEPSEEK_API_KEY ·
+ * Gestor TI · producción, last changed 21 jul, next rotation 19 oct.
  */
 import type { ValueMetrics } from '@/types/ai';
-import type { ValueIndexProps, ValueProduct, VaultDeniedProps, VaultIndexProps } from '@/types/pages/ai-value-vault';
+import type {
+    ValueIndexProps,
+    ValueProduct,
+    VaultCreateProps,
+    VaultDeniedProps,
+    VaultEditProps,
+    VaultIndexProps,
+    VaultProjectOption,
+} from '@/types/pages/ai-value-vault';
 import type { PageProps, Permission, SharedProps } from '@/types/shared';
 import { AREAS, NOW_ISO, PEOPLE, PRODUCTS, requestByKey, TODAY, VALUE_METRICS, VAULT_ITEMS, VAULT_LOG, VAULT_REVEALED_SAMPLE } from './ai-fixtures';
 import { DERIVADOS, SEGUREX, sharedFor, type MockUserKey, type MockVariant } from './shared';
@@ -105,6 +115,46 @@ const vaultOpen: VaultPage = {
     access_log: VAULT_LOG,
 };
 
+// ---- Vault item form ----------------------------------------------------------------
+
+/** Every product/environment pair that holds credentials, in list order. */
+const VAULT_PROJECTS: VaultProjectOption[] = VAULT_ITEMS.reduce<VaultProjectOption[]>((options, item) => {
+    if (!options.some((option) => option.product === item.product && option.environment === item.environment)) {
+        options.push({ product: item.product, environment: item.environment });
+    }
+    return options;
+}, []);
+
+/** "Se cierra en 8:40" at the mock 9:40 a. m. */
+const FORM_SESSION = { state: 'open' as const, confirmed_at: '2026-10-07T09:39:00-05:00', expires_at: '2026-10-07T09:48:40-05:00' };
+
+type VaultEditPage = PageProps<VaultEditProps>;
+
+const vaultEdit: VaultEditPage = {
+    ...sharedFor('jhon'),
+    session: FORM_SESSION,
+    item: DEEPSEEK,
+    last_rotated_at: '2026-07-21',
+    projects: VAULT_PROJECTS,
+    holder_name: 'Jhon Castro',
+    telegram_alerts: true,
+    today: TODAY,
+    now: NOW_ISO,
+};
+
+type VaultCreatePage = PageProps<VaultCreateProps>;
+
+const vaultCreate: VaultCreatePage = {
+    ...sharedFor('jhon'),
+    session: FORM_SESSION,
+    projects: VAULT_PROJECTS,
+    defaults: null,
+    holder_name: 'Jhon Castro',
+    telegram_alerts: true,
+    today: TODAY,
+    now: NOW_ISO,
+};
+
 type DeniedPage = PageProps<VaultDeniedProps>;
 
 const deniedLeonardo: DeniedPage = {
@@ -115,7 +165,10 @@ const deniedLeonardo: DeniedPage = {
 
 // ---- variants -----------------------------------------------------------------
 
-export const variants: Record<string, MockVariant<ValuePage> | MockVariant<VaultPage> | MockVariant<DeniedPage>> = {
+export const variants: Record<
+    string,
+    MockVariant<ValuePage> | MockVariant<VaultPage> | MockVariant<DeniedPage> | MockVariant<VaultEditPage> | MockVariant<VaultCreatePage>
+> = {
     // Value
     value: { page: 'Ai/Value/Index', label: 'Valor · últimos 6 meses (Jhon, Todas)', props: valueJhon },
     'value-segurex': {
@@ -145,6 +198,18 @@ export const variants: Record<string, MockVariant<ValuePage> | MockVariant<Vault
         label: 'Bóveda · abierta, sin credencial elegida',
         props: { ...vaultOpen, selected: null, revealed: null, access_log: [] },
     },
+    'vault-edit': { page: 'Ai/Vault/Edit', label: 'Bóveda · editar credencial (DEEPSEEK_API_KEY)', props: vaultEdit },
+    'vault-edit-delete-typed': {
+        page: 'Ai/Vault/Edit',
+        label: 'Bóveda · editar, nombre escrito para eliminar',
+        props: { ...vaultEdit, preview_delete_confirm: 'DEEPSEEK_API_KEY' },
+    },
+    'vault-edit-errors': {
+        page: 'Ai/Vault/Edit',
+        label: 'Bóveda · editar con errores',
+        props: { ...vaultEdit, errors: { name: 'Ya hay una credencial con ese nombre en Gestor TI · producción.' } },
+    },
+    'vault-create': { page: 'Ai/Vault/Create', label: 'Bóveda · nueva credencial', props: vaultCreate },
     'vault-denied': { page: 'Ai/Vault/Denied', label: 'Bóveda · acceso negado (Leonardo)', props: deniedLeonardo },
     'vault-denied-requester': {
         page: 'Ai/Vault/Denied',

@@ -200,6 +200,27 @@ const ICONS = {
     shield: <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" />,
     message: <path d="M5 5h14v10H9l-4 4z" />,
     trend: <path d="m3 17 6-6 4 4 8-8M15 7h6v6" />,
+    // Asistente TI (Stage C).
+    send: <path d="M21 3 3 10.5l7 2.5 2.5 7zM10 13 21 3" />,
+    'chat-dots': <path d="M5 5h14v10H9l-4 4zM9 10h.01M12 10h.01M15 10h.01" />,
+    history: (
+        <>
+            <circle cx="12" cy="12" r="8" />
+            <path d="M12 8v4l3 2" />
+        </>
+    ),
+    power: <path d="M12 3v8M7 6.3a7 7 0 1 0 10 0" />,
+    'minus-circle': (
+        <>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8 12h8" />
+        </>
+    ),
+    'kb-system': <path d="M5 4h14a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM5 13h14a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM8 7.5h.01M8 16.5h.01" />,
+    'kb-report': <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 18v-3M13 18v-5M16 18v-2" />,
+    'kb-flow': <path d="M4 7h12M13 4l3 3-3 3M20 17H8M11 14l-3 3 3 3" />,
+    'kb-procedure': <path d="M10 6h10M10 12h10M10 18h10M4 6l1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17" />,
+    'kb-glossary': <path d="M6 5a2 2 0 0 1 2-2h11v14H8a2 2 0 0 0-2 2zM6 19a2 2 0 0 0 2 2h11v-4M10 7.5h5" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof ICONS;
