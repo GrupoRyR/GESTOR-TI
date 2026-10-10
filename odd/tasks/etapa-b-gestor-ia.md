@@ -24,7 +24,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 - [x] B2 · Products: `ai_products` (slug, owner, areas, repo, stack, AI model/provider, monthly cost, status, current version), `ai_product_versions` ↔ requests, link with `monitored_apps`; seed the 5 current apps.
 - [x] B3 · Wire requester pages (ai-requester.ts): wizard + duplicates, submitted, mine, show (requester view), validate acceptance, ratings + hours saved, roadmap. Replace Stage B placeholder routes.
 - [x] B4 · Wire IT triage pages (ai-triage.ts): inbox, show (IT view) + actions (evaluate, need info, send to approval, backlog, reject, comments/internal notes, create on behalf), approvals (web + Telegram ✅/❌ via CallbackRegistry), backlog, by area, my week; Home `it`/`requester` real data.
-- [ ] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
+- [x] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
 - [ ] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
 - [ ] B7 · Documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved), value dashboard.
 - [ ] B8 · Vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
@@ -181,6 +181,58 @@ Notes for design:
 - The backlog reorder has no note field: `ManualOrder.note` is always null.
 - `TeamMember.hourly_rate` and estimate costs stay null until rates are loaded (`ai_cost_rates`, admin page in B6).
 
+### B5 · Projects, board, requirements and reports — done (commit `5ec9e15` `feat(ai): add projects, board, requirements and reports`)
+- Route: delegated (writer trigger: 60+ files across migration, models, domain, actions, presenters, controllers, policies, notifications, mail/PDF, commands, routes; 7 test files).
+- Test-first: 6 new test files + base case and 3 updated (63 tests in the first run) written first and observed RED (43 of 63 failing: `AiProject` and routes missing), then GREEN; area board and demo seeder tests added with their change.
+- Checks: `php artisan test` 677/677 passed; `vendor/bin/pint` fixed 4 files, `vendor/bin/pint --test` passed; `npm run typecheck` passed;
+  `php artisan route:list --path=ai/projects` shows 25 routes (18 real, 7 TEMPORARY for B6/B7); `schedule:list` shows `0 8 * * * ai:requirement-reminders` (Bogotá) and `*/15 * * * * ai:project-reports`;
+  new migration up/rollback/up + `db:seed` + `AiDemoSeeder` on a temp SQLite file OK (1 demo project, 7 tasks; file deleted). `composer require barryvdh/laravel-dompdf` (^3.1).
+- Size: ~4880 authored lines (code, docblocks, migration, Blade) + ~1350 test lines, above the ~400 heuristic: projects, board, requirements and the report share one schema and its presenters.
+
+Decisions:
+- Schema (one migration): `ai_projects` (key `P-n` from `sequences`, company data, area, objective, status = request keys `planned|in_development|in_testing|in_production|closed`, lead, product, start/due dates, started/approved at, repository url/branch, `reapproval_requested_at`),
+  `ai_project_area` (benefited + note), `ai_project_members` (role), `ai_project_request` (one project per request), `ai_project_columns` (the 5 design keys, editable name, `is_done`, `wip_limit`),
+  `ai_tasks` (key `T{n}` per project from `sequences` `ai_tasks:{id}`, never reused; position; labels JSON; due date; estimate hours; GitHub issue/PR/CI columns for Stage D; started/completed at),
+  `ai_task_assignees`, `ai_subtasks` (checklist rows, not parent tasks: the design `Subtask` is `{id,title,done}`), `ai_task_comments`, `ai_task_attachments` (private disk),
+  `ai_requirements` (company data; recipient user or null + label/area; due date; `pending|answered` stored, `overdue` computed in Bogotá; reminders count/last; `blocks_task_id`; answer + one file),
+  `ai_project_activities` (feed), `ai_project_reports` (recipients JSON, sections, version, schedule), `ai_time_entries` (origin `timer|manual|telegram`; B5 only reads them), FK `ai_estimates.ai_project_id`.
+  No sprints/milestones table: the design has none.
+- A task is blocked while an open requirement points at it (`blocks_task_id`); answering clears the block (no stored flag) and notifies the assignees (`AiTaskUnblocked`) unless another open requirement still blocks it.
+- Project from requests: `ai.requests.convert` `{name, start_date}` (the design's ConvertToProjectDialog) for "Aprobada", or "En backlog" when its latest approval round was approved
+  (`RequestStatusMachine` now allows Backlog → Planned; only this action uses it). It copies company, area, benefited areas, product and objective (expected result, else problem),
+  takes due date/approval date from the approved round, links the estimate, team = assignee (else actor) "Líder del proyecto" + estimate people "Desarrollo", default columns, request → "Planificada".
+  No listener on `RequestApproved`: TI names and dates the project, as designed. "Jhon creates a project directly" has no design page (not built).
+- Lifecycle (MoveTask): first task to "En progreso" starts a planned project ("En desarrollo", `started_at`) and moves its planned requests to "En desarrollo"; it is refused (`column` error) while the
+  global WIP is full. All tasks in "Hecho" → project and requests "En pruebas" (requester validates). Production/closing stay manual (no design action yet).
+- WIP: `WipLimit` counts projects "En desarrollo" (all companies) instead of requests. Board limit Settings `ai.board.in_progress_limit` (3) is shown, not enforced.
+- Moves reorder inside a transaction (project tasks locked), clamp the position and renumber source and target columns 1..n; activity "movió T3 Endpoint de zonas a En revisión".
+- Pages/routes exactly as `ai-projects.ts`: `ai.projects.index` (`ai.manage`), `ai.projects.show|board`, `ai.tasks.show` (AiProjectPolicy::view), task actions, requirements, report (`ai.manage` + policy manage).
+  Added (not in the contract): `ai.tasks.attachments.show` (signed 30-min link for `FileRef.url`, re-authorized). `ai.tasks.show` is now `{project, task}` (home.ts mock still shows `{request, task}`).
+- AiProjectPolicy: view = `ai.manage` with company access, team/lead, task assignees, `ai.area.view` of the project's area (read only); manage = `ai.manage` with company access.
+  AiRequirementPolicy: respond/answer/reassign = recipient (any company; binding skips CompanyScope) or IT; remind/create = IT.
+- Money: `ProjectBudget` = latest linked estimate vs Σ time entries (hours) and Σ hours × rate in force (cost); `cost` null without `ai.costs.view`; `needs_reapproval` when real hours or cost pass the
+  estimate by more than Settings `ai.reapproval_threshold` (0.2); `projected_due_date` = due date until B6 computes the pace. `TaskDetail.time_by_person` is hours only.
+- Requirements: "Qué necesitas" → title (first line, 160 chars) + detail (rest); unknown recipient → "[RESPONSABLE {ÁREA}]" with the project's area. Notices reuse the requester event
+  `ai.request.status_changed` (mail + bell) for `AiRequirementRequested`/`AiRequirementReminder`, and `alert.info` (bell) for `AiTaskUnblocked`/`AiRequirementAnswered` (config/notifications.php was outside the surface).
+  Reminders: `ai:requirement-reminders` daily 08:00 Bogotá, pending with a recipient, due tomorrow or earlier, at most every Settings `ai.requirements.reminder_every_days` (2) days; "Recordar" counts too.
+  Respond page: `suggested_user_id` = approver of the requirement's area (when not the recipient); candidates = people of the requirement's company with an area, suggested first. Reassign sends the recipient home.
+- Report: content per recipient (`ProjectReportContent`: done = tasks finished in 7 days, next = En progreso then Por hacer, blockers = open requirements). Time and cost only when internal version +
+  section "budget" + recipient has `ai.costs.view` + `include_costs` + the saver had `ai.costs.view`. Default recipients = team then requesters. HTML mail (`ProjectReportMail`, company sender) + PDF (dompdf,
+  same Blade body); `pdf {pages,size}` rendered on page load. Weekly schedule: `next_send_at` (weekday 1–7 + time, Bogotá), `ai:project-reports` every 15 min. Monthly is not in the design (manual|weekly only).
+- Mi semana: due adds open tasks due by Sunday (person = assignees or "TI"); blocked = tasks waiting on a requirement (target requirement → "Recordar a {área}"); waiting adds requirements that block nothing.
+  Home `it`: `overdue_tasks` ("P-07 · T3 · vencida hace 3 días" → `ai.tasks.show`) and `waiting_requirements` ("Título · Área", late when overdue → `ai.requirements.show`, which redirects).
+- Por área: `projects_in_progress` (En desarrollo/En pruebas) and `AreaProject` rows (note: overdue requirement late, blocked tasks or missing validations attention). Roadmap `planned_start` = project start date.
+  `RequestSummary.project_key` is filled. AiDemoSeeder adds GIA-139 with a demo project (7 tasks, a blocking requirement).
+- Placeholders kept (TEMPORARY): `ai.timer.start|stop`, `ai.projects.costs|costs.export`, `ai.costs.store`, `ai.time-entries.create|store`, `ai.projects.reapproval.store` (B6), `ai.projects.docs` (B7),
+  `ai.reviews.store` (weekly review: no storage designed), plus vault/products/docs/value tabs.
+
+Notes for design:
+- `TaskDetail.criteria` is always `[]`: there is no way to link criteria to tasks (no field in `TaskUpdatePayload`).
+- No action exists to move a project to "En producción"/"Cerrada" or to edit columns, members, repository or labels catalog; "create project without a request" has no page.
+- `mocks/home.ts` uses `href_params: {request, task}` for `ai.tasks.show`; the server sends `{project, task}` (the contract of ai-projects.ts).
+- `ReportSchedule.periodicity` is `manual | weekly`; the brief also mentioned monthly (not built).
+- `RequirementForRecipient.answer_attachment` has no URL, so the answer file cannot be downloaded from the pages yet.
+
 ## Next step
-B5 · Projects: create the project from `RequestApproved` (approved requests, `ai_estimates.ai_project_id`), boards, tasks, requirements, WIP from projects;
-replace the B5 placeholders (`ai.projects.*`, `ai.tasks.show`, `ai.requirements.*`, `ai.requests.convert`, `ai.reviews.store`) and fill Mi semana tasks/blocked/review and Home tasks/requirements.
+B6 · Time and costs: timer (`ai.timer.start|stop`, one running per person, `RunningTimer` on Board/Mi semana, `TaskTimer`), manual entries (`Ai/TimeEntries/Create`, `ai.time-entries.store`), Telegram `/horas`,
+`Ai/Projects/Costs` (+ export, `ai.costs.store`, project costs, AI spend), `Admin/Costs/Index`, pace/`projected_due_date`, budget alerts 80/100 %, re-approval (`ai.projects.reapproval.store`), Friday reminder.
