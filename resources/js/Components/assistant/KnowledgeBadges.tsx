@@ -156,7 +156,7 @@ export function ImportStepper({ current, className }: ImportStepperProps) {
                             >
                                 {done ? <Icon name="check" size={14} strokeWidth={3} /> : step}
                             </span>
-                            {label}
+                            <span className={isCurrent ? undefined : 'max-sm:sr-only'}>{label}</span>
                             {done ? <span className="sr-only"> (listo)</span> : null}
                         </span>
                     </li>
