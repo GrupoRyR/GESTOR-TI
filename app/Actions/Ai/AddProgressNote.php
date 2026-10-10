@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * A progress note ("nota de avance", MCP tool `agregar_nota_avance`) through
+ * A progress note ("nota de avance", MCP tool `agregar_nota`) through
  * the mechanisms the app already shows:
  *
  * - On a task: a task comment (as the board's "Comentar", up to

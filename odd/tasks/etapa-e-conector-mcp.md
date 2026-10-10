@@ -144,7 +144,7 @@ Expose the Gestor IA as an HTTP MCP server that Jhon (Líder IA) and the Gerente
   - `php artisan schedule:list`: `15 3 * * * php artisan mcp:prune-clients`.
 - For E3 deploy doc: mention `mcp:revoke` for IT, and that the consent view changed (still flagged for design).
 
-### E3 · Personal tokens + Profile/Mcp — done
+### E3 · Personal tokens + Profile/Mcp — done (`874b7bc`)
 - Route: delegated direct (writer trigger: 2+ non-trivial files).
 - Schema (`2026_10_31_00000{1,2}`):
   - `mcp_tokens`: user, `name` (60), `scope` (`read` | `read_write`), `token_hash` (SHA-256, unique), `last_four`, `expires_at` (date: last calendar day in Bogotá the token works), `last_used_at`, `last_client`, `revoked_at`, `revoked_by`. Rows are never deleted. Name unique among the user's active tokens (not revoked, not past the date), case-insensitive, checked in `StoreMcpTokenRequest`.
