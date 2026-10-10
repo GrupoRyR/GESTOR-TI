@@ -247,7 +247,7 @@ Notes for design:
 - `ReleaseSummary.url` / `Release.url` stay the GitHub release URL; the product page already links the tag with `route('ai.releases.show')`.
 - Errors of notify/update arrive on `user_notes` (the page already shows them).
 
-### D5 · Brief para Claude — done
+### D5 · Brief para Claude — done (`1522330`)
 - Commit: the `feat(ai)` commit that adds this block (code, tests and this evidence in one work unit).
 - Route: delegated (writer trigger: builder + sanitizer classes, 3 controllers wired; 1 new test file + 2 updated).
 - Test-first: 8 new tests (`tests/Feature/Ai/Brief/BriefInputsTest`) written first and observed RED (8 of 8 failing: props `brief`,
