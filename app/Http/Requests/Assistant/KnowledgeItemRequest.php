@@ -59,8 +59,9 @@ class KnowledgeItemRequest extends FormRequest
             'related_card_keys.*' => ['string', 'max:20', 'distinct'],
             'related_product_slugs' => ['nullable', 'array', 'max:30'],
             'related_product_slugs.*' => ['string', 'max:150', 'distinct'],
-            'unanswered_id' => ['nullable', 'integer'],
-            'draft_id' => ['nullable', 'integer'],
+            // Create only: the open question / pending draft the card answers.
+            'unanswered_id' => ['nullable', 'integer', Rule::exists('assistant_unanswered', 'id')->where('status', 'open')],
+            'draft_id' => ['nullable', 'integer', Rule::exists('knowledge_drafts', 'id')->where('status', 'pending')],
         ];
 
         foreach (KnowledgeTypes::fields($type) as $key => [, $required]) {
@@ -94,6 +95,8 @@ class KnowledgeItemRequest extends FormRequest
             'review_at.*' => 'Escribe la fecha de revisión.',
             'related_card_keys.*' => 'Alguna ficha relacionada ya no existe.',
             'related_product_slugs.*' => 'Algún producto relacionado ya no existe.',
+            'unanswered_id.*' => 'Esa pregunta ya no está pendiente.',
+            'draft_id.*' => 'Ese borrador ya se aprobó o se descartó.',
         ];
 
         foreach (KnowledgeTypes::fields($this->type()) as $key => [$label]) {
@@ -153,6 +156,26 @@ class KnowledgeItemRequest extends FormRequest
             'review_at' => (string) $data['review_at'],
             'related_card_keys' => array_values(array_map('strval', $data['related_card_keys'] ?? [])),
             'related_product_slugs' => array_values(array_map('strval', $data['related_product_slugs'] ?? [])),
+        ];
+    }
+
+    /**
+     * Where a new card comes from (create only): the unanswered question it
+     * documents and the `/aprender` draft it approves.
+     *
+     * @return array{unanswered_id: ?int, draft_id: ?int}
+     */
+    public function origin(): array
+    {
+        if ($this->card() !== null) {
+            return ['unanswered_id' => null, 'draft_id' => null];
+        }
+
+        $data = $this->validated();
+
+        return [
+            'unanswered_id' => isset($data['unanswered_id']) ? (int) $data['unanswered_id'] : null,
+            'draft_id' => isset($data['draft_id']) ? (int) $data['draft_id'] : null,
         ];
     }
 

@@ -35,8 +35,10 @@ use App\Http\Controllers\AI\TriageController;
 use App\Http\Controllers\AI\ValueController;
 use App\Http\Controllers\AI\VaultController;
 use App\Http\Controllers\AI\WeekController;
+use App\Http\Controllers\Assistant\DraftController;
+use App\Http\Controllers\Assistant\ImportController;
 use App\Http\Controllers\Assistant\KnowledgeController;
-use App\Http\Controllers\Assistant\StageCPlaceholderController;
+use App\Http\Controllers\Assistant\UnansweredController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\Auth\SessionController;
@@ -353,6 +355,13 @@ Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assi
     // the key (K-031).
     Route::get('/knowledge', [KnowledgeController::class, 'index'])->name('knowledge.index');
 
+    // Curation (C2, types/pages/assistant-curation.ts). The three tab pages
+    // need `assistant.use` or `assistant.knowledge.manage` (controller):
+    // without the latter they render NoPermission with empty props.
+    Route::get('/import', [ImportController::class, 'create'])->name('import.create');
+    Route::get('/drafts', [DraftController::class, 'index'])->name('drafts.index');
+    Route::get('/unanswered', [UnansweredController::class, 'index'])->name('unanswered.index');
+
     Route::middleware('can:assistant.knowledge.manage')->group(function () {
         Route::get('/knowledge/create', [KnowledgeController::class, 'create'])->name('knowledge.create');
         Route::post('/knowledge', [KnowledgeController::class, 'store'])->name('knowledge.store');
@@ -361,10 +370,25 @@ Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assi
         Route::delete('/knowledge/{card}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
         Route::post('/knowledge/{card}/review', [KnowledgeController::class, 'review'])->name('knowledge.review');
 
-        // TEMPORARY until C2 (curation): AssistantLayout tabs.
-        Route::get('/import', StageCPlaceholderController::class)->name('import.create');
-        Route::get('/drafts', StageCPlaceholderController::class)->name('drafts.index');
-        Route::get('/unanswered', StageCPlaceholderController::class)->name('unanswered.index');
+        // Excel import: `{import}` belongs to whoever uploaded it.
+        Route::get('/import/template', [ImportController::class, 'template'])->name('import.template');
+        Route::post('/import', [ImportController::class, 'upload'])->name('import.upload');
+        Route::put('/import/{import}', [ImportController::class, 'update'])->name('import.update');
+        Route::delete('/import/{import}', [ImportController::class, 'destroy'])->name('import.destroy');
+        Route::get('/import/{import}/mapping', [ImportController::class, 'mapping'])->name('import.mapping');
+        Route::put('/import/{import}/mapping', [ImportController::class, 'updateMapping'])->name('import.mapping.update');
+        Route::get('/import/{import}/preview', [ImportController::class, 'preview'])->name('import.preview');
+        Route::get('/import/{import}/errors', [ImportController::class, 'errors'])->name('import.errors');
+        Route::post('/import/{import}', [ImportController::class, 'store'])->name('import.store');
+
+        // `/aprender` drafts.
+        Route::post('/drafts/{draft}/approve', [DraftController::class, 'approve'])->name('drafts.approve');
+        Route::post('/drafts/{draft}/merge/{card}', [DraftController::class, 'merge'])->name('drafts.merge');
+        Route::post('/drafts/{draft}/discard', [DraftController::class, 'discard'])->name('drafts.discard');
+
+        // Unanswered questions.
+        Route::post('/unanswered/{question}/link', [UnansweredController::class, 'link'])->name('unanswered.link');
+        Route::post('/unanswered/{question}/discard', [UnansweredController::class, 'discard'])->name('unanswered.discard');
     });
 
     Route::get('/knowledge/{card}', [KnowledgeController::class, 'show'])->name('knowledge.show');

@@ -12,6 +12,7 @@
         "laravel/framework": "^13.17",
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
+        "openspout/openspout": "^5.3",
         "socialiteproviders/microsoft": "^4.10",
         "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-backup": "^10.3",

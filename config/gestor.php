@@ -150,6 +150,23 @@ return [
         ],
     ],
 
+    /*
+    | Asistente TI · Excel import (App\Actions\Assistant\KnowledgeImports,
+    | PROMPT 6.8.1). Only .xlsx and .csv: the reader (openspout/openspout,
+    | pure PHP with zip + xml) cannot read the old .xls format. Files stay
+    | on the private disk. `max_rows`: data rows of the chosen sheet;
+    | `preview_new_rows`: new rows shown on the preview after the errors
+    | and updates (all of them are imported).
+    */
+    'assistant' => [
+        'import' => [
+            'disk' => 'local',
+            'max_kb' => (int) env('ASSISTANT_IMPORT_MAX_KB', 10 * 1024),
+            'max_rows' => 2000,
+            'preview_new_rows' => 20,
+        ],
+    ],
+
     'microsoft' => [
         // "Agregar empresa" wizard: admin-consent link for the new tenant.
         // `{client_id}` is filled from services.microsoft.client_id on the

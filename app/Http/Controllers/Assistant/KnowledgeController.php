@@ -2,25 +2,31 @@
 
 namespace App\Http\Controllers\Assistant;
 
+use App\Actions\Assistant\DraftDecisions;
 use App\Actions\Assistant\KnowledgeItems;
 use App\Domain\Assistant\KnowledgeFilters;
 use App\Domain\Assistant\KnowledgeSearch;
 use App\Domain\Assistant\KnowledgeTypes;
+use App\Domain\Assistant\Unanswered;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Assistant\KnowledgeItemRequest;
 use App\Models\AiProduct;
 use App\Models\Area;
 use App\Models\Company;
+use App\Models\KnowledgeDraft;
 use App\Models\KnowledgeItem;
+use App\Models\UnansweredQuestion;
 use App\Models\User;
 use App\Support\Ai\Presenters\RequestPresenter;
 use App\Support\Assistant\AssistantTabCounts;
+use App\Support\Assistant\Presenters\CurationPresenter;
 use App\Support\Assistant\Presenters\KnowledgePresenter;
 use App\Support\Paginated;
 use App\Support\Tenancy\CurrentCompany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,6 +42,8 @@ use Spatie\Permission\Exceptions\PermissionDoesNotExist;
  * - `Create`, `Edit`, store, update, destroy and review: route middleware
  *   `can:assistant.knowledge.manage`.
  * - `{card}` is the key (`K-031`).
+ * - `Create` with `?borrador=` / `?pregunta=` sends `prefill`; the store
+ *   then approves that draft or documents that question.
  */
 class KnowledgeController extends Controller
 {
@@ -97,15 +105,34 @@ class KnowledgeController extends Controller
 
         return Inertia::render('Assistant/Knowledge/Create', [
             ...$this->formProps($user, null),
-            // TODO(C2): `?pregunta=` and `?borrador=` prefill the form once
-            // unanswered questions and /aprender drafts exist.
-            'prefill' => null,
+            'prefill' => $this->prefill($http),
         ]);
     }
 
-    public function store(KnowledgeItemRequest $http): RedirectResponse
+    /**
+     * A card from "Documentar" (`unanswered_id`: the question becomes
+     * documented) or "Editar antes de aprobar" (`draft_id`: the draft is
+     * approved with this card, source `learn`).
+     */
+    public function store(KnowledgeItemRequest $http, DraftDecisions $drafts, Unanswered $unanswered): RedirectResponse
     {
-        $item = $this->items->create($this->user($http), $http->payload());
+        $user = $this->user($http);
+        $origin = $http->origin();
+        $draft = $origin['draft_id'] !== null ? KnowledgeDraft::query()->pending()->find($origin['draft_id']) : null;
+        $question = $origin['unanswered_id'] !== null ? UnansweredQuestion::query()->open()->find($origin['unanswered_id']) : null;
+
+        $item = DB::transaction(function () use ($user, $http, $draft, $question, $drafts, $unanswered): KnowledgeItem {
+            $item = $this->items->create($user, $http->payload(), $draft !== null ? 'learn' : 'manual');
+
+            if ($draft !== null) {
+                $drafts->approvedWith($draft, $item, $user);
+            }
+            if ($question !== null) {
+                $unanswered->document($question, $item, $user);
+            }
+
+            return $item;
+        });
 
         return redirect()->route('assistant.knowledge.show', $item)->with('success', "Ficha {$item->key} creada.");
     }
@@ -151,6 +178,58 @@ class KnowledgeController extends Controller
         $this->items->review($user, $card);
 
         return redirect()->route('assistant.knowledge.show', $card)->with('success', "Marcaste {$card->key} como revisada.");
+    }
+
+    /**
+     * `KnowledgePrefill` of `?borrador=` (a pending draft: its proposed
+     * values) or `?pregunta=` (an open question: the title); null otherwise.
+     *
+     * @return array{origin: array<string, mixed>, values: array<string, mixed>}|null
+     */
+    private function prefill(Request $http): ?array
+    {
+        $draftId = (int) $http->query('borrador', '0');
+        $draft = $draftId > 0 ? KnowledgeDraft::query()->pending()->with('requestedBy.employee')->find($draftId) : null;
+
+        if ($draft !== null) {
+            $proposed = $draft->proposed;
+            $type = (string) $proposed['type'];
+
+            return [
+                'origin' => [
+                    'kind' => 'draft',
+                    'draft_id' => $draft->id,
+                    'author' => CurationPresenter::person($draft->requestedBy),
+                    'channel' => $draft->source,
+                    'message' => $draft->message,
+                ],
+                'values' => [
+                    'type' => $type,
+                    'title' => (string) $proposed['title'],
+                    'description' => $proposed['description'] ?? null,
+                    'fields' => KnowledgeTypes::normalize($type, (array) ($proposed['fields'] ?? [])),
+                    'company_ids' => array_values(array_map('intval', (array) ($proposed['company_ids'] ?? []))),
+                    'area_id' => isset($proposed['area_id']) ? (int) $proposed['area_id'] : null,
+                    'owner_id' => isset($proposed['owner_id']) ? (int) $proposed['owner_id'] : null,
+                    'visibility' => (string) $proposed['visibility'],
+                    'review_at' => (string) $proposed['review_at'],
+                ],
+            ];
+        }
+
+        $questionId = (int) $http->query('pregunta', '0');
+        $question = $questionId > 0 ? UnansweredQuestion::query()->open()->with('asks.user.employee')->find($questionId) : null;
+
+        if ($question !== null) {
+            $title = (string) preg_replace('/^[\s¿¡]+|[\s?!]+$/u', '', $question->question);
+
+            return [
+                'origin' => ['kind' => 'unanswered', 'question' => CurationPresenter::question($question)],
+                'values' => ['title' => mb_substr($title, 0, 160)],
+            ];
+        }
+
+        return null;
     }
 
     /**

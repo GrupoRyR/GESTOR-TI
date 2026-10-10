@@ -301,7 +301,9 @@ class KnowledgePagesTest extends AssistantTestCase
             $this->assertTrue(app('router')->has($name), $name);
         }
 
-        $this->actingAs($this->jhon)->get(route('assistant.import.create'))->assertRedirect(route('assistant.knowledge.index'));
-        $this->actingAs($this->reader())->get(route('assistant.drafts.index'))->assertForbidden();
+        $this->actingAs($this->jhon)->get(route('assistant.import.create'))->assertOk();
+        // Readers get the NoPermission state (empty props), people without the assistant a 403.
+        $this->actingAs($this->reader())->get(route('assistant.drafts.index'))->assertOk();
+        $this->actingAs($this->paola)->get(route('assistant.drafts.index'))->assertForbidden();
     }
 }
