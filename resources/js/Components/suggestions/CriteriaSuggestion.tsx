@@ -12,6 +12,8 @@ export interface CriteriaSuggestionProps {
     usedIds?: number[];
     onUseItem: (item: CriteriaItem) => void;
     onUseAll: (items: CriteriaItem[]) => void;
+    /** Pencil per item: copies it into the form and focuses it for editing. */
+    onEditItem?: (item: CriteriaItem) => void;
     onDiscard?: () => void;
     onRegenerate?: () => void;
     onRetry?: () => void;
@@ -20,7 +22,7 @@ export interface CriteriaSuggestionProps {
 }
 
 /** Proposed acceptance criteria; each one can be used alone. Used ones become Jhon's own. */
-export function CriteriaSuggestion({ suggestion, now, usedIds = [], onUseItem, onUseAll, onDiscard, onRegenerate, onRetry, onCancel, className }: CriteriaSuggestionProps) {
+export function CriteriaSuggestion({ suggestion, now, usedIds = [], onUseItem, onUseAll, onEditItem, onDiscard, onRegenerate, onRetry, onCancel, className }: CriteriaSuggestionProps) {
     const items = suggestion.payload?.items ?? [];
     const pending = items.filter((item) => !usedIds.includes(item.id));
     const count = items.length;
@@ -82,14 +84,26 @@ export function CriteriaSuggestion({ suggestion, now, usedIds = [], onUseItem, o
                                         Usado
                                     </span>
                                 ) : suggestion.state === 'ready' || suggestion.state === 'stale' ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => onUseItem(item)}
-                                        aria-label={`Usar el criterio ${index + 1}`}
-                                        className={GHOST_BUTTON}
-                                    >
-                                        Usar
-                                    </button>
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => onUseItem(item)}
+                                            aria-label={`Usar el criterio ${index + 1}`}
+                                            className={GHOST_BUTTON}
+                                        >
+                                            Usar
+                                        </button>
+                                        {onEditItem ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => onEditItem(item)}
+                                                aria-label={`Editar criterio ${index + 1} antes de usarlo`}
+                                                className={`${GHOST_BUTTON} w-11 justify-center px-0`}
+                                            >
+                                                <Icon name="edit" size={16} />
+                                            </button>
+                                        ) : null}
+                                    </>
                                 ) : null}
                             </li>
                         );

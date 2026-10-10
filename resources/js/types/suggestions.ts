@@ -86,3 +86,18 @@ export interface AiUsage {
     /** "1 de noviembre". */
     resumes_on: string;
 }
+
+/**
+ * AI suggestions of one request (IT view of `Ai/Requests/Show`). Sent only
+ * with `ai.manage`; the requester view never has them. A null kind means
+ * nothing was suggested yet ("Sugerir" asks for it).
+ */
+export interface RequestSuggestions {
+    summary: Suggestion<'summary'> | null;
+    /** Jhon's "Resumen para TI" once a summary was used (it may be his edited text); null otherwise. */
+    summary_text: string | null;
+    /** Newest first; discarded ones stay as a collapsed row. */
+    duplicates: Suggestion<'duplicate'>[];
+    criteria: Suggestion<'criteria'> | null;
+    size: Suggestion<'size'> | null;
+}

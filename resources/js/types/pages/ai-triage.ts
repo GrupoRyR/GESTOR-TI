@@ -64,6 +64,30 @@
  *   whitelisted fields of `RequestBriefInput` only: never vault items or links, credentials, costs,
  *   rates, area hour value or internal notes. Decisions marked `private` are dropped by the builder anyway.
  * - `brief_state.open` opens the panel on load (deep link `?brief=1`); `view` and `copied` are gallery-only.
+ *
+ * Stage D · AI suggestions (D-SuggestRequest, D-SuggestDuplicate, D-SuggestStates, D-SuggestPhone):
+ * - `Ai/Requests/Compare`  RequestsCompareProps  "¿GIA-148 es la misma solicitud que GIA-121?" (side by side)
+ * - Every suggestion is only a proposal: nothing applies by itself. Summary "Usar" saves Jhon's
+ *   "Resumen para TI"; criteria and size only fill Jhon's own form and save with it.
+ * Ziggy routes:
+ * - `ai.requests.suggestions.store` POST `{ request: key }`                 "Sugerir con IA" when nothing was suggested yet
+ * - `ai.suggestions.accept`       POST  `{ suggestion: id }` body `{ value?: string }`  summary "Usar" (`value` = Jhon's edited text)
+ * - `ai.suggestions.discard`      POST  `{ suggestion: id }` body `{ reason?: string|null }`  "Descartar", "No es duplicado"
+ *                                       (hides it on this request and logs it; it never changes the other request nor trains the AI)
+ * - `ai.suggestions.regenerate`   POST  `{ suggestion: id }`                  "Volver a sugerir", "Volver a intentar" (shared with T2)
+ * - `ai.suggestions.cancel`       POST  `{ suggestion: id }`                  "Cancelar" while generating
+ * - `ai.requests.criteria.update` PUT   `{ request: key }` body `{ criteria: { id: number|null, text: string }[], suggestion_id: number|null }`
+ *                                       "Guardar criterios"; `suggestion_id` marks the criteria suggestion used when an item was kept
+ * - `ai.requests.evaluation.update` PUT (above) body adds `size_suggestion_id: number|null` when the saved size came from "Usar M"
+ * - `ai.requests.compare`         GET   `{ request: key, other: key }`        "Comparar" on an AI duplicate card
+ * - `ai.requests.show`            GET   `{ request: key, unir?: key }`        "Unir con GIA-121" from Compare: opens the usual MergeDialog
+ *                                       preselected (`merge_into`); nothing merges until it is confirmed there
+ * - `admin.integrations.index`    GET   —                                     "Ir a Integraciones" in the off note (admins)
+ * Permissions: `ai.manage` only. Without it the server sends `ai_availability: 'hidden'` and no `suggestions`;
+ * the requester view (`view: 'requester'`) never receives them.
+ * Privacy: the AI receives only title, problem, current process, expected result and app (plus titles of open
+ * requests for duplicates). It never receives credentials or vault content, rates, costs, salaries, client data,
+ * attachments or internal notes.
  */
 import type { SemaphoreLevel } from '@/Components/ui/Semaphore';
 import type { BriefTab, BriefView } from '@/Components/brief/BriefPanel';
@@ -83,6 +107,7 @@ import type {
     TimelineEvent,
 } from '@/types/ai';
 import type { Company, Paginated } from '@/types/shared';
+import type { AiAvailability, AiUsage, RequestSuggestions, Suggestion } from '@/types/suggestions';
 
 export type AreaOption = Pick<AreaRef, 'id' | 'name' | 'company_id'>;
 
@@ -155,6 +180,8 @@ export interface EvaluationPayload {
     /** Live suggestion at save time (the server recomputes it too). */
     priority_suggested: number | null;
     priority_final: number | null;
+    /** Stage D · size suggestion Jhon used ("Usar M") when the saved size is that one; null otherwise. */
+    size_suggestion_id?: number | null;
 }
 
 export interface ItShowProps extends TriageActionData {
@@ -172,7 +199,36 @@ export interface ItShowProps extends TriageActionData {
     brief?: RequestBriefInput | null;
     /** Stage D · initial state of the brief panel; omitted = closed. */
     brief_state?: BriefOpenState | null;
+    /** Stage D · AI suggestions; only with `ai.manage`. Null or omitted = none yet ("Sugerir con IA" when available). */
+    suggestions?: RequestSuggestions | null;
+    /** Stage D · omitted = `hidden` (nothing rendered). */
+    ai_availability?: AiAvailability;
+    /** Stage D · spend and cap labels for the `off_cap` note. */
+    ai_usage?: AiUsage | null;
+    /** Stage D · `?unir=GIA-121` from Compare: opens MergeDialog on load with that request preselected. */
+    merge_into?: string | null;
     /** Server time (ISO) the deadline and waiting labels are measured from; avoids device clock skew. */
+    now: string;
+}
+
+/** One column of the duplicate comparison; only fields the requester wrote, never internal data. */
+export interface CompareSide {
+    request: RequestSummary;
+    problem: string;
+    expected_result: string;
+    /** "Toma Pedidos SAP", "SAP Business One". */
+    systems: string[];
+}
+
+export interface RequestsCompareProps {
+    /** The request being evaluated (GIA-148). */
+    current: CompareSide;
+    /** The suggested duplicate (GIA-121). */
+    other: CompareSide;
+    /** The AI duplicate suggestion that links them (reasons, differences, level). */
+    suggestion: Suggestion<'duplicate'>;
+    /** Gallery only: "No es duplicado" form open on load. */
+    not_duplicate_open?: boolean;
     now: string;
 }
 
