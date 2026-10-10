@@ -21,7 +21,7 @@ The base rules live in the `ryr-design` skill (`~/.claude/skills/ryr-design/`): 
 | `--brand-*` variables, never a company hex in a component | `.brand-scope` with both light and dark brand sets inline (`brandScopeStyle`) |
 | Figtree + Bricolage Grotesque, self-hosted with Fontsource | 12 request statuses in 6 families, phase rail, semáforo, talla, budget bar |
 | 44 px touch targets, AA contrast, dark mode, reduced motion | `.md-prose` for rendered Markdown, `tabular` utility |
-| Spanish UI with tú; code in English | **No ALL CAPS labels** (the Portal's 13/700 uppercase label is not used here) |
+| Spanish UI with tú; code in English; **sentence case, no ALL CAPS** (group-wide rule since 2026-10-10; the `ryr-design` skill was updated) | AI suggestion block, Brief para Claude and GitHub reference patterns |
 
 ## 2. Quick start for a new app
 
