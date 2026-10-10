@@ -57,6 +57,13 @@ Schedule::command('ai:ratings-lifecycle')
     ->timezone('America/Bogota')
     ->withoutOverlapping();
 
+// Vault: expiry and rotation reminders 30, 15 and 7 days before (exact
+// day match, so each threshold is noticed once).
+Schedule::command('ai:vault-reminders')
+    ->dailyAt('07:00')
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();
+
 // Failed jobs older than 7 days.
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:30')

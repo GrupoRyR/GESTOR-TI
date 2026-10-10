@@ -205,6 +205,8 @@ return [
         'sensitive_events' => [
             'credential_revealed', 'vault_access_granted', 'role_permissions_updated', 'role_created',
             'user_roles_updated', 'ai_settings_updated',
+            // Vault (B8): reads, copies, changes and blocked attempts.
+            'vault_view', 'vault_copy', 'vault_create', 'vault_update', 'vault_delete', 'vault_denied',
         ],
         'sensitive_log_names' => ['auth', 'credentials'],
         'alert_events' => [

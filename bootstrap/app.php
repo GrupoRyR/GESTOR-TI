@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureModuleIsActive;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\EnsureVaultAccess;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireRecentMicrosoftAuth;
 use App\Support\ErrorPage;
@@ -30,6 +31,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'module' => EnsureModuleIsActive::class,
             'reauth' => RequireRecentMicrosoftAuth::class,
+            'vault' => EnsureVaultAccess::class,
+        ]);
+
+        // Exact whitespace for Markdown (docs autosave keeps indentation and
+        // the trailing newline) and for secrets (vault values, passwords).
+        $middleware->trimStrings(except: [
+            'markdown',
+            'value',
+            'secret',
+            'password',
+            'password_confirmation',
+            'current_password',
         ]);
 
         // Inactive modules must 404 before `auth` redirects guests to login,

@@ -19,15 +19,6 @@ class StageAShellRoutesTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Route name => parameters, as used by `types/pages/home.ts` and the
-     * GestorLayout tabs. The requester routes are real since B3.
-     */
-    private const STAGE_B_ROUTES = [
-        'ai.vault.index' => [],
-        'ai.value.index' => [],
-    ];
-
-    /**
      * POST placeholders the pages already call (weekly review): they go back
      * with the notice.
      */
@@ -46,18 +37,6 @@ class StageAShellRoutesTest extends TestCase
     {
         foreach (['home', 'search', 'company.switch', 'notifications.index', 'profile.edit', 'logout', 'employees.index'] as $name) {
             $this->assertTrue(Route::has($name), "Route [{$name}] is missing.");
-        }
-    }
-
-    public function test_stage_b_placeholders_redirect_home_with_a_notice(): void
-    {
-        $user = tap(User::factory()->create())->assignRole('Usuario final');
-
-        foreach (self::STAGE_B_ROUTES as $name => $parameters) {
-            $this->actingAs($user)
-                ->get(route($name, $parameters))
-                ->assertRedirect(route('home'))
-                ->assertSessionHas('error', 'Disponible en la etapa B.');
         }
     }
 

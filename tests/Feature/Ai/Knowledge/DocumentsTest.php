@@ -147,12 +147,13 @@ class DocumentsTest extends KnowledgeTestCase
 
         $this->actingAs($this->jhon)
             ->from(route('ai.docs.edit', $doc))
-            ->put(route('ai.docs.update', $doc), ['markdown' => "# Manual\n\nNuevo texto."])
+            ->put(route('ai.docs.update', $doc), ['markdown' => "# Manual\n\nNuevo texto.\n    - sangría\n"])
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('ai.docs.edit', $doc));
 
+        // Exact whitespace (TrimStrings skips `markdown`).
         $doc->refresh();
-        $this->assertSame("# Manual\n\nNuevo texto.", $doc->body);
+        $this->assertSame("# Manual\n\nNuevo texto.\n    - sangría\n", $doc->body);
         $this->assertSame(1, $doc->version);
         $this->assertSame(1, $doc->revisions()->count());
 

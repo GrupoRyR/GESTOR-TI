@@ -97,7 +97,10 @@ return [
     ],
 
     'vault' => [
+        // Own key of the vault (never APP_KEY): `base64:` + 32 random bytes.
         'key' => env('VAULT_KEY'),
+        // aes-256-gcm (default) or aes-256-cbc.
+        'cipher' => env('VAULT_CIPHER', 'aes-256-gcm'),
     ],
 
 ];

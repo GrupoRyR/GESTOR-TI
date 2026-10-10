@@ -99,7 +99,14 @@ return [
         // Bóveda (Stage B).
         'vault.accessed' => [
             'label' => 'Acceso a la bóveda de credenciales',
-            'hint' => 'Cada vez que alguien abre la bóveda',
+            'hint' => 'Cada vez que alguien ve, copia, crea, cambia o borra una credencial',
+            'channels' => ['mail', 'telegram', 'database'],
+            // PROMPT 6.4.10: every access reaches the holder by Telegram.
+            'required_channels' => ['telegram', 'database'],
+        ],
+        'vault.reminder' => [
+            'label' => 'Vencimiento y rotación de credenciales',
+            'hint' => '30, 15 y 7 días antes de que una credencial venza o toque rotarla',
             'channels' => ['mail', 'telegram', 'database'],
         ],
 

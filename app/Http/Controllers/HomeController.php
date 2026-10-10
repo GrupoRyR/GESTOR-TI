@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Ai\Vault\VaultHolders;
 use App\Domain\Ai\ApprovalRounds;
 use App\Domain\Ai\BusinessDays;
 use App\Domain\Ai\DueLabel;
 use App\Domain\Ai\Inbox;
 use App\Domain\Ai\Roadmap;
+use App\Domain\Ai\VaultDueDates;
 use App\Domain\Ai\Week;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiRequest;
 use App\Models\AiRequirement;
 use App\Models\AiTask;
+use App\Models\AiVaultItem;
 use App\Models\MonitoredApp;
 use App\Models\Scopes\CompanyScope;
 use App\Models\User;
@@ -31,7 +34,8 @@ use Inertia\Response;
  * view (B4) lists unanswered requests past or near their first-response
  * deadline and, for project approvers, the approvals waiting for them;
  * since B5 also overdue tasks and requirements waiting on users;
- * credentials (B8) are still empty;
+ * since B8 credentials expiring or due for rotation within 30 days, only
+ * for holders of `ai.vault.access`;
  * monitoring lists the registered apps as placeholders until the module is
  * enabled.
  */
@@ -72,8 +76,7 @@ class HomeController extends Controller
                 'unanswered_requests' => $this->unansweredRequests(),
                 'overdue_tasks' => $this->overdueTasks(),
                 'waiting_requirements' => $this->waitingRequirements(),
-                // TODO B8: only filled for `ai.vault.access` once the vault exists.
-                'expiring_credentials' => [],
+                'expiring_credentials' => VaultHolders::has($user) ? $this->expiringCredentials() : [],
             ],
             'pending_approvals' => $this->pendingApprovals($user),
             'monitoring' => [
@@ -215,6 +218,47 @@ class HomeController extends Controller
                     'href_route' => 'ai.requirements.show',
                     'href_params' => ['requirement' => $requirement->id],
                     'severity' => $requirement->displayStatus($today) === AiRequirement::OVERDUE ? 'late' : 'attention',
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * `AttentionItem` rows for the vault holder: credentials whose expiry or
+     * scheduled rotation (VaultDueDates::next) is overdue or within 30 days,
+     * most urgent first; `late` once the date passed. Names only.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function expiringCredentials(): array
+    {
+        $today = VaultDueDates::today();
+
+        return AiVaultItem::query()
+            ->get()
+            ->map(fn (AiVaultItem $item) => ['item' => $item, 'next' => VaultDueDates::next($item)])
+            ->filter(fn (array $row) => $row['next'] !== null
+                && VaultDueDates::daysUntil($row['next']['date'], $today) <= VaultDueDates::HOME_WINDOW_DAYS)
+            ->map(fn (array $row) => [...$row, 'days' => VaultDueDates::daysUntil($row['next']['date'], $today)])
+            ->sortBy([['days', 'asc'], [fn (array $row) => $row['item']->name, 'asc']])
+            ->take(self::ATTENTION_LIMIT)
+            ->map(function (array $row): array {
+                /** @var AiVaultItem $item */
+                $item = $row['item'];
+                $days = $row['days'];
+
+                return [
+                    'id' => 'credential-'.$item->id,
+                    'title' => "{$item->name} · ".match (true) {
+                        $days < 0 => 'venció hace '.($days === -1 ? '1 día' : -$days.' días'),
+                        $days === 0 => 'vence hoy',
+                        default => $days === 1 ? '1 día' : "{$days} días",
+                    },
+                    'detail' => $row['next']['kind'] === VaultDueDates::ROTATION ? 'Rotación programada' : 'Vencimiento',
+                    'href_route' => 'ai.vault.index',
+                    'href_params' => ['item' => $item->id],
+                    'severity' => $days < 0 ? 'late' : 'attention',
                 ];
             })
             ->values()

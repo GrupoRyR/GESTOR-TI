@@ -32,6 +32,8 @@ use App\Http\Controllers\AI\TaskController;
 use App\Http\Controllers\AI\TimeEntryController;
 use App\Http\Controllers\AI\TimerController;
 use App\Http\Controllers\AI\TriageController;
+use App\Http\Controllers\AI\ValueController;
+use App\Http\Controllers\AI\VaultController;
 use App\Http\Controllers\AI\WeekController;
 use App\Http\Controllers\Auth\EmergencyLoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
@@ -279,13 +281,33 @@ Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(funct
     // Module users (AiProductPolicy::viewAny); docs only reach `ai.manage`.
     Route::get('/search', KnowledgeSearchController::class)->name('search');
 
-    // TEMPORARY (Stage B): routes the pages and the GestorLayout tabs
-    // already call, implemented by later tasks (value and vault B8; the
-    // weekly review has no design for its storage yet).
-    // Pages redirect to Inicio and actions go back, both with a notice.
+    // Value dashboard (B8, types/pages/ai-value-vault.ts): `ai.manage`
+    // (Jhon, Leonardo, gerencia); money only with `ai.costs.view`.
+    // "Recordar a …" (empty state) asks the requester to rate a delivery.
+    Route::middleware('can:ai.manage')->group(function () {
+        Route::get('/value', [ValueController::class, 'index'])->name('value.index');
+        Route::get('/value/export', [ValueController::class, 'export'])->name('value.export');
+        Route::post('/requests/{request}/rating/remind', [RatingController::class, 'remind'])->name('ratings.remind');
+    });
+
+    // Credentials vault (B8, PROMPT 6.4.10). `vault` (EnsureVaultAccess):
+    // only `ai.vault.access` (others get Ai/Vault/Denied, logged and
+    // alerted), fails closed without VAULT_KEY, auto-locks after 10 minutes,
+    // encrypted history and no-store. Unlocking needs a fresh Microsoft
+    // sign-in (`reauth:10`). `{item}` is the item id.
+    Route::middleware('vault')->prefix('vault')->name('vault.')->group(function () {
+        Route::get('/', [VaultController::class, 'index'])->name('index');
+        Route::get('/unlock', [VaultController::class, 'unlock'])->middleware('reauth:10')->name('reauth');
+        Route::post('/lock', [VaultController::class, 'lock'])->name('lock');
+        Route::post('/{item}/reveal', [VaultController::class, 'reveal'])->whereNumber('item')->middleware('throttle:20,1')->name('reveal');
+        Route::post('/{item}/copied', [VaultController::class, 'copied'])->whereNumber('item')->name('copied');
+        // TEMPORARY: the item form is not designed yet (goes back with "Disponible pronto.").
+        Route::get('/{item}/edit', PendingDesignController::class)->whereNumber('item')->name('edit');
+    });
+
+    // TEMPORARY (Stage B): the weekly review has no design for its storage
+    // yet; it goes back with a notice.
     Route::post('/reviews', StageBPlaceholderController::class)->name('reviews.store');
-    Route::get('/vault', StageBPlaceholderController::class)->name('vault.index');
-    Route::get('/value', StageBPlaceholderController::class)->name('value.index');
 });
 
 // Colaboradores (`Employees/Index`). Bindings honour CompanyScope; access
