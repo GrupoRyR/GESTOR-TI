@@ -27,7 +27,7 @@ rating and value dashboard; vault. Every page the design delivers returns exactl
 - [x] B5 · Projects: projects from approved requests, boards/columns (configurable), tasks/subtasks/labels/assignees/due dates/attachments, sprints, requirements to users + reminders, WIP limit, blocks, acceptance checklist, "Mi semana" data, project reports (email, PDF).
 - [x] B6 · Time and costs: estimates, time entries (timer, manual, Telegram `/horas`), cost rates (effective dating, `ai.costs.view`), project costs, AI spend from `ai_interactions`, estimate vs real alerts 80/100 %, re-approval above 20 %, Friday reminder, area hour values and ROI.
 - [x] B7 · Products pages, documentation (markdown + revisions + templates + search), ratings lifecycle (3/7 days, 30-day hours saved). The value dashboard (`Ai/Value/Index`, `ai-value-vault.ts`) moved to B8 with the vault.
-- [ ] B8 · Value dashboard (`Ai/Value/Index`, ROI with area hour values and project costs) and vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
+- [x] B8 · Value dashboard (`Ai/Value/Index`, ROI with area hour values and project costs) and vault: items encrypted with `VAULT_KEY`, reauth + 30 s reveal + 10 min auto-lock, access log + Telegram notice, denied-attempt alert, rotation/expiry reminders 30/15/7 days.
 - [x] B9 · Design delivered (PR #10, `docs/design/stage-b-contract.md`); merged into the chain as `2a804cb` (package.json: Inertia v3 kept + `markdown-it`; lock regenerated; typecheck, 300 vitest, build and 637 PHP tests green). B5–B8 now wire the pages together with their domain: B5 `ai-projects.ts` (projects, board, tasks, requirements, report), B6 `Ai/Projects/Costs`, `Ai/TimeEntries/Create`, `admin-costs.ts`, B7 `ai-knowledge.ts` + ratings lifecycle, B8 `ai-value-vault.ts`. Not designed (keep out): product create/edit, incident create, vault item edit.
 
 ## Progress / evidence
@@ -340,5 +340,118 @@ Notes for design:
 Open (app owner): the global `TrimStrings` middleware trims `markdown` (leading indentation and the trailing newline of a doc are lost on autosave); exempting it needs
 `$middleware->trimStrings(except: ['markdown'])` in `bootstrap/app.php` (outside this task's surface).
 
+### B8 · Value dashboard and credentials vault — done (commit `b30d020` `feat(ai): add value dashboard and credentials vault`)
+- Route: delegated (writer trigger: 25 code files across migration, models, domain, actions, middleware, controllers, presenters, notifications, command, routes, config; 6 test files).
+- Test-first: 5 new test files + `TrimStringsTest` + `StageAShellRoutesTest`/`DocumentsTest` updated (41 tests in the first run) written first and observed RED (30 of 41 failing: models, routes, encrypter and command missing; TrimStrings trimming `markdown`/`value`), then GREEN.
+- Checks: `php artisan test` 790/790 passed; `vendor/bin/pint` fixed 4 files, `vendor/bin/pint --test` passed; `npm run typecheck` passed; `route:list --path=ai/vault` 6 routes (`ai.vault.edit` TEMPORARY),
+  `--path=ai/value` 2 routes (+ `ai.ratings.remind` POST `ai/requests/{request}/rating/remind`); `schedule:list` shows `0 7 * * * ai:vault-reminders` (Bogotá);
+  new migration up/rollback/up + `db:seed` on a temp SQLite file OK (file deleted).
+- Size: ~2250 authored code lines + ~990 test lines, above the ~400 heuristic: the dashboard (one domain class, controller, PDF) and the vault (key, session, middleware, log, notices, reminders) each need all their parts to be safe or useful.
+
+Decisions:
+- Value (`ai.value.index|export`, `can:ai.manage` as the contract says; Leonardo and gerencia need `ai.manage`): `App\Domain\Ai\ValueDashboard`. Scope = requests of the company context (CompanyScope),
+  `company_id` only in "Todas", `area_id` = the request's area (unknown ids fall back to null); products = `AiProduct::visibleTo` + company/area pivots.
+  Period: last 3/6/12 complete months, `year` = January to last month (January alone in January), Bogotá. Real hours from `ai_hours_saved_reports` (h/week × 52/12), each answer counted
+  from the month its request first reached production (else the month it was reported); `current` = last month of the period, `delta` vs the month before ("frente a agosto").
+  Satisfaction = `solved_need` of ratings given in the period, `apps` = distinct products (a request without product counts alone). Lead time = days request → first move to production for
+  deliveries in the period, `delta` vs the previous period of the same length (0 without deliveries there). Requests by status = every request of the scope today (count desc, then status order).
+  `monthly_cost` = Σ `monthly_cost` of products in production/pilot. ROI per product: development cost = `ProjectCosts::total` of its projects (`product_id` or through its requests);
+  saving/month = hours × the hour value of each request's area − the product's monthly cost (the page copy says exactly that); payback = cost / saving (1 decimal); only positive savings,
+  shortest payback first. `hour_value` = the filtered area's value, else the weighted average (gross saving / hours). Money keys (`monthly_cost`, `roi`, `hour_value`, `payback_months`,
+  `cost_note`, `roi_note`) are null without `ai.costs.view`. `metrics` null when the scope has no reports and no ratings in the period → `awaiting_rating` = latest unrated delivery in production.
+  `area_notes`: top area ("Ventas ahorra más: 26 h al mes, sobre todo con …") and reported vs the requesters' estimate (only requests with both). `data_note` null.
+- Export "Descargar para la junta": PDF (dompdf `loadHTML`, `App\Support\Ai\ValueReportHtml`, escaped, no Blade file: views are outside the surface), same filters and the same money rule.
+- `ai.ratings.remind` (added; the empty state calls it): `ai.manage` + `AiRequestPolicy::transition`; only in production and unrated → `AiRatingRequested` reminder + `rating_reminded_at`.
+- Vault schema (one migration): `ai_vault_items` (name, `ai_project_id`/`ai_product_id`, environment, type = design `VaultSecretType`, username, `secret_ciphertext`, url, `expires_at`,
+  `expiry_note` (design "Falta recibirla"), `rotate_every_days`, `last_rotated_at`, notes, created/updated by, soft deletes) and `ai_vault_access_log` (item + name snapshot, user, action
+  view|copy|create|update|delete|denied|unlock|lock, ip, user_agent, channel web|auto|console, created_at). Design actions map: view→viewed, copy→copied, update→changed, create→created,
+  delete→deleted, denied→blocked; unlock/lock are not listed on the page.
+- Encryption: `App\Support\Vault\VaultEncrypter` = `Illuminate\Encryption\Encrypter` with `services.vault.key` (`base64:` or raw), cipher `services.vault.cipher` (`VAULT_CIPHER`, default
+  aes-256-gcm); `VaultKeyException` (Spanish) when the key is missing, has the wrong length or equals APP_KEY. The value is never in `$casts`, not fillable, `#[Hidden]`, no LogsActivity on the
+  model; only `AiVaultItem::revealSecret()` decrypts. Tests prove raw DB ≠ plain, `Crypt::decryptString` (APP_KEY) and another vault key fail, `toArray`/`toJson`/collections never carry it.
+- Middleware `vault` (`EnsureVaultAccess`) on every vault route: (1) `ai.vault.access` held directly, else `Ai/Vault/Denied` + log `denied` + AlertService `warning` (source `vault`, group
+  `ai.vault.denied:{user}:{Bogotá date}`, recipients = holders only); (2) fails closed without a usable key → Inicio with the Spanish reason; (3) auto-lock after 10 min idle (log `lock`,
+  channel `auto`), otherwise refreshes; (4) `Inertia::encryptHistory()` + `Cache-Control: no-store, no-cache, private, max-age=0` on every vault response (Denied included).
+- Unlock = `ai.vault.reauth` GET `/ai/vault/unlock?item=` behind `reauth:10` (Stage A middleware: stores the intended URL and sends to Microsoft `prompt=login`); back from Microsoft it opens
+  the session (`vault.unlocked_at`, `vault.last_used_at`), logs `unlock` and consumes the reauth stamp, so every unlock (also after a lock) needs a new Microsoft sign-in.
+  `session.expires_at` = last use + 10 min.
+- Reveal `ai.vault.reveal` POST `{item}` (throttle 20/min): locked → back with "La bóveda está cerrada…"; open → renders `Ai/Vault/Index` with `revealed {item_id, value,
+  expires_in_seconds: 30}` (never on GET; props are closures so the partial `revealed,access_log` evaluates only those), logs `view`, Telegram notice. Copy `ai.vault.copied` logs `copy`
+  and redirects (value never returned). Lock `ai.vault.lock`. `ai.vault.edit` TEMPORARY (PendingDesignController). Store/update/destroy are not typed → no endpoints; the backend is
+  `App\Actions\Ai\Vault\ManageVaultItems` (create/update/delete, new value stamps `last_rotated_at`, each logged + noticed) for the future form.
+- Notices: `VaultAccessed` (event `vault.accessed`, now with `required_channels` telegram + database) to every holder on view/copy/create/update/delete: "Bóveda: Jhon Castro vio
+  DEEPSEEK_API_KEY", body with origin ("Edge en Windows · 10.0.0.5", `App\Support\Vault\AccessOrigin`) and time; never the value. Activity log `ai`, events `vault_{action}` with the item
+  name only (added to the audit `sensitive_events`).
+- Reminders `ai:vault-reminders` daily 07:00 Bogotá: expiry date and rotation date (`last_rotated_at` else `created_at` + `rotate_every_days`, `App\Domain\Ai\VaultDueDates`) exactly 30, 15
+  and 7 days ahead → `VaultReminder` (new event `vault.reminder`) to the holders. Exact-day match: a missed cron day skips that threshold.
+- `VaultItem.expires_at` sent to the page = the next due date (expiry or rotation, whichever comes first), so "Rotar en N días" also covers rotations. Home `it` `expiring_credentials`
+  (only `ai.vault.access` holders): overdue or due within 30 days, most urgent first, "DEEPSEEK_API_KEY · 12 días" / "· vence hoy" / "· venció hace 2 días", detail "Vencimiento" or
+  "Rotación programada", `{item}` param, `late` once past.
+- `bootstrap/app.php`: `trimStrings(except: markdown, value, secret, password, password_confirmation, current_password)` (top-level keys only); the B7 autosave test now keeps
+  indentation and the trailing newline.
+
+Notes for design:
+- The GestorLayout shows the vault tab to every `ai.manage` user; opening it without `ai.vault.access` renders Denied and alerts Jhon (grouped per person and day). Consider hiding the tab
+  unless `auth.user.permissions` has `ai.vault.access`.
+- There is no form to create/edit/delete credentials (`ai.vault.edit` TEMPORARY), so the vault starts empty; `ManageVaultItems` is ready for it (needs fields for the value, `expiry_note`,
+  `rotate_every_days`, project or product).
+- `VaultItem.expires_at` carries the next due date (expiry or rotation); the type has no separate rotation date.
+- `ValueMetrics.hour_value` is one number while areas have their own values: the server sends the weighted average (or the filtered area's value).
+- `ValueIndexProps` has no prioritized backlog (6.4.5 mentions it): it lives in `Ai/Backlog/Index`.
+- The value export is a PDF of plain tables (no charts).
+
+## Stage B summary
+
+### What was built
+- Requests (B1, B3, B4): wizard with duplicates and +1, keys GIA-n, status machine, first-response deadline alerts, requester pages (mine, show, validate, rate, hours saved, roadmap),
+  IT triage (inbox, evaluation, ask, merge, reject, backlog with manual order, by area, Mi semana) and project approval by the "Aprobador de proyectos" role on the web and Telegram (✅/❌).
+- Products (B2, B7): the 5 current apps seeded and linked to `monitored_apps`, product pages, versions, docs.
+- Projects (B5, B6): projects from approved requests, Kanban with WIP, tasks/subtasks/comments/attachments, requirements to users with reminders, weekly report (mail + PDF), timer, hours
+  (manual, timer, Telegram `/horas`), rates, costs, AI spend, budget alerts 80/100 %, re-approval above 20 %, `Admin/Costs/Index`.
+- Knowledge (B7): Markdown docs with templates, versions, diff and restore, secrets guard, Gestor search; ratings lifecycle (3/7 days, 30-day hours question).
+- Value and vault (B8): value dashboard with ROI and PDF export; credentials vault with its own key, Microsoft re-authentication, 30 s reveal, 10-minute auto-lock, access log, Telegram
+  notices, denied-attempt alerts and expiry/rotation reminders.
+
+### How to test on the server
+1. Sign in as Jhon (Líder IA + Aprobador de proyectos + vault owner). Inicio shows the IT board; Gestor IA tabs: Bandeja, Backlog, Por área, Proyectos, Productos, Documentación,
+   Mi semana, Valor, Bóveda.
+2. As a requester (Usuario final): create a request in the wizard, see it in "Mis solicitudes" and the roadmap; as Jhon evaluate it, send it to approval, approve it on the web or in
+   Telegram, convert it to a project, move tasks, log hours (timer, manual, `/horas GIA-n 2 nota`), check costs and the weekly report.
+3. Move a request to "En producción": the requester gets the rating request; rate it and answer the 30-day hours question, then open "Valor" (with and without `ai.costs.view`).
+4. Vault: "Bóveda" as Jhon → "Confirmar identidad con Microsoft" → open; "Ver valor" shows it 30 s and a Telegram notice arrives; 10 minutes idle locks it. As Leonardo (Súper Admin)
+   → "Acceso negado" and Jhon gets the alert. Credentials can be loaded only once the item form exists (open question below).
+5. MySQL-only paths (FULLTEXT on requests and docs) run only on the server: search a word of a doc and of a request.
+
+### Server steps
+- `php artisan migrate --force` (Stage B migrations up to `2026_10_21_000001_create_ai_vault_tables`).
+- `php artisan db:seed --force` (roles/permissions, settings, initial users, the 5 products; idempotent). Never `AiDemoSeeder` in production.
+- Vault key, own and never APP_KEY (keep a copy in the shared password manager; losing it makes stored values unreadable):
+  `php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"` → `VAULT_KEY=` in `.env` (optional `VAULT_CIPHER=aes-256-gcm`), then `php artisan config:cache`.
+- `GESTOR_VAULT_OWNER_EMAIL` = Jhon's email (`ai.vault.access` is granted directly on login/seed by AssignInitialRoles, never by a role).
+- Cron `* * * * * php artisan schedule:run` (docs/deploy-cpanel.md). Stage B schedules (Bogotá): `ai:first-response-alerts` */15, `ai:requirement-reminders` 08:00,
+  `ai:project-reports` */15, `ai:hours-reminder` Fri 15:00, `ai:ratings-lifecycle` 09:00, `ai:vault-reminders` 07:00; the database queue worker drains every minute.
+- `php artisan gestor:telegram-webhook` after deploy so ✅/❌ approvals and `/horas` reach the app.
+- `composer install --no-dev` brings `barryvdh/laravel-dompdf` (B5) for the report and value PDFs.
+
+### Environment keys (B1–B8)
+- Added in Stage B: `VAULT_KEY` (required by the vault; it fails closed without it), `VAULT_CIPHER` (optional).
+- From Stage A, used by Stage B: `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL`, `GESTOR_SUPPORT_EMAIL`, `GESTOR_ALERTS_RECIPIENT_PERMISSION`,
+  `GESTOR_ERROR_PAGES`, `MODULE_AI_ENABLED`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI`, `MICROSOFT_TENANT` (vault re-authentication too),
+  `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_REQUIRE_SECRET_HEADER`, `TELEGRAM_PROCESSING`, `QUEUE_CONNECTION=database`, `MAIL_*`.
+- Reserved for later stages: `DEEPSEEK_API_KEY` (C), `GITHUB_*` (D).
+
+### Open questions for Jhon
+- USD → COP rate for AI spend (Settings `ai.usd_cop_rate`, 4000 placeholder).
+- Whether a monthly project cost counts once (as the costs page adds it) or per elapsed month.
+- Per product: owner, URL, repository, current version, monthly cost, AI provider/model; areas of Cámaras.
+- Hour value of each area (`Admin/Costs/Index`): without it the ROI has no saving for that area.
+- How credentials get into the vault until the item form is designed (backend `ManageVaultItems` exists, no screen), and which ones go first.
+- Whether gerencia should see "Valor" through its own role (today it needs `ai.manage`).
+
+### Remaining TEMPORARY routes
+- `ai.products.create`, `ai.products.edit`, `ai.products.incidents.create`, `ai.vault.edit` → PendingDesignController ("Disponible pronto.").
+- `ai.reviews.store` (weekly review, no storage designed) → StageBPlaceholderController.
+- Outside the Gestor: `employees.create` (Stage A notice) and `assistant.index` (Stage C).
+
 ## Next step
-B8 · Value dashboard (`Ai/Value/Index`: hours saved, cost, satisfaction and ROI with area hour values and project costs) and vault (`ai-value-vault.ts`: items encrypted with `VAULT_KEY`, reauth, 30 s reveal, auto-lock, access log + Telegram, rotation reminders).
+Push slice `stage-b/01-gestor-ia` and open the PR; then Stage C (Asistente TI).
