@@ -1,0 +1,6 @@
+{
+  "action": "created",
+  "installation": {"id": 42, "account": {"login": "GrupoRyR", "type": "Organization"}},
+  "repositories": [{"id": 501, "full_name": "GrupoRyR/portafolio", "name": "portafolio", "private": true}],
+  "sender": {"login": "jhonc"}
+}

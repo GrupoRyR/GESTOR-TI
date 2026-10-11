@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>[{{ $request_key }}] Ya está en producción: {{ $request_title }}</title>
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+  <style>
+    :root { color-scheme: light dark; supported-color-schemes: light dark; }
+    body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; }
+    @media screen and (max-width: 600px) {
+      .em-outer { padding: 0 !important; }
+      .em-card { border-radius: 0 !important; border-left-width: 0 !important; border-right-width: 0 !important; }
+      .em-brandbar { border-radius: 0 !important; }
+      .em-foot { border-radius: 0 !important; }
+    }
+    @media screen and (max-width: 480px) {
+      .em-pad { padding-left: 20px !important; padding-right: 20px !important; }
+      .em-h1 { font-size: 20px !important; line-height: 26px !important; }
+      .em-kv-key { width: 110px !important; }
+      .em-col { display: block !important; width: 100% !important; padding: 0 0 14px !important; }
+      .em-rail-label { font-size: 11px !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .em-bg { background: #121315 !important; }
+      .em-card, .em-surface { background: #1C1D20 !important; border-color: #2C2E33 !important; }
+      .em-panel { background: #26272B !important; border-color: #2C2E33 !important; }
+      .em-line { border-color: #2C2E33 !important; }
+      .em-rule { background: #2C2E33 !important; }
+      .em-t1 { color: #F2F2EF !important; }
+      .em-t2 { color: #C9CBD0 !important; }
+      .em-t3 { color: #A3A6AD !important; }
+      .em-key { background: #26272B !important; color: #F2F2EF !important; }
+      .em-gray { background: #26272B !important; color: #C9CBD0 !important; }
+      .em-amber { background: #2A2418 !important; color: #F5D58A !important; }
+      .em-blue { background: #1B2540 !important; color: #A9C1F5 !important; }
+      .em-green { background: #12332A !important; color: #5FD39B !important; }
+      .em-slate { background: #262B33 !important; color: #CBD5E1 !important; }
+      .em-red { background: #3A1D1A !important; color: #FF8F84 !important; }
+      .em-amber-text { color: #F5D58A !important; }
+      .em-green-text { color: #5FD39B !important; }
+      .em-amber-box { background: #2A2418 !important; border-color: #4A3D22 !important; }
+      .em-red-box { background: #3A1D1A !important; border-color: #5A2A25 !important; }
+      .em-dashed { border-color: #5E6168 !important; }
+      .em-fill-ink, .em-bar-done { background: #F2F2EF !important; }
+      .em-bar-pending { background: #2C2E33 !important; }
+      .em-dot-done { background: #F2F2EF !important; border-color: #F2F2EF !important; color: #121315 !important; }
+      .em-dot-pending { background: #1C1D20 !important; border-color: #45484E !important; color: #A3A6AD !important; }
+      .em-phase-done, .em-phase-current { color: #F2F2EF !important; }
+      .em-phase-pending { color: #A3A6AD !important; }
+      .em-logo-light { display: none !important; }
+      .em-logo-dark { display: block !important; max-height: none !important; overflow: visible !important; }
+    }
+  </style>
+</head>
+<body class="em-bg" style="margin: 0; padding: 0; background: #F5F5F2;">
+  <div class="em-preheader" style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #F5F5F2; opacity: 0;">{{ $request_title }} ya está disponible en {{ $product_name }} v{{ $release_version }}. Cuéntanos cómo te fue. &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="em-bg" style="width: 100%; background: #F5F5F2;">
+    <tr>
+      <td align="center" class="em-outer" style="padding: 24px 12px;">
+        <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center"><tr><td><![endif]-->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="em-card" style="width: 100%; max-width: 600px; margin: 0 auto; border-collapse: separate; background: #FFFFFF; border: 1px solid #E5E5E0; border-radius: 12px; font-family: Figtree, 'Segoe UI', Arial, sans-serif; color: #17191C;">
+          <tr>
+            <td class="em-brandbar" style="height: 4px; line-height: 4px; font-size: 0; background: {{ $brand_color }}; border-radius: 11px 11px 0 0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td class="em-pad em-line" style="padding: 20px 32px 16px; border-bottom: 1px solid #F0F0EC;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width: 100%;">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <img class="em-logo-light" src="{{ $logo_url }}" alt="{{ $company_name }}" width="{{ $logo_width }}" height="28" style="display: block; height: 28px; width: {{ $logo_width }}px; max-width: 100%; border: 0; outline: none; text-decoration: none; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #17191C;">
+                    <!--[if !mso]><!--><img class="em-logo-dark" src="{{ $logo_dark_url }}" alt="{{ $company_name }}" width="{{ $logo_width }}" height="28" style="display: none; max-height: 0; overflow: hidden; mso-hide: all; height: 28px; width: {{ $logo_width }}px; max-width: 100%; border: 0; outline: none; text-decoration: none; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; color: #F2F2EF;"><!--<![endif]-->
+                  </td>
+                  <td align="right" class="em-t2" style="vertical-align: middle; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 700; color: #45484E; white-space: nowrap;">Gestor TI</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="em-pad" style="padding: 28px 32px 32px; font-family: Figtree, 'Segoe UI', Arial, sans-serif; color: #17191C;">
+              <p style="margin: 0; font-size: 13px; line-height: 30px;"><span class="em-key" style="display: inline-block; padding: 4px 10px; border-radius: 10px; background: #F0F0EC; color: #17191C; font-size: 13px; font-weight: 700; line-height: 18px; white-space: nowrap;">{{ $request_key }}</span>
+                    <span class="em-green" style="display: inline-block; padding: 4px 10px; border-radius: 10px; background: #E6F5EC; color: #1F7A4D; font-size: 13px; font-weight: 700; line-height: 18px; white-space: nowrap;"><span aria-hidden="true">✓</span>&nbsp;En producción</span></p>
+              <h1 class="em-h1 em-t1" style="margin: 14px 0 0; font-family: 'Bricolage Grotesque', Figtree, 'Segoe UI', Arial, sans-serif; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #17191C;">Ya puedes usar lo que pediste</h1>
+              <p class="em-t2" style="margin: 12px 0 0; font-size: 15px; line-height: 22px; color: #45484E;">Hola, {{ $requester_first_name }}. <b class="em-t1" style="color: #17191C;">{{ $request_title }}</b> ya está disponible en {{ $product_name }} v{{ $release_version }} desde el {{ $released_on }}.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width: 100%; border-collapse: separate; margin: 20px 0 0;">
+                <tr>
+                  <td class="em-panel" style="padding: 20px; background: #F5F5F2; border: 1px solid #E5E5E0; border-radius: 12px;">
+                    <p class="em-t3" style="margin: 0 0 6px; font-size: 12px; line-height: 16px; font-weight: 700; color: #5E6168; text-transform: uppercase; letter-spacing: 0.04em;">Qué cambia para ti</p>
+                    <h2 class="em-t1" style="margin: 0; font-family: 'Bricolage Grotesque', Figtree, 'Segoe UI', Arial, sans-serif; font-size: 17px; line-height: 22px; font-weight: 700; letter-spacing: -0.02em; color: #17191C;">{{ $change_title }}</h2>
+@foreach ($change_paragraphs as $paragraph)
+                    <p class="em-t1" style="margin: 10px 0 0; font-size: 15px; line-height: 22px; color: #17191C;">{{ $paragraph }}</p>
+@endforeach
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width: 100%; margin: 28px 0 0;"><tr><td class="em-rule" style="height: 1px; line-height: 1px; font-size: 0; background: #E5E5E0;">&nbsp;</td></tr></table>
+              <h2 class="em-t1" style="margin: 24px 0 0; font-family: 'Bricolage Grotesque', Figtree, 'Segoe UI', Arial, sans-serif; font-size: 20px; line-height: 26px; font-weight: 700; letter-spacing: -0.02em; color: #17191C;">¿Cómo te fue?</h2>
+              <p class="em-t2" style="margin: 6px 0 0; font-size: 15px; line-height: 22px; color: #45484E;">Toca una opción y queda guardada. Si quieres, después dejas un comentario en el Gestor.</p>
+              <p style="margin: 14px 0 0; font-size: 0; line-height: 0;">
+                <a class="em-surface em-line em-t1" href="{{ $rating_url_1 }}" target="_blank" style="display: inline-block; box-sizing: border-box; width: 98px; height: 44px; margin: 0 6px 6px 0; border: 1px solid #D6D6D0; border-radius: 10px; background: #FFFFFF; text-align: center; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 700; line-height: 42px; color: #17191C; text-decoration: none; white-space: nowrap;">1 · Nada útil</a>
+                <a class="em-surface em-line em-t1" href="{{ $rating_url_2 }}" target="_blank" style="display: inline-block; box-sizing: border-box; width: 98px; height: 44px; margin: 0 6px 6px 0; border: 1px solid #D6D6D0; border-radius: 10px; background: #FFFFFF; text-align: center; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 700; line-height: 42px; color: #17191C; text-decoration: none; white-space: nowrap;">2 · Poco útil</a>
+                <a class="em-surface em-line em-t1" href="{{ $rating_url_3 }}" target="_blank" style="display: inline-block; box-sizing: border-box; width: 98px; height: 44px; margin: 0 6px 6px 0; border: 1px solid #D6D6D0; border-radius: 10px; background: #FFFFFF; text-align: center; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 700; line-height: 42px; color: #17191C; text-decoration: none; white-space: nowrap;">3 · Regular</a>
+                <a class="em-surface em-line em-t1" href="{{ $rating_url_4 }}" target="_blank" style="display: inline-block; box-sizing: border-box; width: 98px; height: 44px; margin: 0 6px 6px 0; border: 1px solid #D6D6D0; border-radius: 10px; background: #FFFFFF; text-align: center; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 700; line-height: 42px; color: #17191C; text-decoration: none; white-space: nowrap;">4 · Útil</a>
+                <a class="em-surface em-line em-t1" href="{{ $rating_url_5 }}" target="_blank" style="display: inline-block; box-sizing: border-box; width: 98px; height: 44px; margin: 0 6px 6px 0; border: 1px solid #D6D6D0; border-radius: 10px; background: #FFFFFF; text-align: center; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 700; line-height: 42px; color: #17191C; text-decoration: none; white-space: nowrap;">5 · Muy útil</a>
+              </p>
+              <p class="em-t3" style="margin: 4px 0 0; font-size: 12px; line-height: 18px; color: #5E6168;">1 = no resolvió tu necesidad · 5 = la resolvió por completo</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse: separate; margin: 24px 0 0;">
+                <tr>
+                  <td align="center" bgcolor="{{ $brand_color }}" style="background: {{ $brand_color }}; border-radius: 10px; mso-padding-alt: 12px 24px;">
+                    <a class="em-button" href="{{ $action_url }}" target="_blank" style="display: inline-block; padding: 12px 24px; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: 700; line-height: 20px; color: #FFFFFF; text-decoration: none; border-radius: 10px; mso-line-height-rule: exactly;">Calificar en el Gestor</a>
+                  </td>
+                </tr>
+              </table>
+              <p class="em-t3" style="margin: 12px 0 0; font-size: 12px; line-height: 18px; color: #5E6168;">Si el botón no funciona, copia este enlace:<br>
+                <a class="em-t2" href="{{ $action_url }}" target="_blank" style="color: #45484E; word-break: break-all;">{{ $action_url }}</a></p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width: 100%; border-collapse: separate; margin: 20px 0 0;">
+                <tr>
+                  <td class="em-surface" style="padding: 16px; background: #FFFFFF; border: 1px solid #E5E5E0; border-radius: 12px;">
+                    <p class="em-t2" style="margin: 0; font-size: 14px; line-height: 21px; color: #45484E;"><b class="em-t1" style="color: #17191C;">Dentro de 30 días</b> te preguntaremos cuántas horas al mes te ahorra este cambio. Así TI sabe qué vale la pena seguir mejorando.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="em-pad em-panel em-foot em-t3" style="padding: 20px 32px 24px; background: #F0F0EC; border-radius: 0 0 11px 11px; font-family: Figtree, 'Segoe UI', Arial, sans-serif; font-size: 12px; line-height: 18px; color: #5E6168;">
+              <p class="em-t2" style="margin: 0; font-weight: 700; color: #45484E;">Gestor TI · Grupo RYR</p>
+              <p class="em-t3" style="margin: 4px 0 0; color: #5E6168;">Recibes este correo porque pediste {{ $request_key }}. Lo envía {{ $company_sender }}.</p>
+              <p style="margin: 4px 0 0;"><a class="em-t2" href="{{ $preferences_url }}" target="_blank" style="color: #45484E; font-weight: 700; text-decoration: underline;">Cambiar mis avisos</a></p>
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

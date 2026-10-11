@@ -1,0 +1,16 @@
+{
+  "action": "published",
+  "release": {
+    "id": 7001,
+    "tag_name": "v1.9.0",
+    "name": "v1.9.0 · Filtro por asesor y zona",
+    "body": "## Cambios\n- feat: filtro por asesor y zona (GIA-139) #41\n- fix: totales por rango (GIA-112)",
+    "html_url": "https://github.com/GrupoRyR/portafolio/releases/tag/v1.9.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-08T15:00:00Z",
+    "author": {"login": "jhonc"}
+  },
+  "repository": {"id": 501, "full_name": "GrupoRyR/portafolio", "name": "portafolio", "default_branch": "main"},
+  "sender": {"login": "jhonc"}
+}

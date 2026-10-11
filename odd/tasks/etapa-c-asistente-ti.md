@@ -1,0 +1,202 @@
+# Stage C · Asistente TI (backend) + pending Stage B forms
+
+Source of truth: `PROMPT_GESTOR_IA_APP.md` §5 (6.8–6.8.4), §8. Page contracts (design PR GrupoRyR/GESTOR-TI#11, merged into this chain as `747177d`):
+`docs/design/stage-c-contract.md`, `docs/design/telegram-format.md`, `resources/js/types/assistant.ts`,
+`types/pages/assistant-{chat,knowledge,curation}.ts`, extended `types/pages/ai-knowledge.ts` and `ai-value-vault.ts`.
+
+## Objective
+The Asistente TI answers in the app and by Telegram from a knowledge base that lives in the Gestor TI, citing the cards it used,
+with read-only tools, `/aprender` drafts, unanswered questions, Excel import, and password delivery that never passes through the AI provider.
+Plus the three Stage B forms that had no design: product create/edit, incident registration, vault item create/edit.
+
+## Decisions
+- 2026-10-10 (orchestrator, per user request "confirma o renombra"): the route names added by design are confirmed as-is:
+  `assistant.messages.retry`, `assistant.credentials.copied`, `assistant.import.update`, `assistant.import.destroy`, `ai.vault.create`/`ai.vault.store`.
+- Vault reminders: keep both — visual flag on the index from 30 days, notifications at 30, 15 and 7 days (Stage B behaviour).
+- Product area: the form's single select sets the primary area; extra areas stay in the pivot (B2 model is multi-area).
+- AI provider: DeepSeek through the Laravel AI SDK (`laravel/ai`), synchronous `prompt()`, max 5 tool rounds, 60 s timeout, one retry on 429/5xx; app works without a key (status `off_no_key`) or over the cap (`off_cap`).
+- Search: MySQL FULLTEXT + glossary synonyms on the server; LIKE/keyword fallback on SQLite (tests).
+
+## Delivery
+- Branch `claude/gestor-ia-app-prompt-d14b73`; slices `stage-c/NN-*` stacked on `stage-b/08-value-vault`. RDD off.
+- Checks: `php artisan test`, `vendor/bin/pint --test`, `npm run typecheck`, `npm test`, `npm run build`.
+
+## Tasks
+- [x] C0 · Merge design PR #11 (`747177d`): no conflicts; typecheck, 393 vitest and build green.
+- [x] C1 · Knowledge base: `knowledge_items` (types system/report/flow/procedure/glossary per design, companies, area, tags, owner, visibility it|company, reviewed_at, is_current, FULLTEXT), `knowledge_links`, glossary synonyms, search service with visibility; pages `Assistant/Knowledge/{Index,Show,Create,Edit}`; 6-month review reminder. Route: delegated (writer trigger: 2+ non-trivial files).
+- [x] C2 · Curation: Excel import (upload, mapping, preview, apply, errors file), `/aprender` drafts (create, approve with title+company, discard with reason), unanswered questions; pages `Assistant/Import/*`, `Assistant/Drafts/Index`, `Assistant/Unanswered/Index`. Route: delegated (writer trigger: 2+ non-trivial files).
+- [x] C3 · Assistant engine + chat: `laravel/ai` agent with DeepSeek, tool catalog (`buscar_conocimiento`, `ver_ficha`, `buscar_productos`, `ver_producto`, `buscar_solicitudes_gestor_ia`, `entregar_credencial`), conversations (30 min context), `ai_interactions` logging with cached tokens + cost, monthly cap 80/100 %, statuses; page `Assistant/Chat` (messages store/retry, sources, credential notice + reveal + copied, vault links). Route: delegated (writer trigger: 2+ non-trivial files).
+- [x] C4 · Telegram assistant: questions via the bot (typing, after-response), `/aprender`, credential delivery as a separate message deleted after 60 s, formats and buttons per `telegram-format.md`. Route: delegated (writer trigger: 2+ non-trivial files).
+- [x] C5 · Pending Stage B forms: `Ai/Products/Create|Edit`, incident drawer (`ai.products.incidents.store`), `Ai/Vault/Create|Edit` (+ store/update/destroy with typed-name confirmation). Remove their TEMPORARY routes. Route: delegated (writer trigger: 2+ non-trivial files).
+
+## Progress / evidence
+
+### C1 · Knowledge base
+- Schema `2026_10_22_000001_create_knowledge_tables`: `knowledge_items` (key `K-NNN` from `Sequence` `knowledge_items`, type, title, description, `fields` json, `search_text`, `tags` json, visibility, area, owner, `review_at`, last review, `is_current`, `source` manual|import|learn, created/updated by, soft deletes; MySQL FULLTEXT on title+description+search_text), pivot `knowledge_item_company`, `knowledge_links` (card → card or Gestor IA product, ordered).
+- `App\Domain\Assistant\{KnowledgeTypes, KnowledgeFilters, KnowledgeSearch, Synonyms}`, `App\Actions\Assistant\KnowledgeItems` (create/update/review/delete + activity log `knowledge`), `KnowledgeItemPolicy`, `KnowledgeItemRequest`, `KnowledgePresenter`, `AssistantTabCounts`, `Assistant\KnowledgeController`, `Assistant\StageCPlaceholderController` (TEMPORARY `assistant.import.create`, `assistant.drafts.index`, `assistant.unanswered.index` until C2).
+- Review reminder: `assistant:knowledge-review-reminders`, Mondays 08:00 Bogotá, one digest per manager (`KnowledgeReviewReminder`, event `assistant.knowledge.review`).
+- `AssistantDemoSeeder` (not in DatabaseSeeder): 6 sample cards like the mocks, placeholders kept.
+- Tests (RED observed first: 29 tests, 27 errors + 2 failures before implementation): `tests/Feature/Assistant/{KnowledgePagesTest, KnowledgeWriteTest, KnowledgeSearchServiceTest, KnowledgeReviewRemindersTest, AssistantDemoSeederTest}`.
+- Checks: `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit` 821 passed (8317 assertions); plain `php artisan test` (PHP default 128M) dies with "Allowed memory size exhausted" in `ErrorPagesTest` near the end of the run (the test passes alone): the suite needs a higher memory limit (`<ini name="memory_limit" value="512M"/>` in phpunit.xml, outside C1's edit surface, pending decision). `vendor/bin/pint --test` pass; `npm run typecheck` pass; `route:list --path=assistant` 12 routes; `schedule:list` shows `0 8 * * 1 assistant:knowledge-review-reminders`; migrate up/rollback/up on a temp SQLite file OK.
+
+Decisions (C1):
+- Design types win over the brief: types `system|report|data_flow|procedure|glossary`, fields per `lib/knowledgeFields.ts`, `description`, `review_at` = next review (6 months after the last one).
+- Visibility: "Solo TI" only for `assistant.knowledge.manage` holders (contract: "only knowledge managers"; `ai.manage` alone does not grant it). Everybody sees only cards of their company context (CurrentCompany; `companies.view_all` on "Todas" sees all). Hidden cards answer 404.
+- Index/Show need `assistant.use` or `assistant.knowledge.manage` (policy); Create/Edit/writes need `can:assistant.knowledge.manage` (403; the design Create/Edit pages have no NoPermission state).
+- The `q` filter keeps the contract order (last edited first); `KnowledgeSearch::search()` ranks by relevance for the assistant tool (C3).
+- Synonyms come from glossary cards (`term` + `also_called`), no table; a query containing every word of one phrase also searches the other phrases.
+- Gestor IA products are not copied into cards: they are "Relacionadas" links and the C3 tool `buscar_productos` searches them.
+- Secret guard: `SecretGuard::find()` on title, description and every field; Spanish message per field.
+- No `product_id` column: the link table covers system ↔ product.
+
+Notes for design (no visual change needed):
+- `usage_count_month`, `last_cited_at`, `last_cited_by` are 0/null until C3 logs citations; non-managers get `recent_changes: []`.
+- `prefill` is always null until C2 (`?pregunta=`, `?borrador=`); `unanswered_count`/`drafts_count` are 0 until C2.
+- `owner_options` lists active users; groups ("Gerencia de cartera") must be users today.
+
+### C2 · Curation
+- Schema `2026_10_23_000001_create_assistant_curation_tables`: `knowledge_imports` (user, original name, private disk + path, size, status uploaded|mapped|previewed|applied|failed, sheets read on upload, sheet, header_row, sheet type, mapping, stats, error file path, error message, applied_at), `knowledge_drafts` (raw message, source app|telegram, requested_by, proposed json, missing keys, status pending|approved|merged|discarded, discard reason, card, decided_by/at, Telegram chat + message ids for C4), `assistant_unanswered` (question, normalized hash, times_asked, first/last asked, status open|documented|dismissed, card, resolved_by/at) + `assistant_unanswered_asks` (who, channel app|telegram, conversation/message ids for C3/C4, asked_at).
+- Import: `openspout/openspout` ^5.3 (pure PHP, needs only zip + xml). `App\Domain\Assistant\Import\{Spreadsheet, ImportFields, ImportAnalyzer, ImportRow}`, `App\Actions\Assistant\KnowledgeImports`, `Assistant\ImportController`, `ImportUploadRequest`, `ImportMappingRequest`. Routes `assistant.import.{create,template,upload,update,destroy,mapping,mapping.update,preview,errors,store}`.
+- Drafts: `App\Domain\Assistant\{LearnDrafts::fromText, DraftParser (interface, #[Bind] HeuristicDraftParser), HeuristicDraftParser, DraftRejected, CompanyNames}`, `App\Actions\Assistant\DraftDecisions` (approve/merge/approvedWith/discard), `Assistant\DraftController`. Routes `assistant.drafts.{index,approve,merge,discard}`.
+- Unanswered: `App\Domain\Assistant\Unanswered::record()` (for C3/C4), `document()`, `dismiss()`; `Assistant\UnansweredController`. Routes `assistant.unanswered.{index,link,discard}`.
+- `KnowledgeController::create` sends `prefill` for `?borrador=` (pending draft) and `?pregunta=` (open question); `store` with `draft_id` approves the draft (card source `learn`) and with `unanswered_id` documents the question (`KnowledgeItemRequest` validates both as still pending). `AssistantTabCounts` counts pending drafts and open questions. `CurationPresenter` (`ImportFile`, `LearnDraft`, `UnansweredQuestion`). TEMPORARY `StageCPlaceholderController` removed.
+- Tests (RED observed first: 30 failing — 27 errors + 3 failures — of 60 in `tests/Feature/Assistant`): `tests/Feature/Assistant/{CurationTestCase, ImportTest, LearnDraftsTest, UnansweredTest}` (real .xlsx generated with OpenSpout + a `;` CSV with BOM, `Storage::fake('local')`), `KnowledgePagesTest` tab-route test updated (no more placeholder redirect).
+- Checks: RED observed (30 of 60 assistant tests failing before the code); `php artisan test` 850 passed (8988 assertions); `vendor/bin/pint --test` pass; `npm run typecheck` pass; `route:list --path=assistant` 26 routes, no placeholders; migrate up/rollback/up on a temp SQLite file OK. Commit `3895e33`.
+
+Decisions (C2):
+- Reader: OpenSpout cannot read the binary `.xls`, so only `.xlsx` and `.csv` are accepted; a `.xls` gets "Solo se pueden importar archivos .xlsx o .csv. Si tienes un .xls, ábrelo en Excel y guárdalo como .xlsx." CSV: `;` or `,` sniffed from line 1, UTF-8 (BOM ok) else Windows-1252; its sheet is named after the file.
+- Limits live in `config/gestor.php` → `gestor.assistant.import` (`disk` local, `max_kb` 10240 from `ASSISTANT_IMPORT_MAX_KB`, `max_rows` 2000 per sheet, `preview_new_rows` 20): `config/assistant.php` was outside the edit surface. `ASSISTANT_IMPORT_MAX_KB` is not in `.env.example` (file not editable here). `max_size_label` = "10 MB" replaces the `[TAMAÑO]` placeholder.
+- One unfinished import per person: a new upload deletes the previous unfinished one (record + files). Imports are private to the uploader (others: 404). An applied import cannot be reused (redirect to step 1).
+- Sheet type: majority of a "Tipo" column, else the sheet name ("Informes", "Glosario"…), else Informe. A row whose "Tipo" names another type is an error.
+- Update matching (documented): a "Clave" column (`key`, server-added optional field "Clave de la ficha (K-031)") updates that exact card (must exist, be visible and of the sheet type); otherwise a visible card of the same type and the same normalized title; else new. An empty cell never erases a card value. A second row for the same card or title is an error.
+- Row checks: title (≤160), company (names/short names/slug/distinctive words, several with `,` `;` `/` `y`, "Todas"; only companies the person may act on), area of one of those companies, visibility (Solo TI / Toda la empresa), owner = active user by name or email (`[DUEÑO]` placeholder = empty), 5,000 chars per cell, SecretGuard. Type fields are all optional (design rule), so imported or approved cards may lack a field the form requires; the form asks for it on the next edit.
+- Apply: creates/updates through `KnowledgeItems` (source `import`, activity log `knowledge` per card plus one `imported` entry), skips error rows, deletes the original file, keeps the errors file until "Quitar"; flash "Se importaron N fichas: X nuevas y Y actualizadas. La fila 17 se saltó." With nothing importable: flash error on the preview.
+- Errors file: `.xlsx` with `Fila`, the sheet columns, `Error`, `Cómo corregirlo` (e.g. "En la celda C17 escribe Segurex, Derivados o Tercera (varias, separadas por coma)…").
+- `/aprender`: `LearnDrafts::fromText(User, text, source, chatId?, messageId?)` refuses empty, >2,000 chars or secrets (`DraftRejected`, Spanish message). Heuristic pre-fill (no AI): type by keywords, title = first sentence (≤80), description = text, companies named in the text else the author's (assumed), area named else the author's (assumed), visibility `it` until approved, report source/schedule/recipients from "lo envía X a las 6 a. m. a gerencia". C3 binds an AI `DraftParser`.
+- Channel values follow the contract `LearnChannel` (`app` | `telegram`), not "web". Draft status adds `merged` ("Agregar a K-031": fills empty fields of a same-type card and appends the text to its description).
+- Approve needs title + a company the approver may act on (flash error and `?borrador=` otherwise); "Falta" fields never block. Decided drafts answer "Este borrador ya se decidió." (Telegram may decide first).
+- Unanswered grouping: same normalized text (accents, case, punctuation, spaces) on the open row; a documented or dismissed question asked again opens a new row. Not split by company (managers are global today); drafts neither.
+- The three tab pages need `assistant.use` or `assistant.knowledge.manage` (403 otherwise) and render NoPermission with empty keys without manage; every other curation route is `can:assistant.knowledge.manage`.
+
+Notes for design (no visual change needed):
+- Mapping `fields` has one more optional field, `key` ("Clave de la ficha (K-031)"), after the common ones; `lib/importMapping.ts` does not know it (client `autoMap` would leave a "Clave" column unmapped until the server mapping arrives, which the page already uses).
+- Draft field labels come from the card form (`Quién lo envía · sistema origen`, `Destinatarios`, `Horario`), not the mock wording (`Sistema de origen`, `Quién lo recibe`, `Horario de envío`). Import change labels use the import wording.
+- Approve blocked by title/company and "nothing to import" are flash errors, not field errors.
+- The template has one sheet per type with headers `Título, Tipo, Empresa, Área, Descripción, Visibilidad, Dueño` + the type fields.
+
+### C3 · Assistant engine + chat
+- SDK: `laravel/ai` v1.2.0 (official, Laravel 12/13). It has a native DeepSeek driver (OpenAI-compatible Chat Completions; `prompt_cache_hit_tokens` read as cached input), tools (`Laravel\Ai\Contracts\Tool`), `#[MaxSteps]`, per-step middleware and `StepCompleted`/`StepFailed` events, all over Laravel `Http` (so `Http::fake` fakes it). No own client was needed. Its `agent_conversations` migration is only publishable and was not published (conversations live in our tables).
+- `App\Services\Ai\{AiRuntime, AiRun, AiPricing, AiCostCap, RetryTransientStep}`: provider/model from `AiProviderSettings` (Settings `ai.provider`, `ai.model`); key copied from `services.{provider}.api_key` into the SDK config right before the call; synchronous `prompt()` with 60 s timeout; one retry on 429/5xx/connection (step middleware); one `ai_interactions` row per provider call, ok or error (provider, model, feature, input/cached/output tokens, cost, duration, status; `error` = class + HTTP status only). Monthly cap: `off_no_key` / `off_cap` (nothing sent); 80 % warning and 100 % critical alerts once per Bogotá month (group key `ai.cost_cap.{warning|reached}:YYYY-MM`) to `settings.manage` holders. Prices: `gestor.ai.prices` (USD per million tokens: input, cached_input, output; DeepSeek list prices, confirm before go-live).
+- Engine `App\Domain\Assistant\AssistantEngine::ask(User, AssistantConversation, question, channel)` / `answer()` (retry): stores the question first; `/aprender …` → `LearnDrafts` (works with the AI off); `AssistantAgent` (`#[MaxSteps(5)]`, `Conversational` with the last 30 min, fixed Spanish instructions + tool catalog first = cached prefix). Reply: the message a tool already wrote (notice, choice, vault link, refusal) | `error` retryable "El asistente no está disponible en este momento, intenta en unos minutos." + `Log::warning` | `no_answer` (text says "No lo tengo documentado", empty answer, or lookups found nothing) + `Unanswered::record()` with conversation/message ids | `answer` with sources = cited `[K-031]` keys among the cards the tools returned (else cards opened with `ver_ficha`), citation brackets removed from the text, one `assistant_citations` row per source.
+- Tools: `App\Domain\Assistant\Tools\{AssistantTool, ToolResult, ToolContext, ToolCatalog, SdkTool, SchemaValidator, PrivacyFilter}` + `SearchKnowledgeTool` (`buscar_conocimiento`, C1 search with visibility), `ShowCardTool` (`ver_ficha`, placeholders sent as "sin documentar"), `SearchProductsTool` / `ShowProductTool` (`buscar_productos` / `ver_producto`, company context, never costs), `SearchRequestsTool` (`buscar_solicitudes_gestor_ia`, `AiRequestPolicy::view`, public fields only), `DeliverCredentialTool` (`entregar_credencial`). Registered in `config/gestor.php` `assistant.tools`. `SdkTool` validates the arguments against the JSON schema (invalid → "Argumentos inválidos: …" to the model, the tool does not run), catches tool failures, and passes every result through `PrivacyFilter` (drops keys naming password/secret/token/value/ciphertext/api key/cost/rate/tarifa/salary/sueldo at any depth; masks SecretGuard hits in text).
+- Passwords: `App\Domain\Assistant\CredentialDelivery` needs `assistant.credentials` AND `credentials.view` (else `refused`); `EmployeeCredentialService::findForDelivery()` (no password), one access per person, only companies the asker may reveal. 1 → `credential_notice` (system message: access id, employee id, system, user name; activity `credential_delivered`); >1 → `person_choice` ("Hay dos personas con ese nombre. ¿De cuál?") answered once through `assistant.people.pick`; 0 → a vault item whose name matches a significant word → `vault_link`; else "no encontrada". The model only hears the outcome. Assets (`tipo: activo`) are "no encontrada" until the inventory module exists.
+- Reveal/copy (`Assistant\CredentialController`): owner of the conversation + both permissions, within `gestor.assistant.credentials.reveal_minutes` (10) of the delivery (re-reveal allowed in the window, each one audited and noticed). Reveal reads through `EmployeeCredentialService::reveal($user, $access, 'assistant')` (activity `credential_revealed`), notifies the vault holders (Jhon) with `AssistantCredentialRevealed` (event `assistant.credential.revealed`, Telegram + bell required), and renders `Assistant/Chat` from the POST with `revealed_credential {message_id, value, expires_in_seconds: 30}`, `encryptHistory`, `Cache-Control: no-store, no-cache, private, max-age=0` and the chat URL (`Inertia::resolveUrlUsing`). Copied logs `credential_copied` and renders the page (partial `conversation`).
+- Chat: `Assistant\ChatController` + `App\Support\Assistant\ChatPage` (lazy props) + `Presenters\ChatPresenter`. Routes: `assistant.index` (replaces the TEMPORARY placeholder), `assistant.conversations.store` (reuses an empty conversation), `assistant.messages.store` (`?conversation=`; throttle `assistant-ask` 20/min), `assistant.messages.retry`, `assistant.people.pick`, `assistant.credentials.reveal` (throttle `credentials-reveal`), `assistant.credentials.copied`; writes need `can:assistant.use`. Status: `off_no_key` | `off_cap` | `unavailable` (the open conversation ends with an error) | `ready`; `monthly_cap` "US$ 20"; `can_configure_ai` = `settings.manage`; `access_holders` = active `assistant.use` holders, only for people without it.
+- Schema `2026_10_24_000001_create_assistant_chat_tables`: `assistant_conversations`, `assistant_messages` (role, kind, body, payload json — never a secret —, status, ai_interaction_id), `assistant_citations`. Card usage (`usage_count_month` in the Bogotá month, `last_cited_at`, `last_cited_by`) comes from citations (managers only, like the rest of that block).
+- `/aprender` AI parser: `AiDraftParser` + `LearnAgent` (one call, JSON out, feature `assistant_learn`) over the heuristic result; unusable output or failure → heuristic. `AppServiceProvider` binds it while `AiRuntime::ready()`, else `HeuristicDraftParser`.
+- Integrations `ai.month_spend_usd` already sums every USD `ai_interactions` row of the month, assistant included (verified by a test, no change).
+- `tests/TestCase.php` sets `services.deepseek.api_key` to null, so a local `.env` key never turns the AI on in tests.
+- Tests (RED observed first: 38 tests, 35 failing — 7 failures + 28 errors): `tests/Feature/Assistant/Chat/{ChatTestCase, AssistantEngineTest, CredentialDeliveryTest, ChatPageTest, AiDraftParserTest}`, `tests/Unit/Assistant/ToolSafetyTest`. The provider is always `Http::fake` + `Http::preventStrayRequests()`; the password never appears in any recorded request body nor in `assistant_messages`.
+- Checks: `php artisan test` 888 passed (9389 assertions); `vendor/bin/pint --test` pass; `npm run typecheck` pass; `route:list --path=assistant` 32 routes; migrate up/rollback/up on a temp SQLite file OK. Commit `a8d50e8`.
+
+Decisions (C3):
+- Laravel AI SDK kept (it exists for Laravel 13 with DeepSeek and tool calling). "One retry on 429/5xx" is per provider call (step middleware), so each attempt is its own `ai_interactions` row.
+- Contract kinds win over the brief: `no_answer` (not `not_documented`), `person_choice` + `assistant.people.pick`, `error` with `retryable`.
+- `/aprender` typed in the chat creates the draft (answer "Listo: guardé el borrador «…»…"); rejected text answers `refused` with the C2 message.
+- Off states reject the question with `errors.question` ("El asistente no está activo en este momento." / "El asistente llegó al tope de gasto del mes.") without storing it; `/aprender` still works.
+- Cap alerts go to `settings.manage` holders (Súper Admin: Jhon and Leonardo); reveal notices go to the vault holders (Jhon), like vault accesses.
+- The system prompt and tool descriptions name no company (never assume a fixed set of companies).
+- `answer.suggestions` is always `[]` and `no_answer.suggestions_label` null (no reliable source for them yet).
+
+Notes for design (no visual change needed):
+- "Ninguno de los dos" answers with an `answer` message "Entendido, no entregué ninguna contraseña."; the choice keeps `resolved_option_id: null`, so its buttons stay enabled (a second pick gets the flash error "Esta pregunta ya se respondió.").
+- A credential notice can be shown again within 10 minutes; after that "Mostrar" gets the flash error "Esta entrega venció. Pide la contraseña otra vez en el chat.".
+- A `vault_link` whose vault item was deleted renders as `refused` with the same text.
+
+Env keys (`.env.example` not editable here): `DEEPSEEK_API_KEY` (already in `config/services.php`, like the other providers' keys). No new keys.
+
+### C4 · Telegram assistant
+- Routing (`App\Telegram\UpdateHandler`, private chats only): 1) pending reply (`App\Telegram\PendingReplies`: one per chat, kind + data + 15 min; kinds `approval-reason` → `ApprovalCallbackHandler`, `learn-discard` → `LearnCallbackHandler`, both `Contracts\PendingReplyHandler`, `/cancelar` included) — the B4 rejection reason still wins over the assistant; 2) `/horas`; 3) `/start {token}`; 4) `/aprender` of a linked active user (`Commands\LearnCommand`); 5) plain text of a linked active user → `Assistant\TelegramAssistant`; 6) anything else / unlinked → help (unchanged).
+- Questions (`TelegramAssistant`): `assistant.use` (else `NO_ACCESS`), per-chat limit `gestor.telegram.assistant_per_minute` (20, shared with `/aprender`, else `RATE_LIMITED`), 500 chars like the app; off (`off_no_key`/`off_cap`) → "El asistente no está disponible…" with nothing stored and no typing; runs authenticated as the linked user (`TelegramAssistant::actingAs`, guard restored after) on the telegram conversation of that chat with activity in the last 30 min (else a new one, `telegram_chat_id` set); any exception → the same "no disponible" text + `Log::error`.
+- Typing: `Assistant\TypingIndicator` (singleton) sends `typing` at start and again ≥4 s later on `StepCompleted` / `InvokingTool` of the AI SDK.
+- Format (`Assistant\ReplyFormatter`, `TelegramHtml`): `parse_mode HTML`, link previews off; text escaped (`& < >`, `"` in href) before tags; `**x**` → `<b>`, list lines → `• `; ≤4 paragraphs and ≤3,500 chars cut after the last complete paragraph + "Ver respuesta completa en el Gestor TI" (link to `assistant.index?conversation=`); `<b>Fuentes:</b>` last (one source inline, several one per line), never cut; `no_answer` fixed text + "Ver preguntas sin respuesta" button for `assistant.knowledge.manage`; `error` → "no disponible"; `vault_link` → fixed text + "Abrir en la bóveda" (`ai.vault.index?item=`); `person_choice` → one signed button per person.
+- Signed callbacks (`App\Telegram\SignedCallback`): `{prefix}:{payload}:{12-char HMAC of prefix+payload+chat id}`, bound to the chat, ≤64 bytes. Prefixes in `config/gestor.php`: `learn` (`learn:ok|no:{draft}`) and `cred` (`cred:pick:{choice message}:{option index}`). Tampered, foreign-chat or expired → "Esta acción ya no está disponible."
+- `/aprender` (`LearnCommand` + `LearnCallbackHandler` + `Assistant\DraftMessage`): `assistant.knowledge.manage` (else `NOT_ALLOWED`); `LearnDrafts::fromText(…, 'telegram', chat)` (AI parser when on); the draft message id is saved. Buttons Aprobar / Descartar / "Editar en el Gestor TI" (`assistant.drafts.index?borrador=&desde=telegram`). Aprobar re-checks the permission, needs title + company (else Telegram texts `NEEDS_TITLE`/`NEEDS_COMPANY`), approves with the proposed visibility and review date, edits the draft message ("Aprobado por ti · 9:40 a. m.", no buttons) and replies "Ficha K-… creada: <link>. Desde ya la uso para responder." Descartar asks the reason (pending reply, ≤500 chars), then discards, edits ("Descartado por ti · …") and replies "Listo, descarté el borrador."; `/cancelar` keeps it.
+- Passwords (`Assistant\CredentialSender`, `Handlers\CredentialCallbackHandler`): on a `credential_notice` the bot re-checks both permissions, reads the value with `EmployeeCredentialService::reveal($user, $access, 'telegram')`, sends a notice ("Listo. Te envío la contraseña de Office de Juan Pérez en un mensaje aparte.") and then the §4 message (`<code>` value escaped, `protect_content`, HTML) through `sendEphemeral`; `DeleteTelegramMessage` (now with fallback text, access id and causer) deletes it after `gestor.telegram.credential_seconds` (60), edits it to "Mensaje borrado por seguridad" when the delete fails, retries when both fail, and audits `credential_message_deleted` (outcome deleted|edited|failed). Vault holders get `AssistantCredentialRevealed` with channel "Telegram". The choice tap re-checks permissions, conversation owner + chat, freshness (`reveal_minutes`, 10) and is answered once; the choice message loses its buttons.
+- `TelegramClient`: `editMessageText(..., $options)` (parse_mode); `sendEphemeral(..., $options, $fallbackText, $accessId, $causerId)`.
+- Tests (RED observed first: 26 of 33 failing — 8 failures + 18 errors — in `tests/Feature/Assistant/Telegram` + the new approval test): `tests/Feature/Assistant/Telegram/{TelegramAssistantTestCase, TelegramQuestionsTest, TelegramLearnTest, TelegramCredentialsTest}`, `tests/Feature/Ai/Triage/TelegramApprovalTest::test_the_rejection_reason_wins_over_the_assistant`. Telegram and DeepSeek always `Http::fake` + `preventStrayRequests`; the password never appears in any provider request nor in `assistant_messages`.
+- Checks: `php artisan test` 915 passed (9576 assertions); `vendor/bin/pint --test` pass. No migrations (C2/C3 columns sufficed). Commit `a479746`.
+
+Decisions (C4):
+- Texts the format does not define (backend wording, flag for design): no `assistant.use` → "No tienes acceso al Asistente TI. Si lo necesitas, pídelo a TI."; rate limit → "Vas muy rápido. Espera un minuto y vuelve a preguntar."; `/aprender` without permission → "Solo quien administra la base de conocimiento puede usar /aprender y decidir borradores. Pídeselo a TI."; approve blocked → "Falta el título/la empresa. Complét… con «Editar en el Gestor TI» y apruébalo ahí."; credential notice before the separate message; "No pude enviar la contraseña…" when Telegram refuses it.
+- `/aprender` on Telegram requires `assistant.knowledge.manage` (the app chat still lets `assistant.use` holders create drafts, C3).
+- The password message uses `Contraseña: <code>…</code>` exactly as §4; "Este mensaje se borra en 60 s" follows the configured seconds.
+- Suggested-question buttons (`ask:s:…`) and the product url button of §2a are not sent: the engine has no suggestions (`[]`) and does not track cited products yet.
+- One telegram conversation per chat per 30-minute window; it shows in the app conversation list like any other of the person.
+
+Notes for design (no visual change needed):
+- Drafts page opened from the bot always carries `?borrador={id}&desde=telegram`.
+- The person-choice message keeps its text and loses its buttons after a tap (not specified in the board).
+
+### C5 · Pending Stage B forms
+- Schema `2026_10_25_000001_add_form_columns_to_ai_products`: `ai_products.kind` (web|robot|integration|mobile, default web); `ai_product_incidents` + `impact`, `description`, `resolution`, `origin` (manual, default), `notified_user_ids` json.
+- Products (`ai.manage`, AiProductPolicy create/update): `AI\ProductFormController` (`ai.products.create|store|edit|update`), `App\Domain\Ai\ProductForm` (options, blank/stored values, old input), `ProductRequest`, `App\Actions\Ai\SaveProduct`. Routes `POST ai/products`, `PUT ai/products/{product}`; no destroy route (DELETE answers 405).
+- Incidents (`ai.manage`): `AI\ProductIncidentController` (`ai.products.incidents.create` = `ProductController::sheet($product, open: true)`, `ai.products.incidents.store`), `App\Domain\Ai\IncidentForm` (`incident_form` on every Show), `ProductIncidentRequest` (failed store redirects to `incidents.create`, so Show renders with shared `errors`, `incident_form.open = true` and the old input turned back into `IncidentFormData`), `App\Actions\Ai\RegisterProductIncident`, `App\Notifications\ProductIncidentRegistered`.
+- Vault (`vault` middleware + open `VaultSession`): `AI\VaultItemController` (`ai.vault.create` GET `ai/vault/create`, `ai.vault.store` POST `ai/vault`, `ai.vault.edit`, `ai.vault.update` PUT `ai/vault/{item}`, `ai.vault.destroy` DELETE `ai/vault/{item}`), `App\Support\Vault\VaultItemForm` (rules, owner resolution, choices, typed-name check), through `ManageVaultItems` (access log create/update/delete + `VaultAccessed` Telegram notice). `AiVaultItem::NO_OWNER`.
+- TEMPORARY `ai.products.create|edit|incidents.create`, `ai.vault.edit` and `PendingDesignController` removed (nothing else used it: `ai.reviews.store` is `StageBPlaceholderController`, `employees.create` its own controller).
+- Tests (RED observed first: 37 tests, 8 failures + 23 errors): `tests/Feature/Ai/Knowledge/{ProductFormsTest, ProductIncidentsTest}`, `tests/Feature/Ai/Vault/VaultItemFormsTest`; `ProductPagesTest` Show contract + `incident_form`, placeholder tests removed from `ProductPagesTest` and `VaultAccessTest`.
+- Checks: `php artisan test` 943 passed (9991 assertions); `vendor/bin/pint` fixed 4 files, `vendor/bin/pint --test` pass; `npm run typecheck` pass; `route:list --path=ai/products` 8 routes, `--path=ai/vault` 10 routes, no placeholders; migrate up/rollback/up on a temp SQLite file OK. Commit `224d91f`.
+
+Decisions (C5):
+- Types win over the brief: the product form has no monthly cost, AI provider/model, repository or Notion fields (`ProductFormData` does not carry them; the repository shows "Se conecta en la etapa D"), so nothing is gated by `ai.costs.*` here and those columns keep their seeded values.
+- Product companies: the chosen ones; the primary company is the area's company. Area: the chosen one becomes primary and replaces the previous primary; secondary areas of the chosen companies stay (areas of companies no longer chosen are dropped).
+- Linkable requests: open requests without product (every company, products are multi-company) plus the ones already linked; unlinking a key in the form clears `product_id`. A new current version creates its `ai_product_versions` row ("Versión registrada en la ficha del producto.", source manual).
+- Slug unique also against soft-deleted products ("Ese slug ya lo usa X. Prueba con otro."); version `v1.2.3`; URL empty, `http(s)://…` or a `[URL DE …]` placeholder; `hosts` = GoDaddy, Vercel, Equipo local, Servidor de SAP (+ the stored value when it is another one).
+- Owners = active users. Clearing the owner keeps `owner_name` (free-text fallback) as the shown owner.
+- Activity: model `created`/`updated` (now also `description`, `kind`) + `product_relations` (companies, area, request keys); incidents `product_incident` on the product.
+- Incidents: Bogotá wall time, not in the future (1 min slack), end ≥ start; `notify_ids` must be `ai.manage` holders (`notify_people`); the owner is notified only when it is an active user (`notify_owner` default false otherwise; `owner_label` "[DUEÑO]" when unknown). Notification event: there is no own catalog entry and `config/notifications.php` was outside the edit surface, so `ProductIncidentRegistered` rides `alert.critical` (critical impact) or `alert.info` (others) — mail, Telegram and bell by default.
+- Vault: the session check comes before validation (a locked vault never answers with field errors) and redirects to `ai.vault.index` (`{item}` when there is one) with "La bóveda está cerrada. Confirma tu identidad con Microsoft para cambiar credenciales.". Validation errors go back without flashing `value` or `confirm_name` (Laravel's `dontFlash` does not list `value`). "Proyecto" = product name, else project name; choices = pairs of stored items + non-retired products and non-closed projects × both environments; `?product=&environment=` preselects only a listed pair. Rotation 30/60/90/180 or null; empty username → null; a new value stamps `last_rotated_at`.
+- Delete: server-side typed-name check on `confirm_name` (trimmed, case-sensitive, like `deleteConfirmMatches`); error key `confirm_name` "Escribe el nombre exacto de la credencial para eliminarla.".
+
+Notes for design (action needed):
+- `VaultItemForm.tsx` `destroy()` sends no body today; the server requires `confirm_name`: change to `router.delete(route('ai.vault.destroy', { item }), { data: { confirm_name: confirmText }, … })` and add `confirm_name` to the `ai.vault.destroy` line of the `ai-value-vault.ts` header. Until then "Eliminar credencial" answers with the `confirm_name` error (not shown by the form).
+- Product form success flashes: "Producto creado." / "Cambios guardados."; incident "Incidente registrado."; vault "Credencial guardada." / "Cambios guardados." / "Credencial eliminada.".
+- `requests` lists every open unlinked request of every company (newest first); it may grow long.
+
+## Stage C summary
+
+What was built (C0–C5):
+- Knowledge base (cards K-NNN, 5 types, visibility "Solo TI"/"Toda la empresa", links, glossary synonyms, FULLTEXT search, 6-month review reminder).
+- Curation: Excel/CSV import (mapping, preview, apply, errors file), `/aprender` drafts (approve/merge/discard), unanswered questions.
+- Asistente TI engine (Laravel AI SDK + DeepSeek, 5 read-only tools + credential delivery, 30-min context, `ai_interactions` cost log, monthly cap 80/100 %) and the chat page; password reveal 30 s with audit and Telegram notice.
+- Telegram assistant: questions, `/aprender` with buttons, password as a separate message deleted after 60 s.
+- Pending Stage B forms: product create/edit, incident drawer, vault item create/edit/delete.
+
+How to test on the server:
+1. Chat (`/assistant`) as Jhon: ask about a card ("¿Quién envía el informe de cartera?") → answer with "Fuentes"; ask something undocumented → appears in "Preguntas sin respuesta"; `/aprender …` → draft in "Borradores".
+2. Import: download the template, fill a row, upload, map, preview, apply; check the errors file with a bad row.
+3. Telegram (linked account): ask the bot a question (typing, answer with sources); `/aprender …` → Aprobar/Descartar buttons; "contraseña de Office de Juan Pérez" → notice + separate message that disappears after 60 s; Jhon gets the reveal notice.
+4. Products: "Agregar producto", edit one (change area/state to Retirado), "Registrar incidente" (open and resolved) → notice to the chosen people.
+5. Vault: unlock with Microsoft, "Nueva credencial", "Cambiar valor" (empty value keeps it), delete typing the name (after the design fix above) → Telegram notice for each change.
+
+Server steps:
+- `composer install --no-dev` with the new packages `laravel/ai` (^1.2) and `openspout/openspout` (^5.3) (already in composer.json/lock).
+- `php artisan migrate --force` (Stage C: `2026_10_22_000001` … `2026_10_25_000001`).
+- `php artisan config:cache && php artisan route:cache`; cron `schedule:run` adds `assistant:knowledge-review-reminders` (Mondays 08:00 Bogotá).
+- Optional demo cards: `php artisan db:seed --class=AssistantDemoSeeder` (never in production with real data).
+
+Environment keys: `DEEPSEEK_API_KEY` (without it the assistant shows `off_no_key`), `ASSISTANT_IMPORT_MAX_KB` (optional, default 10240), plus the Stage B ones (`VAULT_KEY`, Telegram bot token/webhook). `.env.example` was not editable from this worktree: add both keys there.
+
+Open questions for Jhon:
+- DeepSeek prices in `gestor.ai.prices` (USD per million tokens: input, cached input, output) — confirm before go-live.
+- Monthly cap value (Settings `ai.monthly_cost_cap_usd`, shown as "US$ 20" in the design) and who receives the cap alerts (today `settings.manage`: Jhon and Leonardo).
+- Telegram texts written by the backend where the format had none (no access, rate limit, `/aprender` without permission, approve blocked, password notices) — design must approve.
+- `/aprender` permission differs: app chat lets `assistant.use` create drafts; Telegram requires `assistant.knowledge.manage`. Align?
+- Placeholders still open: `[NOMBRE DEL BOT]`, `[TOPE MENSUAL]`, `[FRECUENCIA]`/`[VERSIÓN]` in sample cards, `[RUTA EN SAP]`, `[DUEÑO]`/`[URL DE …]` of the seeded products.
+- Product incidents: add an own notification event (`ai.product.incident`) to `config/notifications.php` instead of riding `alert.*`?
+
+Remaining TEMPORARY routes: `ai.reviews.store` (weekly review, `StageBPlaceholderController`) and `employees.create` (manual employee creation, redirects with a notice).
+
+## Next step
+Stacked PRs opened 2026-10-10 on GrupoRyR/GESTOR-TI (on top of #19): #21 `stage-c/01-design-merge` → #22 `02-knowledge-base` → #23 `03-curation` → #24 `04-assistant-engine` → #25 `05-telegram-assistant` → #26 `06-pending-forms`.
+Pending for design: `VaultItemForm.tsx` delete must send `{ confirm_name }` (server requires the exact name). Then Stage D (design PR #20 `claude/diseno-gestor-ia-etapa-d`).

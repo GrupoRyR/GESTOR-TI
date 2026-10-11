@@ -1,0 +1,23 @@
+{
+  "action": "opened",
+  "number": 41,
+  "pull_request": {
+    "number": 41,
+    "html_url": "https://github.com/GrupoRyR/portafolio/pull/41",
+    "state": "open",
+    "draft": false,
+    "title": "GIA-139 · T3 Endpoint de zonas",
+    "body": "Filtra la cartera por zona.\n\nCloses #12",
+    "user": {"login": "leoh"},
+    "head": {"ref": "gia-139-t3-endpoint-zonas", "sha": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"},
+    "base": {"ref": "main"},
+    "merged": false,
+    "merged_at": null,
+    "merged_by": null,
+    "commits": 3,
+    "created_at": "2026-10-07T13:10:00Z",
+    "closed_at": null
+  },
+  "repository": {"id": 501, "full_name": "GrupoRyR/portafolio", "name": "portafolio", "default_branch": "main"},
+  "sender": {"login": "leoh"}
+}

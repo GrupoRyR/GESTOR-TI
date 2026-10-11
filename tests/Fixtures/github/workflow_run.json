@@ -1,0 +1,16 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 9001,
+    "name": "Pruebas",
+    "head_branch": "gia-139-t3-endpoint-zonas",
+    "head_sha": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/GrupoRyR/portafolio/actions/runs/9001",
+    "updated_at": "2026-10-07T13:20:00Z",
+    "pull_requests": [{"number": 41}]
+  },
+  "repository": {"id": 501, "full_name": "GrupoRyR/portafolio", "name": "portafolio", "default_branch": "main"},
+  "sender": {"login": "leoh"}
+}

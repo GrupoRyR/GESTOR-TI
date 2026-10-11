@@ -9,6 +9,10 @@
 /* Class sources: the React app and the backend-free preview gallery. */
 @source '../js';
 @source '../../ui-preview';
+/* Laravel Blade views (root template, pagination, compiled views). */
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
 
 /*
  * Design tokens — extends the Portal RYR design system (approved

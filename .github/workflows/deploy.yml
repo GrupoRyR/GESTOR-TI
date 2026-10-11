@@ -1,0 +1,121 @@
+name: Deploy (cPanel)
+
+# Builds the app on the runner (front-end + production vendor) and uploads it
+# to the cPanel account over SSH with rsync. Server-only files (.env,
+# storage/, public/storage, backups) are never sent nor deleted.
+#
+# Secrets: CPANEL_HOST, CPANEL_USER, CPANEL_SSH_KEY (private key, no
+# passphrase), CPANEL_PORT (optional, default 22), CPANEL_APP_PATH (e.g.
+# ~/gestor-ti), CPANEL_KNOWN_HOSTS (optional; else ssh-keyscan is used).
+# Variable (optional): CPANEL_PHP_BIN (default `php`).
+#
+# Seeders are NOT run here: they only run on the first install
+# (docs/deploy-cpanel.md); re-running RolesAndPermissionsSeeder would reset
+# the role matrix.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SSH_HOST: ${{ secrets.CPANEL_HOST }}
+      SSH_USER: ${{ secrets.CPANEL_USER }}
+      SSH_PORT: ${{ secrets.CPANEL_PORT || '22' }}
+      APP_PATH: ${{ secrets.CPANEL_APP_PATH }}
+      PHP_BIN: ${{ vars.CPANEL_PHP_BIN || 'php' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3, zip, intl, gd, fileinfo, openssl
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # Never deploy a red build.
+      - name: Test
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+          php artisan test
+          rm .env
+
+      - name: Build front-end
+        run: |
+          npm ci
+          npm run build
+
+      - name: Production dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.CPANEL_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Maintenance mode
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "mkdir -p ${APP_PATH} && cd ${APP_PATH} && if [ -f artisan ]; then ${PHP_BIN} artisan down --retry=30 || true; fi"
+
+      - name: Upload (rsync)
+        run: |
+          rsync -az --delete \
+            -e "ssh -i $HOME/.ssh/deploy_key -p $SSH_PORT" \
+            --exclude='/.git/' \
+            --exclude='/.github/' \
+            --exclude='/.env' \
+            --exclude='/.env.*' \
+            --exclude='/.user.ini' \
+            --exclude='/.well-known/' \
+            --exclude='/node_modules/' \
+            --exclude='/tests/' \
+            --exclude='/odd/' \
+            --exclude='/storage/' \
+            --exclude='/bootstrap/cache/' \
+            --exclude='/public/storage' \
+            --exclude='/public/hot' \
+            ./ "$SSH_USER@$SSH_HOST:${APP_PATH}/"
+
+      - name: Migrate and optimize
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "set -e; cd ${APP_PATH}; \
+            mkdir -p storage/app/public storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache; \
+            ${PHP_BIN} artisan migrate --force; \
+            ${PHP_BIN} artisan optimize:clear; \
+            ${PHP_BIN} artisan optimize; \
+            ${PHP_BIN} artisan storage:link || true; \
+            ${PHP_BIN} artisan up"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

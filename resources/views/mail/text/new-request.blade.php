@@ -1,0 +1,18 @@
+Llegó una solicitud nueva de {{ $area_name }}
+
+{{ $request_key }} · Recibida
+{{ $request_title }}
+
+Empresa: {{ $company_name }}
+Área: {{ $area_name }}
+La pidió: {{ $requester_name }}
+Tiempo de hoy: {{ $time_spent_today }}
+
+Primera respuesta antes de {{ $first_response_due }}.
+
+Ver solicitud: {{ $action_url }}
+
+--
+Gestor TI · Grupo RYR · {{ $company_name }}
+Recibes este correo porque eres de TI y te llegan las solicitudes nuevas de {{ $company_name }}. Lo envía {{ $company_sender }}.
+Cambiar mis avisos: {{ $preferences_url }}

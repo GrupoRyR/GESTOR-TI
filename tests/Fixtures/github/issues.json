@@ -1,0 +1,16 @@
+{
+  "action": "closed",
+  "issue": {
+    "number": 12,
+    "html_url": "https://github.com/GrupoRyR/portafolio/issues/12",
+    "state": "closed",
+    "title": "GIA-139 · T3 Endpoint de zonas",
+    "body": "Creado desde Gestor TI · solicitud GIA-139",
+    "user": {"login": "jhonc"},
+    "labels": [{"name": "gestor-ia"}],
+    "created_at": "2026-10-05T15:00:00Z",
+    "closed_at": "2026-10-07T14:00:00Z"
+  },
+  "repository": {"id": 501, "full_name": "GrupoRyR/portafolio", "name": "portafolio", "default_branch": "main"},
+  "sender": {"login": "leoh"}
+}

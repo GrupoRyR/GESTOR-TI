@@ -19,6 +19,6 @@
             "@/*": ["./resources/js/*"]
         }
     },
-    "include": ["resources/js", "ui-preview"],
+    "include": ["resources/js", "ui-preview", "vite.config.ts"],
     "exclude": ["node_modules", "ui-preview/dist"]
 }
