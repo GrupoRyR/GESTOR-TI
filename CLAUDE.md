@@ -19,6 +19,20 @@ IT platform for Grupo Empresarial RYR (Segurex Latam, Soluciones y Derivados de 
 - Design owns: `resources/css/`, `resources/js/Components/ui/`, `resources/js/Layouts/`, `resources/js/Pages/`, `resources/js/types/`, `resources/js/mocks/`, `ui-preview/`.
 - App owns: PHP, `routes/`, controllers, `HandleInertiaRequests`. Each controller returns exactly the props of its page type and is covered by an `assertInertia` test.
 - If a page needs a missing field, add it to the type and mock in the same PR and flag it for design; never edit visual components.
+- Shared root files have one owner; the other agent asks instead of editing:
+  - The app owns `package.json`, `package-lock.json`, `composer.*`, `tsconfig.json`, `vite.config.*` and `.gitignore`.
+  - Design owns `resources/css/app.css`.
+
+## Delivery (both agents)
+- `main` is the only source of truth. Every stage starts from an up-to-date `main`.
+  - Never merge another agent's unmerged branch into yours. If you need it, wait until it lands in `main`.
+- Merge per stage, not at the end:
+  1. The design PRs of the stage land in `main`.
+  2. The app agent updates from `main` and connects the stage.
+  3. The app PRs of the stage land in `main`.
+  4. The next stage starts.
+- Keep stacks short: at most about 6 open PRs per agent. Past that, merge what is ready before stacking more.
+- Before opening or updating a PR, update from `main` and run the checks (`php artisan test`, `vendor/bin/pint --test`, `npm run typecheck`, `npm test`, `npm run build`). A PR that conflicts with `main` is fixed the same day.
 
 ## Commands
 - `php artisan test` — test suite.
