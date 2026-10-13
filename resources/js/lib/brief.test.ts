@@ -19,8 +19,8 @@ import {
 
 const PRODUCT = { name: 'Visualizador de cartera', version: 'v3.1.0', stack: 'Next.js', host: 'Vercel', data_source: 'SAP Business One vía [FUENTE]' };
 const LINKS = [
-    { label: 'Repositorio', url: 'https://github.com/[ORG]/visualizador-cartera' },
-    { label: 'Instrucciones para Claude (CLAUDE.md)', url: 'https://github.com/[ORG]/visualizador-cartera/blob/main/CLAUDE.md' },
+    { label: 'Repositorio', url: 'https://github.com/GrupoRyR/visualizador-cartera' },
+    { label: 'Instrucciones para Claude (CLAUDE.md)', url: 'https://github.com/GrupoRyR/visualizador-cartera/blob/main/CLAUDE.md' },
     { label: 'Manual técnico y de despliegue', url: 'https://gestor.example/ai/docs/manual-tecnico' },
 ];
 
@@ -161,7 +161,7 @@ describe('buildRequestBrief', () => {
         expect(md).toContain('- Tecnología: Next.js, publicado en Vercel');
         expect(md).toContain('- Datos: SAP Business One vía [FUENTE]');
         expect(md).toContain('## Enlaces');
-        expect(md).toContain('- Repositorio: https://github.com/[ORG]/visualizador-cartera');
+        expect(md).toContain('- Repositorio: https://github.com/GrupoRyR/visualizador-cartera');
     });
 
     it('leaves out sections that are off, and adds tasks and decisions only when on', () => {

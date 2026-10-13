@@ -5,7 +5,7 @@
  *
  * Conventions:
  * - Dates: ISO 8601 instants with offset; the UI formats them in America/Bogota.
- * - Repository names are `owner/name` (`[ORG]/visualizador-cartera`).
+ * - Repository names are `owner/name` (`GrupoRyR/visualizador-cartera`).
  * - Secrets (app private key, webhook secret, tokens) are NEVER props; only
  *   `configured: boolean`.
  * - Work is linked by the request key `GIA-123` found in the title, body or
@@ -53,7 +53,7 @@ export interface GitHubConnection {
     kind: 'app' | 'token';
     /** "Gestor TI RYR". */
     app_name: string;
-    /** "[ORG]" until the real name is confirmed. */
+    /** "GrupoRyR": a GitHub user account today; it may become an organization later. */
     organization: string;
     installed_repos_count: number;
     permissions: GitHubPermission[];
@@ -75,7 +75,7 @@ export interface GitHubConnection {
 
 /** A repository the app is installed on. */
 export interface GitHubRepo {
-    /** "[ORG]/visualizador-cartera". */
+    /** "GrupoRyR/visualizador-cartera". */
     full_name: string;
     /** "visualizador-cartera". */
     name: string;
@@ -207,7 +207,7 @@ export interface PlannedRelease {
 
 /** Release page (`Ai/Releases/Show`). */
 export interface Release extends ReleaseSummary {
-    /** "[ORG]/portafolio". */
+    /** "GrupoRyR/portafolio". */
     repo: string;
     author: GitHubActor;
     included: ReleaseRequest[];
@@ -230,7 +230,7 @@ export type WebhookEventStatus = 'processed' | 'failed';
 export interface WebhookEvent {
     id: number;
     type: WebhookEventType;
-    /** "[ORG]/visualizador-cartera". */
+    /** "GrupoRyR/visualizador-cartera". */
     repo: string;
     received_at: string;
     status: WebhookEventStatus;

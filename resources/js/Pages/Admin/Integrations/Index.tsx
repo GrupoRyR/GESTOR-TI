@@ -220,7 +220,7 @@ function GithubCard({ github, canManage }: { github: IntegrationsProps['github']
         >
             <form onSubmit={submit} noValidate className="flex flex-1 flex-col gap-3">
                 <TextField
-                    label="Organización"
+                    label="Cuenta de GitHub"
                     value={form.data.organization}
                     onChange={(event) => form.setData('organization', event.target.value)}
                     error={form.errors.organization}
@@ -236,7 +236,7 @@ function GithubCard({ github, canManage }: { github: IntegrationsProps['github']
                     ) : null}
                     {form.isDirty ? (
                         <Button type="submit" variant="secondary" loading={form.processing}>
-                            Guardar organización
+                            Guardar cuenta
                         </Button>
                     ) : null}
                     {github.install_url ? (
@@ -250,7 +250,7 @@ function GithubCard({ github, canManage }: { github: IntegrationsProps['github']
                             <Button variant="dark" disabled>
                                 Instalar la app de GitHub
                             </Button>
-                            <span className="text-xs text-fg-muted">Primero guarda la organización.</span>
+                            <span className="text-xs text-fg-muted">Primero guarda la cuenta de GitHub.</span>
                         </>
                     )}
                 </div>
