@@ -44,7 +44,7 @@ const adminCosts: AdminCostsPage = {
     ],
     approvers: [
         { person: PEOPLE.jhon, detail: 'Líder IA · Segurex' },
-        { person: PEOPLE.edward, detail: '[CARGO] · Gerencia · Segurex' },
+        { person: PEOPLE.edward, detail: 'CEO · Gerencia · Segurex' },
     ],
     approver_candidates: [PEOPLE.leonardo],
     settings: { require_other_approver: true, reapproval_threshold_percent: 20 },

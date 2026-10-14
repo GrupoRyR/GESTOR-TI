@@ -17,7 +17,7 @@ export interface RepoHeaderProps {
     className?: string;
 }
 
-/** `[ORG]/repo` with privacy, main branch, link note, data age and "Ver en GitHub". */
+/** `GrupoRyR/repo` with privacy, main branch, link note, data age and "Ver en GitHub". */
 export function RepoHeader({ repo, linkedLabel, fetchedAt, now, actions, className }: RepoHeaderProps) {
     const at = now ? new Date(now) : new Date();
     return (

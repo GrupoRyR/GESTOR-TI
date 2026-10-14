@@ -63,7 +63,7 @@ export const EMPLOYEES: EmployeeRow[] = [
         id: 104,
         name: 'Edward Ramanan',
         email: 'edward.ramanan@segurex.com',
-        job_title: '[CARGO]',
+        job_title: 'CEO',
         area: area(3),
         company_id: SEGUREX.id,
         manager_name: null,

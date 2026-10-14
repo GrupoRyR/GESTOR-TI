@@ -339,7 +339,7 @@ export type RepoState =
     | { connected: false }
     | {
           connected: true;
-          /** Repository `full_name`: "[ORG]/visualizador-cartera". Read from GitHub with the app; never edited here. */
+          /** Repository `full_name`: "GrupoRyR/visualizador-cartera". Read from GitHub with the app; never edited here. */
           name: string;
           branch: string;
           fetched_at: string;

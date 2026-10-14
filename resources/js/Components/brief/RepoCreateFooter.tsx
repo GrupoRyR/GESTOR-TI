@@ -8,7 +8,7 @@ import { repoNameError } from '@/lib/brief';
 import type { BriefCopyControl } from './BriefPanel';
 
 export interface RepoCreateFooterProps {
-    /** "[ORG]", fixed prefix of the name. */
+    /** "GrupoRyR", fixed prefix of the name. */
     organization: string;
     defaultName: string;
     /** The CLAUDE.md shown in the panel; sent as `claude_md`. */

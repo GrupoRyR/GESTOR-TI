@@ -31,7 +31,7 @@ import type { BriefLink, BriefProduct, BriefTaskRow, ProjectBriefInput, RequestB
 import type { AiUsage, Suggestion } from '@/types/suggestions';
 import { PEOPLE } from './ai-fixtures';
 
-export const GITHUB_ORG = '[ORG]';
+export const GITHUB_ORG = 'GrupoRyR';
 const GH = 'https://github.com';
 const repoUrl = (name: string) => `${GH}/${GITHUB_ORG}/${name}`;
 
@@ -60,7 +60,7 @@ export const GITHUB_CONNECTION: GitHubConnection = {
         { scope: 'actions', access: 'read' },
     ],
     private_key_configured: true,
-    manage_url: `${GH}/organizations/${GITHUB_ORG}/settings/installations`,
+    manage_url: `${GH}/settings/installations`,
     webhook: {
         url: 'https://[DOMINIO DEL GESTOR]/api/github/webhook',
         configured: true,
@@ -517,7 +517,7 @@ export const SUGGESTION_RELEASE_NOTES_182: Suggestion<'release_notes'> = suggest
     },
 });
 
-export const AI_USAGE_CAP: AiUsage = { spent_label: '[GASTO DEL MES]', cap_label: '[TOPE MENSUAL]', resumes_on: '1 de noviembre' };
+export const AI_USAGE_CAP: AiUsage = { spent_label: 'US$ 10,00', cap_label: 'US$ 10', resumes_on: '1 de noviembre' };
 
 // ---- Brief para Claude (whitelisted inputs, D-Brief*) ---------------------
 

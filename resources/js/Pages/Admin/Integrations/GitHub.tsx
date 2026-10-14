@@ -49,9 +49,9 @@ function Breadcrumb() {
 
 function ConnectionCard({ connection, repos }: { connection: GitHubConnection; repos: GitHubRepo[] }) {
     const rows: { term: string; value: ReactNode }[] = [
-        { term: 'Tipo', value: connection.kind === 'app' ? 'App de GitHub de la organización' : 'Token de acceso limitado a los repositorios del grupo' },
+        { term: 'Tipo', value: connection.kind === 'app' ? 'App de GitHub de la cuenta del grupo' : 'Token de acceso limitado a los repositorios del grupo' },
         { term: 'Nombre de la app', value: connection.app_name },
-        { term: 'Organización', value: connection.organization },
+        { term: 'Cuenta de GitHub', value: connection.organization },
         { term: 'Permisos', value: permissionsSummary(connection.permissions) },
         {
             term: 'Instalada en',
@@ -407,7 +407,7 @@ function NotConnected({ installUrl, organization }: { installUrl: string | null;
                             Conectar GitHub
                         </Button>
                         <span className="text-xs text-fg-muted">
-                            Primero guarda la organización en{' '}
+                            Primero guarda la cuenta de GitHub en{' '}
                             <Link href={route('admin.integrations.index')} className="font-bold text-fg-soft underline underline-offset-[3px]">
                                 Integraciones
                             </Link>

@@ -271,7 +271,7 @@ const userRow = (id: number): AdminUserRow => {
     return row;
 };
 
-const EDWARD: AdminUserDetail = { ...userRow(104), job_title: '[CARGO]', area_name: 'Gerencia', approver_area_id: null };
+const EDWARD: AdminUserDetail = { ...userRow(104), job_title: 'CEO', area_name: 'Gerencia', approver_area_id: null };
 const EMERGENCY: AdminUserDetail = { ...userRow(900), job_title: null, area_name: null, approver_area_id: null };
 
 const AREA_OPTIONS = [...SEGUREX_AREAS.map((area) => ({ id: area.id, name: area.name, company_id: SEGUREX.id }))].concat(

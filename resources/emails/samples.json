@@ -24,7 +24,7 @@
         "new-request": {
             "label": "Nueva solicitud (a TI)",
             "company": "segurex",
-            "to": "Jhon Castro <[CORREO DE JHON]>",
+            "to": "Jhon Castro <jhon.castro@segurex.com>",
             "data": {
                 "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-149",
                 "request_key": "GIA-149",

@@ -178,7 +178,7 @@ export interface ProjectsShowProps {
 }
 
 export interface RepoCreateSetup {
-    /** "[ORG]", shown as the fixed prefix of the name field. */
+    /** "GrupoRyR", shown as the fixed prefix of the name field. */
     organization: string;
     /** Proposed name, the project name as a slug ("toma-pedidos-descuentos-por-volumen"). */
     default_name: string;
