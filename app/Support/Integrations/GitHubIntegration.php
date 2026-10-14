@@ -21,13 +21,13 @@ use Illuminate\Support\Str;
  * and stored rows: rendering never calls GitHub, and the private key, the
  * webhook secret and tokens only leave the server as booleans.
  *
- * Connected = the app is configured and installed on the organization
+ * Connected = the app is configured and installed on the account
  * (`github.installation_id`, stored by App\Services\GitHub\RepositorySync).
+ * The account (`github.organization`, default GITHUB_ACCOUNT) is a user or
+ * an organization (`services.github.account_type`).
  */
 class GitHubIntegration
 {
-    public const ORGANIZATION_PLACEHOLDER = '[ORG]';
-
     /**
      * Permissions the GitHub App needs (shown on the page). `contents` and
      * `administration` write: "Crear repositorio" commits README, CLAUDE.md and docs/.
@@ -59,7 +59,29 @@ class GitHubIntegration
     }
 
     /**
-     * External install page of the app; only once the organization is saved.
+     * The saved account, else the configured default (GITHUB_ACCOUNT): the
+     * pages always show a name, never a placeholder.
+     */
+    public function account(): string
+    {
+        $default = config('gestor.settings_defaults')['github.organization'] ?? null;
+
+        return $this->organization() ?? (is_string($default) ? $default : '');
+    }
+
+    /**
+     * "Administrar instalación": a user account manages its installations in
+     * its own settings; an organization in the organization settings.
+     */
+    public function manageUrl(): string
+    {
+        return $this->github->isOrganization()
+            ? 'https://github.com/organizations/'.rawurlencode($this->account()).'/settings/installations'
+            : 'https://github.com/settings/installations';
+    }
+
+    /**
+     * External install page of the app; only once the account is saved.
      */
     public function installUrl(): ?string
     {
@@ -110,18 +132,17 @@ class GitHubIntegration
      */
     private function connection(): array
     {
-        $organization = $this->organization() ?? self::ORGANIZATION_PLACEHOLDER;
         $lastDelivery = GitHubWebhookEvent::query()->max('received_at');
 
         return [
             'connected' => $this->connected(),
             'kind' => filled(config('services.github.token')) && blank(config('services.github.app_id')) ? 'token' : 'app',
             'app_name' => (string) config('services.github.app_name', 'Gestor TI RYR'),
-            'organization' => $organization,
+            'organization' => $this->account(),
             'installed_repos_count' => $this->repositoriesCount(),
             'permissions' => self::PERMISSIONS,
             'private_key_configured' => $this->github->privateKeyConfigured(),
-            'manage_url' => "https://github.com/organizations/{$organization}/settings/installations",
+            'manage_url' => $this->manageUrl(),
             'webhook' => [
                 // Public address (APP_URL), whatever host served this page.
                 'url' => rtrim((string) config('app.url'), '/').'/api/github/webhook',

@@ -51,7 +51,8 @@ class AiDemoSeeder extends Seeder
         }
 
         $jhon = $this->person($company, 'Jhon Castro (demo)', 'jhon', 'Líder IA', null);
-        $edward = $this->person($company, 'Edward Ramanan (demo)', 'edward', 'Aprobador de proyectos', null);
+        // Job title confirmed by Jhon (real titles come from Entra ID `jobTitle`).
+        $edward = $this->person($company, 'Edward Ramanan (demo)', 'edward', 'Aprobador de proyectos', null, 'CEO');
         $paola = $this->person($company, 'Paola Ríos', 'paola', 'Usuario final', $areas['Ventas']);
         $andres = $this->person($company, 'Andrés Méndez', 'andres', 'Usuario final', $areas['Compras']);
         $monica = $this->person($company, 'Mónica Salazar', 'monica', 'Usuario final', $areas['Tesorería']);
@@ -237,7 +238,7 @@ class AiDemoSeeder extends Seeder
         $project->recordActivity('task', 'movió T3 Endpoint de zonas a En revisión', $lead);
     }
 
-    private function person(Company $company, string $name, string $handle, string $role, ?Area $area): User
+    private function person(Company $company, string $name, string $handle, string $role, ?Area $area, ?string $jobTitle = null): User
     {
         $user = User::query()->firstOrCreate(['email' => $handle.'@demo.local'], ['name' => $name, 'password' => Str::random(32)]);
         $user->forceFill(['company_id' => $company->id])->save();
@@ -246,10 +247,10 @@ class AiDemoSeeder extends Seeder
             $user->assignRole($role);
         }
 
-        if ($area !== null) {
+        if ($area !== null || $jobTitle !== null) {
             Employee::withoutGlobalScopes()->firstOrCreate(
                 ['user_id' => $user->id],
-                ['company_id' => $company->id, 'area_id' => $area->id, 'name' => $name, 'email' => $user->email, 'source' => Employee::SOURCE_MANUAL, 'status' => Employee::STATUS_ACTIVE],
+                ['company_id' => $company->id, 'area_id' => $area?->id, 'name' => $name, 'email' => $user->email, 'job_title' => $jobTitle, 'source' => Employee::SOURCE_MANUAL, 'status' => Employee::STATUS_ACTIVE],
             );
         }
 

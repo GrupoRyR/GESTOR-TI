@@ -116,7 +116,8 @@ class GitHubIntegrationAdminTest extends TestCase
                     'connected' => false,
                     'kind' => 'app',
                     'app_name' => 'Gestor TI RYR',
-                    'organization' => '[ORG]',
+                    // Confirmed account by default (services.github / GITHUB_ACCOUNT).
+                    'organization' => 'GrupoRyR',
                     'installed_repos_count' => 0,
                     'permissions' => [
                         ['scope' => 'issues', 'access' => 'write'],
@@ -127,7 +128,8 @@ class GitHubIntegrationAdminTest extends TestCase
                         ['scope' => 'administration', 'access' => 'write'],
                     ],
                     'private_key_configured' => false,
-                    'manage_url' => 'https://github.com/organizations/[ORG]/settings/installations',
+                    // GrupoRyR is a user account: its installations live in the user settings.
+                    'manage_url' => 'https://github.com/settings/installations',
                     'webhook' => [
                         'url' => 'https://gestor.test/api/github/webhook',
                         'configured' => false,
@@ -135,11 +137,34 @@ class GitHubIntegrationAdminTest extends TestCase
                         'last_delivery_at' => null,
                     ],
                 ])
-                ->where('install_url', null)
+                ->where('install_url', self::INSTALL_URL)
                 ->where('repos', [])
                 ->where('stats', ['month' => 'octubre', 'received' => 0, 'processed' => 0, 'failed' => 0])
                 ->where('failed_events', [])
                 ->where('now', '2026-10-20T10:00:00-05:00'));
+    }
+
+    public function test_an_organization_account_manages_the_installation_in_the_organization_settings(): void
+    {
+        config(['services.github.account_type' => 'organization']);
+        $this->settings()->set('github.organization', 'OtraOrg');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.integrations.github'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('connection.organization', 'OtraOrg')
+                ->where('connection.manage_url', 'https://github.com/organizations/OtraOrg/settings/installations'));
+    }
+
+    public function test_a_cleared_account_falls_back_to_the_configured_one_on_the_page(): void
+    {
+        $this->settings()->set('github.organization', null);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.integrations.github'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('connection.organization', 'GrupoRyR')
+                ->where('install_url', null));
     }
 
     public function test_connected_page_props(): void
@@ -188,7 +213,7 @@ class GitHubIntegrationAdminTest extends TestCase
                 ->where('connection.organization', 'GrupoRyR')
                 ->where('connection.installed_repos_count', 3)
                 ->where('connection.private_key_configured', true)
-                ->where('connection.manage_url', 'https://github.com/organizations/GrupoRyR/settings/installations')
+                ->where('connection.manage_url', 'https://github.com/settings/installations')
                 ->where('connection.webhook.configured', true)
                 ->where('connection.webhook.last_delivery_at', '2026-10-20T09:59:00-05:00')
                 ->where('install_url', self::INSTALL_URL)

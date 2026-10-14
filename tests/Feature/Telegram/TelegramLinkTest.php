@@ -329,7 +329,7 @@ class TelegramLinkTest extends TestCase
 
     public function test_bot_texts_point_to_the_profile_page(): void
     {
-        foreach ([UpdateHandler::HELP_TEXT, UpdateHandler::LINKED_TEXT, UpdateHandler::INVALID_TOKEN_TEXT] as $text) {
+        foreach ([UpdateHandler::helpText(), UpdateHandler::LINKED_TEXT, UpdateHandler::INVALID_TOKEN_TEXT] as $text) {
             $this->assertStringContainsString('«Perfil y notificaciones»', $text);
             $this->assertStringNotContainsString('Perfil › Notificaciones', $text);
         }

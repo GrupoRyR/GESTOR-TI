@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Refreshes `github_repositories` from the app installation on the saved
- * organization (`github.organization`), and stores the installation id
+ * account (`github.organization`, a user or an organization), and stores the installation id
  * (`github.installation_id`, which makes GitHub "connected").
  *
  * Repositories are matched by GitHub id, so renames keep their link.
@@ -33,7 +33,7 @@ class RepositorySync
             throw GitHubException::notConnected();
         }
 
-        $installationId = $this->github->organizationInstallationId($organization) ?? throw GitHubException::notConnected();
+        $installationId = $this->github->accountInstallationId($organization) ?? throw GitHubException::notConnected();
         $this->settings->set('github.installation_id', $installationId);
 
         $repositories = $this->github->installationRepositories();

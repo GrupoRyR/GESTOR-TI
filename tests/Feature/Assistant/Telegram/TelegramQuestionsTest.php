@@ -144,7 +144,8 @@ class TelegramQuestionsTest extends TelegramAssistantTestCase
         $this->link($noAssistant, '6161');
 
         $this->send('¿Quién recibe el informe de ventas?', '999');
-        $this->assertSame(UpdateHandler::HELP_TEXT, $this->lastSent()['text']);
+        $this->assertSame(UpdateHandler::helpText(), $this->lastSent()['text']);
+        $this->assertStringContainsString('soy Ingenierito,', $this->lastSent()['text']);
 
         $this->send('¿Quién recibe el informe de ventas?', '6161');
         $this->assertSame(TelegramAssistant::NO_ACCESS, $this->lastSent()['text']);

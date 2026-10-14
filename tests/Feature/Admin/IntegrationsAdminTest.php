@@ -215,9 +215,9 @@ class IntegrationsAdminTest extends TestCase
                     'last_message_at' => null,
                     'webhook_ok' => false,
                 ])
-                ->where('github', ['status' => 'disconnected', 'organization' => null, 'install_url' => null, 'repositories_count' => 0])
+                ->where('github', ['status' => 'disconnected', 'organization' => 'GrupoRyR', 'install_url' => 'https://github.com/apps/gestor-ryr/installations/new', 'repositories_count' => 0])
                 ->where('ai.status', 'off')
-                ->where('ai.monthly_cap_usd', null)
+                ->where('ai.monthly_cap_usd', 10) // default cap (GESTOR_AI_MONTHLY_CAP_USD)
                 ->where('ai.month_spend_usd', 0)
                 ->etc());
 
@@ -404,6 +404,17 @@ class IntegrationsAdminTest extends TestCase
             ->assertSessionHas('error', 'Telegram no aceptó el mensaje de prueba. Revisa el bot y vuelve a intentar.');
     }
 
+    public function test_the_telegram_bot_is_named_ingenierito_and_its_username_comes_from_the_environment(): void
+    {
+        $this->assertSame('Ingenierito', config('services.telegram.bot_name'));
+
+        config(['services.telegram.bot_username' => '@IngenieritoRyrBot']);
+        Http::fake();
+        $this->actingAs($this->admin)
+            ->get(route('admin.integrations.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('telegram.bot_username', 'IngenieritoRyrBot')->etc());
+    }
+
     public function test_github_update_validates_and_saves_the_organization(): void
     {
         $this->actingAs($this->admin)
@@ -417,15 +428,16 @@ class IntegrationsAdminTest extends TestCase
             ->assertSessionHasErrors('organization');
 
         $this->actingAs($this->admin)
-            ->put(route('admin.integrations.github.update'), ['organization' => 'GrupoRyR'])
+            ->put(route('admin.integrations.github.update'), ['organization' => 'OtraCuenta'])
             ->assertSessionHasNoErrors()
             ->assertSessionHas('success', 'Organización de GitHub guardada.');
 
-        $this->assertSame('GrupoRyR', $this->settings()->get('github.organization'));
+        $this->assertSame('OtraCuenta', $this->settings()->get('github.organization'));
         $activity = Activity::query()->where('event', 'github_settings_updated')->sole();
         $this->assertSame('integrations', $activity->log_name);
-        $this->assertSame(['organization' => null], $activity->properties['old']);
-        $this->assertSame(['organization' => 'GrupoRyR'], $activity->properties['attributes']);
+        // The confirmed account (GITHUB_ACCOUNT, default GrupoRyR) is the starting value.
+        $this->assertSame(['organization' => 'GrupoRyR'], $activity->properties['old']);
+        $this->assertSame(['organization' => 'OtraCuenta'], $activity->properties['attributes']);
     }
 
     public function test_ai_update_validates_saves_and_logs(): void
@@ -446,7 +458,7 @@ class IntegrationsAdminTest extends TestCase
         $activity = Activity::query()->where('event', 'ai_settings_updated')->sole();
         $this->assertSame('integrations', $activity->log_name);
         $this->assertTrue($activity->causer->is($this->admin));
-        $this->assertSame(['provider' => 'deepseek', 'model' => 'deepseek-chat', 'monthly_cap_usd' => null], $activity->properties['old']);
+        $this->assertSame(['provider' => 'deepseek', 'model' => 'deepseek-chat', 'monthly_cap_usd' => 10], $activity->properties['old']);
         $this->assertSame(['provider' => 'anthropic', 'model' => 'claude-sonnet-4-5', 'monthly_cap_usd' => 25.5], $activity->properties['attributes']);
         $this->assertContains('ai_settings_updated', config('gestor.audit.sensitive_events'));
 

@@ -97,7 +97,7 @@ final class RepoLinkForm
 
     public function organization(): string
     {
-        return $this->integration->organization() ?? GitHubIntegration::ORGANIZATION_PLACEHOLDER;
+        return $this->integration->account();
     }
 
     public function hasRepository(AiProduct|AiProject $target): bool

@@ -13,7 +13,6 @@ use App\Models\TelegramLink;
 use App\Notifications\AiRatingRequested;
 use App\Notifications\AiReleasePublished;
 use App\Notifications\AiRequestStatusChanged;
-use App\Support\Settings;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -189,13 +188,13 @@ class ReleasePageTest extends KnowledgeTestCase
         $this->actingAs($this->jhon)->get(route('ai.releases.show', $this->params()))
             ->assertInertia(fn (Assert $page) => $page->where('ai', 'ready')->where('ai_usage', null));
 
-        app(Settings::class)->set('ai.monthly_cost_cap_usd', 10.0);
+        // Default cap (US$ 10, confirmed by Jhon): whole amounts without decimals.
         AiInteraction::query()->create(['provider' => 'deepseek', 'model' => 'deepseek-chat', 'feature' => 'assistant', 'status' => 'ok', 'cost' => '10.5']);
 
         $this->actingAs($this->jhon)->get(route('ai.releases.show', $this->params()))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('ai', 'off_cap')
-                ->where('ai_usage', ['spent_label' => 'US$ 10,50', 'cap_label' => 'US$ 10,00', 'resumes_on' => '1 de noviembre']));
+                ->where('ai_usage', ['spent_label' => 'US$ 10,50', 'cap_label' => 'US$ 10', 'resumes_on' => '1 de noviembre']));
     }
 
     public function test_saving_the_user_notes_keeps_them_and_audits_without_notifying(): void

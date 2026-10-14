@@ -241,6 +241,19 @@ class AssistantEngineTest extends ChatTestCase
         $this->assertSame(1, Alert::query()->where('source', 'ai')->where('level', 'critical')->count());
     }
 
+    public function test_the_default_cap_of_ten_dollars_turns_the_chat_off(): void
+    {
+        $this->assertSame(10.0, config('gestor.settings_defaults')['ai.monthly_cost_cap_usd']);
+        AiInteraction::query()->create(['provider' => 'deepseek', 'model' => 'deepseek-chat', 'feature' => 'assistant', 'cost' => 10, 'status' => 'ok']);
+
+        $this->ask($this->jhon, 'Primera')
+            ->assertSessionHasErrors(['question' => 'El asistente llegó al tope de gasto del mes.']);
+
+        Http::assertNothingSent();
+        $this->actingAs($this->jhon)->get(route('assistant.index'))
+            ->assertInertia(fn ($page) => $page->where('status', 'off_cap')->where('monthly_cap', 'US$ 10'));
+    }
+
     public function test_the_context_keeps_the_last_thirty_minutes_of_the_conversation(): void
     {
         $conversation = AssistantConversation::query()->create(['user_id' => $this->jhon->id, 'title' => 'Ventas', 'last_activity_at' => now()]);

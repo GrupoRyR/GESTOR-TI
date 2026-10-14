@@ -416,7 +416,7 @@ class ProcessGitHubEventTest extends ProjectsTestCase
         config(['services.github.app_id' => '1']);
 
         Http::fake([
-            'api.github.com/orgs/GrupoRyR/installation' => Http::response(['id' => 42]),
+            'api.github.com/users/GrupoRyR/installation' => Http::response(['id' => 42]),
             'api.github.com/app/installations/42/access_tokens' => Http::response(['token' => 't', 'expires_at' => now()->addHour()->toIso8601String()], 201),
             'api.github.com/installation/repositories*' => Http::response(['total_count' => 1, 'repositories' => [[
                 'id' => 501, 'full_name' => 'GrupoRyR/portafolio', 'name' => 'portafolio', 'private' => true,
@@ -494,6 +494,8 @@ class ProcessGitHubEventTest extends ProjectsTestCase
 
     public function test_the_sync_command_refreshes_the_repositories(): void
     {
+        // Without an account (cleared in Administración) there is nothing to sync.
+        app(Settings::class)->set('github.organization', null);
         $this->artisan('github:sync')->expectsOutputToContain('no está conectado')->assertFailed();
 
         $this->fakeGitHub();

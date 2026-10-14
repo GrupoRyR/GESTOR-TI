@@ -33,7 +33,7 @@ class RepositoryCreateTest extends ProjectsTestCase
     private function fakeCreation(int $status = 201): void
     {
         $this->fakeGitHub([
-            'api.github.com/orgs/GrupoRyR/repos' => Http::response($status === 201 ? [
+            'api.github.com/user/repos' => Http::response($status === 201 ? [
                 'id' => 9876, 'name' => 'descuentos', 'full_name' => 'GrupoRyR/descuentos', 'private' => true,
                 'html_url' => 'https://github.com/GrupoRyR/descuentos', 'default_branch' => 'main', 'pushed_at' => null,
             ] : ['message' => 'Repository creation failed.'], $status),
@@ -51,7 +51,7 @@ class RepositoryCreateTest extends ProjectsTestCase
             ->assertSessionHasNoErrors()
             ->assertSessionHas('success', 'Se creó el repositorio privado GrupoRyR/descuentos y quedó vinculado al proyecto.');
 
-        Http::assertSent(fn (Request $request) => $request->url() === 'https://api.github.com/orgs/GrupoRyR/repos'
+        Http::assertSent(fn (Request $request) => $request->url() === 'https://api.github.com/user/repos'
             && $request['name'] === 'descuentos' && $request['private'] === true);
 
         $files = [];
@@ -93,7 +93,7 @@ class RepositoryCreateTest extends ProjectsTestCase
         $this->actingAs($this->jhon)->post($create, ['name' => 'descuentos.git', 'claude_md' => self::CLAUDE_MD])
             ->assertSessionHasErrors(['name' => 'El nombre no puede terminar en .git.']);
         $this->actingAs($this->jhon)->post($create, ['name' => 'existente', 'claude_md' => self::CLAUDE_MD])
-            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la organización.']);
+            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la cuenta de GitHub.']);
         $this->actingAs($this->jhon)->post($create, ['name' => 'descuentos', 'claude_md' => "Base\nDB_PASSWORD=Sup3rS3creta\n"])
             ->assertSessionHasErrors('claude_md');
 
@@ -129,7 +129,7 @@ class RepositoryCreateTest extends ProjectsTestCase
         $this->actingAs($this->jhon)
             ->post(route('ai.projects.repository.create', $this->p), ['name' => 'descuentos', 'claude_md' => self::CLAUDE_MD])
             ->assertRedirect()
-            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la organización.']);
+            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la cuenta de GitHub.']);
     }
 
     public function test_only_github_managers_can_create_it(): void

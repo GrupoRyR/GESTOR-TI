@@ -91,6 +91,17 @@ class LoginPageTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Auth/Login', false)->etc());
     }
 
+    public function test_support_email_defaults_to_the_it_lead(): void
+    {
+        // GESTOR_SUPPORT_EMAIL default, confirmed by Jhon.
+        $this->withSession([SessionController::COMPANY_NOT_ENABLED => 'laura@proveedorx.com'])
+            ->get(route('login'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Auth/CompanyNotEnabled', false)
+                ->where('support_email', 'jhon.castro@segurex.com')
+                ->etc());
+    }
+
     public function test_support_email_is_null_when_not_configured(): void
     {
         config(['gestor.support_email' => null]);

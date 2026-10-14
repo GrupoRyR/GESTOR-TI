@@ -46,7 +46,8 @@ class UpdateHandler implements ShouldQueue
 
     public int $tries = 1;
 
-    public const HELP_TEXT = "Hola, soy el bot del Gestor TI RYR.\n\n"
+    /** `:bot` is replaced by `services.telegram.bot_name` (see helpText()). */
+    public const HELP_TEXT = "Hola, soy :bot, el bot del Gestor TI RYR.\n\n"
         .'Para recibir avisos aquí, entra al Gestor TI, abre «Perfil y notificaciones» (en el menú de tu nombre) y pulsa «Vincular Telegram». '
         .'El enlace que se genera abre este chat y deja tu cuenta vinculada.';
 
@@ -164,7 +165,12 @@ class UpdateHandler implements ShouldQueue
             return;
         }
 
-        $client->sendMessage($chatId, self::HELP_TEXT);
+        $client->sendMessage($chatId, self::helpText());
+    }
+
+    public static function helpText(): string
+    {
+        return str_replace(':bot', (string) config('services.telegram.bot_name', 'Ingenierito'), self::HELP_TEXT);
     }
 
     private function handlePendingReply(string $chatId, string $text): bool

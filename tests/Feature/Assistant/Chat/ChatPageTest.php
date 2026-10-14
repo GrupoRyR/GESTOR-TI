@@ -23,7 +23,8 @@ class ChatPageTest extends ChatTestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Assistant/Chat')
                 ->where('status', 'ready')
-                ->where('monthly_cap', null)
+                // Default cap confirmed by Jhon: US$ 10 a month.
+                ->where('monthly_cap', 'US$ 10')
                 ->where('conversations', [])
                 ->where('conversation', null)
                 ->where('selected_source', null)
