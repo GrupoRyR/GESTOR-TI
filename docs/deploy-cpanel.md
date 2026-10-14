@@ -71,12 +71,12 @@ Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
 - Microsoft: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI=${APP_URL}/auth/microsoft/callback`, `MICROSOFT_TENANT=organizations`.
 - Acceso de emergencia: `EMERGENCY_ADMIN_EMAIL`.
 - Roles iniciales: `GESTOR_SUPER_ADMIN_EMAILS`, `GESTOR_PROJECT_APPROVER_EMAILS`, `GESTOR_VAULT_OWNER_EMAIL` (separados por coma).
-- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_BOT_NAME` (nombre visible del bot, por defecto `Ingenierito`), `TELEGRAM_WEBHOOK_SECRET` (solo letras, números, `_` y `-`), `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`.
+- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (solo letras, números, `_` y `-`), `TELEGRAM_REQUIRE_SECRET_HEADER=false`, `TELEGRAM_PROCESSING=after_response`.
 - Alertas: `GESTOR_ALERTS_RECIPIENT_PERMISSION=ai.manage`.
 - Respaldos: `BACKUP_NOTIFICATION_EMAIL` (recibe los avisos de fallas), `BACKUP_ARCHIVE_PASSWORD` (opcional, cifra el zip).
 - Módulos: `MODULE_AI_ENABLED`, `MODULE_ASSISTANT_ENABLED`, `MODULE_ADMIN_ENABLED` (y los reservados).
-- Etapa C: `DEEPSEEK_API_KEY` (puede esperar), `GESTOR_AI_MONTHLY_CAP_USD` (tope mensual de gasto de IA en dólares, por defecto `10`; `0` lo quita; se cambia luego en *Integraciones*).
-- Etapa D (GitHub App): `GITHUB_APP_ID`, `GITHUB_APP_INSTALL_URL` (`https://github.com/apps/<nombre>/installations/new`), `GITHUB_APP_NAME`, `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta al `.pem`, fuera de `public_html`, permisos 600), `GITHUB_WEBHOOK_SECRET`, `GITHUB_ACCOUNT` (cuenta dueña de los repos, por defecto `GrupoRyR`), `GITHUB_ACCOUNT_TYPE` (`user` por defecto, porque GrupoRyR es una cuenta personal; `organization` si se migra a una organización).
+- Etapa C: `DEEPSEEK_API_KEY` (puede esperar).
+- Etapa D (GitHub App): `GITHUB_APP_ID`, `GITHUB_APP_INSTALL_URL` (`https://github.com/apps/<nombre>/installations/new`), `GITHUB_APP_NAME`, `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta al `.pem`, fuera de `public_html`, permisos 600), `GITHUB_WEBHOOK_SECRET`.
 - Etapa E (conector MCP): `PASSPORT_PRIVATE_KEY` y `PASSPORT_PUBLIC_KEY` (PEM con los saltos de línea escritos como `\n`; si faltan, se usan `storage/oauth-*.key` creados con `php artisan passport:keys`), opcionales `MCP_ENABLED` (por defecto activo), `MCP_ACCESS_TOKEN_MINUTES` (60), `MCP_REFRESH_TOKEN_DAYS` (30), `MCP_REDIRECT_DOMAINS`, `MCP_CALLS_RETENTION_DAYS` (180). `APP_URL` debe ser la URL pública https exacta: Claude compara el recurso `APP_URL/mcp`.
 
 ## 4.1 GitHub App (Etapa D)
@@ -86,7 +86,7 @@ Variable opcional (*Variables*): `CPANEL_PHP_BIN` (por defecto `php`).
 3. Permisos de repositorio: Contents (lectura y escritura), Administration (lectura y escritura, para crear repos), Issues (lectura y escritura), Pull requests (lectura), Actions (lectura), Metadata (lectura).
 4. Eventos: Issues, Pull request, Release, Workflow run, Push (los de instalación llegan solos).
 5. Generar la llave privada, subir el `.pem` al servidor fuera de `public_html` y apuntar `GITHUB_PRIVATE_KEY_PATH` a ella.
-6. Instalar la app en la cuenta `GrupoRyR` (solo los repos del grupo). La cuenta ya viene de `GITHUB_ACCOUNT`; se cambia en *Administración › Integraciones*.
+6. Instalar la app en la organización (solo los repos del grupo). Guardar la organización en *Administración › Integraciones*.
 7. Por SSH: `php artisan config:cache` y `php artisan github:sync`. *Integraciones › GitHub* debe mostrar "Conectado" y los repos.
 8. Vincular cada producto y proyecto con su repo desde su ficha. Los eventos que fallaron por "repo no vinculado" se reprocesan solos al vincular.
 9. Cada miembro de TI que reciba issues necesita su usuario de GitHub en `users.github_login`. Todavía no hay pantalla para editarlo: se carga por SSH con `php artisan tinker`.
