@@ -93,7 +93,7 @@ class RepositoryCreateTest extends ProjectsTestCase
         $this->actingAs($this->jhon)->post($create, ['name' => 'descuentos.git', 'claude_md' => self::CLAUDE_MD])
             ->assertSessionHasErrors(['name' => 'El nombre no puede terminar en .git.']);
         $this->actingAs($this->jhon)->post($create, ['name' => 'existente', 'claude_md' => self::CLAUDE_MD])
-            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la organización.']);
+            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la cuenta de GitHub.']);
         $this->actingAs($this->jhon)->post($create, ['name' => 'descuentos', 'claude_md' => "Base\nDB_PASSWORD=Sup3rS3creta\n"])
             ->assertSessionHasErrors('claude_md');
 
@@ -129,7 +129,7 @@ class RepositoryCreateTest extends ProjectsTestCase
         $this->actingAs($this->jhon)
             ->post(route('ai.projects.repository.create', $this->p), ['name' => 'descuentos', 'claude_md' => self::CLAUDE_MD])
             ->assertRedirect()
-            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la organización.']);
+            ->assertSessionHasErrors(['name' => 'Ya existe un repositorio con ese nombre en la cuenta de GitHub.']);
     }
 
     public function test_only_github_managers_can_create_it(): void

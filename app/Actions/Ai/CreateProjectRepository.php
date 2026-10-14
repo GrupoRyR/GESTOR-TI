@@ -47,7 +47,7 @@ class CreateProjectRepository
         $this->secrets->assertClean($claudeMd, 'claude_md');
 
         if (GitHubRepository::query()->where(DB::raw('lower(full_name)'), mb_strtolower("{$organization}/{$name}"))->exists()) {
-            throw ValidationException::withMessages(['name' => 'Ya existe un repositorio con ese nombre en la organización.']);
+            throw ValidationException::withMessages(['name' => 'Ya existe un repositorio con ese nombre en la cuenta de GitHub.']);
         }
 
         try {
@@ -56,9 +56,9 @@ class CreateProjectRepository
             Log::warning('GitHub repository creation failed', ['reason' => $exception->reason, 'project' => $project->key]);
 
             throw ValidationException::withMessages(['name' => match ($exception->reason) {
-                'github_422' => 'Ya existe un repositorio con ese nombre en la organización.',
+                'github_422' => 'Ya existe un repositorio con ese nombre en la cuenta de GitHub.',
                 'not_configured', 'not_connected' => 'GitHub no está conectado. Revísalo en Administración › Integraciones › GitHub.',
-                'github_403', 'github_404' => 'La app de GitHub no tiene permiso para crear repositorios en la organización.',
+                'github_403', 'github_404' => 'La app de GitHub no tiene permiso para crear repositorios en la cuenta de GitHub.',
                 default => 'GitHub no respondió. Intenta de nuevo en unos minutos.',
             }]);
         }
