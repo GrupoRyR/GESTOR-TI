@@ -16,7 +16,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 | Registro de aplicación en Microsoft Entra (multiempresa) | Inicio de sesión y sincronización de colaboradores | Jhon |
 | Cuenta de envío SMTP + permiso "Enviar como" sobre `segurex.info@segurex.com` y `derivados.info@derivadoscol.com` | Correos con plantilla | Jhon |
 | Bot de Telegram (BotFather) | Avisos, aprobaciones y asistente por Telegram | Jhon |
-| Llave de DeepSeek + tope mensual en USD | Asistente TI y sugerencias de IA | Jhon |
+| Llave de DeepSeek (tope mensual confirmado: US$ 10) | Asistente TI y sugerencias de IA | Jhon |
 | Organización de GitHub + GitHub App | Repositorios, issues y releases | Jhon |
 | Logos de cada empresa en PNG (claro y oscuro) | Correos (los correos nunca usan SVG) | Jhon / diseño |
 | Correos de los roles iniciales (súper admin, aprobadores, dueño de la bóveda) | Roles en el primer inicio de sesión | Jhon |
@@ -133,7 +133,7 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 | `LOG_CHANNEL` | No | `stack` | Por defecto escribe en `storage/logs/laravel.log` |
 | `LOG_LEVEL` | No | `warning` | Por defecto `debug`; en producción se recomienda `warning` |
 | `GESTOR_ERROR_PAGES` | No | (vacío) | Vacío = páginas de error propias cuando `APP_DEBUG=false` |
-| `GESTOR_SUPPORT_EMAIL` | No | `soporte.ti@segurex.com` | Contacto de TI en la pantalla "empresa no habilitada"; vacío lo oculta |
+| `GESTOR_SUPPORT_EMAIL` | No | `jhon.castro@segurex.com` (por defecto) | Contacto de TI en la pantalla "empresa no habilitada"; vacío lo oculta |
 
 ### Base de datos, cola, caché y sesión
 
@@ -190,7 +190,8 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 | Clave | Obligatoria | Ejemplo | Nota |
 |---|---|---|---|
 | `TELEGRAM_BOT_TOKEN` | Sí (para Telegram) | (secreto) | De BotFather |
-| `TELEGRAM_BOT_USERNAME` | Sí (para Telegram) | `GestorTiRyrBot` | Sin `@` |
+| `TELEGRAM_BOT_USERNAME` | Sí (para Telegram) | (pendiente) | Sin `@`; llega al frontend como `bot_username` |
+| `TELEGRAM_BOT_NAME` | No | `Ingenierito` (por defecto) | Nombre visible del bot en sus mensajes |
 | `TELEGRAM_WEBHOOK_SECRET` | Sí (para Telegram) | (secreto largo) | Solo letras, números, `_` y `-` (así Telegram también lo envía en la cabecera) |
 | `TELEGRAM_REQUIRE_SECRET_HEADER` | No | `false` | Valor por defecto. `true` exige además la cabecera |
 | `TELEGRAM_PROCESSING` | No | `after_response` | Valor por defecto. `queue` lo procesa la cola (~1 minuto) |
@@ -204,7 +205,9 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 | `OLLAMA_BASE_URL` | No | | No aplica en hosting compartido |
 | `ASSISTANT_IMPORT_MAX_KB` | No | `10240` | Tamaño máximo del Excel de conocimiento |
 
-El proveedor, el modelo y el **tope mensual** no van en el `.env`: se configuran en *Administración › Integraciones* ([sección 5.4](#54-deepseek-asistente-y-sugerencias)).
+| `GESTOR_AI_MONTHLY_CAP_USD` | No | `10` (por defecto) | Tope mensual de gasto de IA en USD; `0` lo quita. Después se cambia en *Integraciones* |
+
+El proveedor y el modelo no van en el `.env`: se configuran en *Administración › Integraciones* ([sección 5.4](#54-deepseek-asistente-y-sugerencias)).
 
 ### GitHub App
 
@@ -217,6 +220,8 @@ El proveedor, el modelo y el **tope mensual** no van en el `.env`: se configuran
 | `GITHUB_WEBHOOK_SECRET` | Sí (para GitHub) | (secreto largo) | Sin este valor el webhook responde 403 |
 | `GITHUB_API_URL` | No | `https://api.github.com` | Valor por defecto |
 | `GITHUB_TOKEN` | No | | No se usa con la GitHub App; dejar vacío |
+| `GITHUB_ACCOUNT` | No | `GrupoRyR` (por defecto) | Cuenta dueña de los repos; se cambia en *Integraciones* |
+| `GITHUB_ACCOUNT_TYPE` | No | `user` (por defecto) | `user` porque GrupoRyR es una cuenta personal; `organization` si se migra a una organización |
 
 ### Conector MCP (Passport)
 
@@ -340,7 +345,7 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
 1. Crea la llave en la consola de DeepSeek y cárgale saldo.
 2. En el `.env`: `DEEPSEEK_API_KEY`. Luego `php artisan optimize`.
 3. En *Administración › Integraciones › Proveedor de IA*: proveedor `DeepSeek`, modelo `deepseek-chat` y el **tope mensual en USD**.
-   - Con el tope en `0` (valor inicial) **no hay límite de gasto**: defínelo antes de abrir el asistente a todos.
+   - El tope inicial es **US$ 10** (`GESTOR_AI_MONTHLY_CAP_USD`). Con `0` no hay límite de gasto.
    - Al 80 % del tope llega un aviso; al llegar al tope, el asistente y las sugerencias se apagan hasta el mes siguiente (hora de Bogotá).
 4. Pendiente de Jhon: tasa COP por USD para mostrar costos (hoy `4000`, se cambia en *Administración*).
 
@@ -348,7 +353,7 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
 
 ### 5.5 GitHub App
 
-1. En la organización de GitHub: *Settings › Developer settings › GitHub Apps › New GitHub App*.
+1. En la cuenta `GrupoRyR` de GitHub (es una cuenta personal, no una organización): *Settings › Developer settings › GitHub Apps › New GitHub App*.
 2. Webhook URL: `https://ti.segurex.com/api/github/webhook`, tipo JSON, con un secreto largo (va a `GITHUB_WEBHOOK_SECRET`).
 3. Permisos de repositorio: Contents (lectura y escritura), Administration (lectura y escritura, para crear repos), Issues (lectura y escritura), Pull requests (lectura), Actions (lectura), Metadata (lectura).
 4. Eventos: Issues, Pull request, Release, Workflow run, Push. Los de instalación llegan solos.
@@ -359,7 +364,8 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
    chmod 600 ~/keys/gestor-ti-github.pem
    ```
 6. En el `.env`: `GITHUB_APP_ID`, `GITHUB_APP_NAME`, `GITHUB_APP_INSTALL_URL`, `GITHUB_PRIVATE_KEY_PATH=/home/<usuario>/keys/gestor-ti-github.pem`, `GITHUB_WEBHOOK_SECRET`. Luego `php artisan optimize`.
-7. Instala la app en la organización (solo los repos del grupo) y guarda la organización en *Administración › Integraciones*.
+7. Instala la app en la cuenta `GrupoRyR` (solo los repos del grupo). La cuenta ya viene de `GITHUB_ACCOUNT`. Las instalaciones se administran en `https://github.com/settings/installations`.
+   - Prueba una vez "Crear repositorio" desde un proyecto: GitHub documenta la creación de repos en cuentas personales con la app, pero no qué cuenta queda como dueña. Si falla, sale un error en pantalla y el repo se crea a mano y se vincula.
 8. Sincroniza:
    ```bash
    php artisan github:sync
@@ -477,7 +483,7 @@ Todas salen del cron de cada minuto (`schedule:run`). Horas en `America/Bogota`.
 | "Empresa no habilitada" al entrar | El dominio o inquilino del usuario no está en una empresa activa | Revisa *Administración › Empresas* (inquilino y dominios) |
 | Webhook de GitHub responde 403 | Falta `GITHUB_WEBHOOK_SECRET` | Ponlo en el `.env` y `php artisan optimize` |
 | Webhook de GitHub responde 401 | El secreto del `.env` no es el de la GitHub App | Iguala ambos secretos; reenvía desde *Recent Deliveries* |
-| GitHub "no conectado" o `github:sync` falla | Ruta o permisos del `.pem`, `GITHUB_APP_ID` errado o app sin instalar | Revisa `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta, archivo legible) y la instalación en la organización |
+| GitHub "no conectado" o `github:sync` falla | Ruta o permisos del `.pem`, `GITHUB_APP_ID` errado o app sin instalar | Revisa `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta, archivo legible) y la instalación en la cuenta `GrupoRyR` |
 | El bot de Telegram no responde | Webhook sin registrar o `APP_URL` sin `https` | `php artisan gestor:telegram-webhook`; revisa que el comando no muestre error |
 | Correos sin logo o con imagen rota | La empresa solo tiene logo SVG y no hay PNG | Carga el logo en PNG en *Administración › Empresas* ([sección 5.2](#52-correo)) |
 | Correos rechazados por el servidor SMTP | Falta SMTP autenticado o "Enviar como" | Revisa ambos permisos en Microsoft 365 ([sección 5.2](#52-correo)) |
