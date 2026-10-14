@@ -79,9 +79,9 @@ export type AnySuggestion = { [K in SuggestionKind]: Suggestion<K> }[SuggestionK
 
 /** Usage line for admins when the monthly cap is reached. */
 export interface AiUsage {
-    /** "[GASTO DEL MES]". */
+    /** e.g. "US$ 10,00". */
     spent_label: string;
-    /** "[TOPE MENSUAL]". */
+    /** e.g. "US$ 10" (monthly AI cap). */
     cap_label: string;
     /** "1 de noviembre". */
     resumes_on: string;

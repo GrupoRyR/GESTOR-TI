@@ -24,7 +24,7 @@ export const emergencyProps = {
 export const companyNotEnabledProps = {
     ...guestShared(),
     email: 'laura.gomez@proveedorx.com',
-    support_email: 'soporte.ti@segurex.com',
+    support_email: 'jhon.castro@segurex.com',
 } satisfies CompanyNotEnabledPage;
 
 export const variants: Record<string, MockVariant<LoginPage | EmergencyPage | CompanyNotEnabledPage>> = {

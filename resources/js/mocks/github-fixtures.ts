@@ -517,7 +517,7 @@ export const SUGGESTION_RELEASE_NOTES_182: Suggestion<'release_notes'> = suggest
     },
 });
 
-export const AI_USAGE_CAP: AiUsage = { spent_label: '[GASTO DEL MES]', cap_label: '[TOPE MENSUAL]', resumes_on: '1 de noviembre' };
+export const AI_USAGE_CAP: AiUsage = { spent_label: 'US$ 10,00', cap_label: 'US$ 10', resumes_on: '1 de noviembre' };
 
 // ---- Brief para Claude (whitelisted inputs, D-Brief*) ---------------------
 

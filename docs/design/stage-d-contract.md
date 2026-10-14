@@ -73,6 +73,6 @@ Builds on the [Stage A](stage-a-contract.md), [Stage B](stage-b-contract.md) and
 
 ## Open points
 - **GitHub account:** `GrupoRyR` (a user account today; the GitHub App installs on it the same way, and the installations page is `https://github.com/settings/installations`). It may become an organization later.
-- **Placeholders:** `[DOMINIO DEL GESTOR]`, `[USUARIO DE GITHUB]`, `[TOPE MENSUAL]`, `[GASTO DEL MES]`, `[MÍNIMO DE PALABRAS]`.
+- **Placeholders:** `[DOMINIO DEL GESTOR]`, `[USUARIO DE GITHUB]`, `[MÍNIMO DE PALABRAS]`.
 - **Board brief:** the brief panel opens over the task drawer, which stays visible behind it.
 - **Stage E (MCP connector):** shown only as a disabled step "Conector MCP · etapa E".

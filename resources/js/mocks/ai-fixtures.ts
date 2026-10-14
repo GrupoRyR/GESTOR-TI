@@ -46,7 +46,7 @@ export const WIP_LIMIT = 3;
 export const PEOPLE = {
     jhon: { id: 1, name: 'Jhon Castro', job_title: 'Líder IA', avatar_url: null },
     leonardo: { id: 2, name: 'Leonardo Herrera', job_title: 'Gerente de TI', avatar_url: null },
-    edward: { id: 3, name: 'Edward Ramanan', job_title: '[CARGO]', avatar_url: null },
+    edward: { id: 3, name: 'Edward Ramanan', job_title: 'CEO', avatar_url: null },
     paola: { id: 4, name: 'Paola Ríos', job_title: 'Coordinadora de ventas', avatar_url: null },
     juan: { id: 5, name: 'Juan Pérez', job_title: 'Asesor comercial', avatar_url: null },
     andres: { id: 7, name: 'Andrés Méndez', job_title: 'Analista de compras', avatar_url: null },

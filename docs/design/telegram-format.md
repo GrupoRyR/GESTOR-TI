@@ -1,6 +1,6 @@
 # Telegram format · Asistente TI bot (backend spec)
 
-Source boards: `C-TelegramAnswers`, `C-TelegramActions` (Stage C) and `B-ApprovalDone` (Stage B). The bot is the same Asistente as the in-app chat: short answers, sources always cited, never invents menu paths, report names or data. Spanish copy below is verbatim from the boards; `[NOMBRE DEL BOT]` is still unknown. Links are absolute URLs built with the named routes noted next to them (`{route(...)}` in the examples).
+Source boards: `C-TelegramAnswers`, `C-TelegramActions` (Stage C) and `B-ApprovalDone` (Stage B). The bot is the same Asistente as the in-app chat: short answers, sources always cited, never invents menu paths, report names or data. Spanish copy below is verbatim from the boards; `Ingenierito` is still unknown. Links are absolute URLs built with the named routes noted next to them (`{route(...)}` in the examples).
 
 ## 1. Message rules
 
