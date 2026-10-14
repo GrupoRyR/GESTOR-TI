@@ -139,7 +139,7 @@ export const variants: Record<string, MockVariant<ChatPage>> = {
     off_admin: {
         page: 'Assistant/Chat',
         label: 'Asistente apagado · tope mensual, vista de administrador',
-        props: { ...jhon, status: 'off_cap', monthly_cap: '[TOPE MENSUAL]', conversation: null, selected_source: null },
+        props: { ...jhon, status: 'off_cap', monthly_cap: 'US$ 10', conversation: null, selected_source: null },
     },
     off_user: {
         page: 'Assistant/Chat',

@@ -118,9 +118,9 @@ Knowledge index filters are a GET query with `preserveState`: `?q=&tipo=&empresa
 ## Open points for Jhon or the app agent
 - **Vault rotation reminder:** the edit form says the reminder arrives 7 days before rotation, while the vault index flags items from 30 days. Keep both (visual flag at 30, Telegram reminder at 7) or align them.
 - **Product area:** it is a single select; products used by several areas would need a multi-select.
+- **Confirmed data (2026-10-14):** bot name Ingenierito; monthly AI cap US$ 10; IT support email jhon.castro@segurex.com.
 - **Placeholders still open:**
-  - `[NOMBRE DEL BOT]`
-  - `[TOPE MENSUAL]`
+  - the Telegram `@username` of the bot (its name is Ingenierito; Telegram requires usernames that end in "bot")
   - `[TAMAÑO]` (import limit)
   - `[FRECUENCIA]` and `[VERSIÓN]` in sample cards
   - `[RUTA EN SAP]`: the assistant never invents menu paths.

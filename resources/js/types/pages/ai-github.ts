@@ -58,7 +58,7 @@ import type { FormErrors } from '@/types/shared';
 
 /** Body of `ai.products.repository.store` / `ai.projects.repository.store`. */
 export interface RepoLinkPayload {
-    /** `full_name`: "[ORG]/robotcamara". */
+    /** `full_name`: "GrupoRyR/robotcamara". */
     repo: string;
     /** Source of CI and last deploy. */
     branch: string;
@@ -74,7 +74,7 @@ export interface RepoLinkSetup {
     repos: GitHubRepo[];
     /** What is being linked; a project may reuse its product's repository. */
     target: { kind: 'product' | 'project'; key: string; name: string; product_key: string | null };
-    /** "[ORG]". */
+    /** "GrupoRyR". */
     organization: string;
     /** Open on load (`?vincular=1`, or back from a failed store). */
     open: boolean;

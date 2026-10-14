@@ -3,9 +3,9 @@ import type { GitHubRepo } from '../types/github';
 import { repoLinkOptions } from './repoLink';
 
 const repo = (name: string, linked_to: GitHubRepo['linked_to'] = null, language: string | null = 'PHP'): GitHubRepo => ({
-    full_name: `[ORG]/${name}`,
+    full_name: `GrupoRyR/${name}`,
     name,
-    url: `https://github.com/[ORG]/${name}`,
+    url: `https://github.com/GrupoRyR/${name}`,
     private: true,
     default_branch: 'main',
     branches: ['main'],
