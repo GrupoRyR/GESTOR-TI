@@ -3,6 +3,7 @@
 namespace App\Support\Ai;
 
 use App\Models\User;
+use App\Services\Ai\AiCostCap;
 use App\Services\Ai\AiRuntime;
 use App\Support\Integrations\AiProviderSettings;
 
@@ -16,7 +17,7 @@ use App\Support\Integrations\AiProviderSettings;
  *   the cap of Integraciones).
  *
  * `usage()` is only filled for `off_cap`: spend and cap in USD
- * ("US$ 10,50") and the day suggestions come back (first day of next
+ * ("US$ 10,50", whole amounts "US$ 10") and the day suggestions come back (first day of next
  * month in America/Bogota, "1 de noviembre").
  */
 final class AiSuggestionAvailability
@@ -55,10 +56,10 @@ final class AiSuggestionAvailability
     }
 
     /**
-     * "US$ 1.234,50".
+     * "US$ 10" / "US$ 1.234,50": the same format as the chat cap.
      */
     public static function usd(float $amount): string
     {
-        return 'US$ '.number_format($amount, 2, ',', '.');
+        return AiCostCap::usd($amount);
     }
 }

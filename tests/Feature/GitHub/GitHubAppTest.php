@@ -125,15 +125,38 @@ class GitHubAppTest extends TestCase
         $this->assertStringNotContainsString(self::TOKEN, $cached);
     }
 
-    public function test_the_organization_installation_is_resolved_with_the_jwt(): void
+    public function test_the_account_type_defaults_to_a_user_account(): void
     {
+        $this->assertSame('user', config('services.github.account_type'));
+        $this->assertFalse($this->client()->isOrganization());
+
+        config(['services.github.account_type' => 'organization']);
+        $this->assertTrue($this->client()->isOrganization());
+    }
+
+    public function test_a_user_account_installation_is_resolved_with_the_jwt(): void
+    {
+        Http::fake([
+            'api.github.com/users/GrupoRyR/installation' => Http::response(['id' => 77]),
+            'api.github.com/users/Otra/installation' => Http::response(['message' => 'Not Found'], 404),
+        ]);
+
+        $this->assertSame(77, $this->client()->accountInstallationId('GrupoRyR'));
+        $this->assertNull($this->client()->accountInstallationId('Otra'));
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/orgs/'));
+    }
+
+    public function test_an_organization_installation_is_resolved_with_the_jwt(): void
+    {
+        config(['services.github.account_type' => 'organization']);
         Http::fake([
             'api.github.com/orgs/GrupoRyR/installation' => Http::response(['id' => 77]),
             'api.github.com/orgs/Otra/installation' => Http::response(['message' => 'Not Found'], 404),
         ]);
 
-        $this->assertSame(77, $this->client()->organizationInstallationId('GrupoRyR'));
-        $this->assertNull($this->client()->organizationInstallationId('Otra'));
+        $this->assertSame(77, $this->client()->accountInstallationId('GrupoRyR'));
+        $this->assertNull($this->client()->accountInstallationId('Otra'));
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/users/'));
     }
 
     public function test_it_lists_every_installation_repository_page(): void
@@ -183,8 +206,27 @@ class GitHubAppTest extends TestCase
             && $request->data() === ['title' => 'GIA-139 · T3 endpoint', 'body' => 'Cuerpo', 'labels' => ['gestor-ia'], 'assignees' => ['leoh']]);
     }
 
-    public function test_it_creates_a_private_repository_with_its_files(): void
+    public function test_on_a_user_account_it_creates_the_repository_for_the_authenticated_user(): void
     {
+        $this->fakeToken([
+            'api.github.com/user/repos' => Http::response(['id' => 900, 'full_name' => 'GrupoRyR/nuevo', 'default_branch' => 'main'], 201),
+            'api.github.com/repos/GrupoRyR/nuevo/contents/*' => Http::response(['content' => []], 201),
+        ]);
+
+        $repo = $this->client()->createRepository('GrupoRyR', 'nuevo', ['README.md' => "# Nuevo\n"], 'Proyecto P-4');
+
+        $this->assertSame('GrupoRyR/nuevo', $repo['full_name']);
+        Http::assertSent(fn (Request $request) => $request->method() === 'POST'
+            && $request->url() === 'https://api.github.com/user/repos'
+            && $request['name'] === 'nuevo' && $request['private'] === true);
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/orgs/'));
+        Http::assertSent(fn (Request $request) => $request->method() === 'PUT'
+            && str_ends_with($request->url(), '/repos/GrupoRyR/nuevo/contents/README.md'));
+    }
+
+    public function test_on_an_organization_it_creates_a_private_repository_with_its_files(): void
+    {
+        config(['services.github.account_type' => 'organization']);
         $this->fakeToken([
             'api.github.com/orgs/GrupoRyR/repos' => Http::response(['id' => 900, 'full_name' => 'GrupoRyR/nuevo', 'default_branch' => 'main'], 201),
             'api.github.com/repos/GrupoRyR/nuevo/contents/*' => Http::response(['content' => []], 201),

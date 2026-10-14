@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Http;
  *
  * - App calls authenticate with a JWT (RS256, signed with `openssl_sign`
  *   using the private key at `services.github.private_key_path`).
- * - Repository calls use the installation access token of the organization
+ * - Repository calls use the installation access token of the account
  *   installation (`github.installation_id` setting), cached encrypted for
  *   less than an hour (GitHub tokens live one hour).
  *
@@ -59,7 +59,7 @@ class GitHubApp
     }
 
     /**
-     * Installation of the app on the organization; null until connected.
+     * Installation of the app on the account; null until connected.
      */
     public function installationId(): ?int
     {
@@ -132,11 +132,22 @@ class GitHubApp
     }
 
     /**
-     * Installation id of the app on an organization; null when not installed.
+     * The GitHub account is an organization (`services.github.account_type`);
+     * otherwise a personal (user) account.
      */
-    public function organizationInstallationId(string $organization): ?int
+    public function isOrganization(): bool
     {
-        $response = $this->send('get', 'orgs/'.rawurlencode($organization).'/installation', [], $this->jwt(), allowNotFound: true);
+        return config('services.github.account_type') === 'organization';
+    }
+
+    /**
+     * Installation id of the app on the account; null when not installed.
+     * `GET /orgs/{org}/installation` or `GET /users/{username}/installation` (JWT).
+     */
+    public function accountInstallationId(string $account): ?int
+    {
+        $prefix = $this->isOrganization() ? 'orgs/' : 'users/';
+        $response = $this->send('get', $prefix.rawurlencode($account).'/installation', [], $this->jwt(), allowNotFound: true);
 
         return $response === null ? null : (int) $response->json('id');
     }
@@ -249,8 +260,11 @@ class GitHubApp
     }
 
     /**
-     * Creates a private repository in the organization and commits each
-     * file (path => content) to its default branch.
+     * Creates a private repository in the account and commits each file
+     * (path => content) to its default branch. Organizations use
+     * `POST /orgs/{org}/repos`; a user account `POST /user/repos`, which
+     * GitHub documents for installation access tokens with the
+     * "Administration" (write) permission.
      *
      * @param  array<string, string>  $files
      * @return array<string, mixed> the created repository
@@ -259,7 +273,9 @@ class GitHubApp
     {
         $token = $this->installationToken();
 
-        $repository = (array) $this->send('post', 'orgs/'.rawurlencode($organization).'/repos', [
+        $endpoint = $this->isOrganization() ? 'orgs/'.rawurlencode($organization).'/repos' : 'user/repos';
+
+        $repository = (array) $this->send('post', $endpoint, [
             'name' => $name,
             'description' => $description,
             'private' => true,

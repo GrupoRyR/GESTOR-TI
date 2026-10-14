@@ -33,7 +33,7 @@ class RepositoryCreateTest extends ProjectsTestCase
     private function fakeCreation(int $status = 201): void
     {
         $this->fakeGitHub([
-            'api.github.com/orgs/GrupoRyR/repos' => Http::response($status === 201 ? [
+            'api.github.com/user/repos' => Http::response($status === 201 ? [
                 'id' => 9876, 'name' => 'descuentos', 'full_name' => 'GrupoRyR/descuentos', 'private' => true,
                 'html_url' => 'https://github.com/GrupoRyR/descuentos', 'default_branch' => 'main', 'pushed_at' => null,
             ] : ['message' => 'Repository creation failed.'], $status),
@@ -51,7 +51,7 @@ class RepositoryCreateTest extends ProjectsTestCase
             ->assertSessionHasNoErrors()
             ->assertSessionHas('success', 'Se creó el repositorio privado GrupoRyR/descuentos y quedó vinculado al proyecto.');
 
-        Http::assertSent(fn (Request $request) => $request->url() === 'https://api.github.com/orgs/GrupoRyR/repos'
+        Http::assertSent(fn (Request $request) => $request->url() === 'https://api.github.com/user/repos'
             && $request['name'] === 'descuentos' && $request['private'] === true);
 
         $files = [];

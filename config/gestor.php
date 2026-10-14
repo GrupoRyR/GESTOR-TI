@@ -41,8 +41,8 @@ return [
         'vault_owner' => $emails(env('GESTOR_VAULT_OWNER_EMAIL'))[0] ?? null,
     ],
 
-    // IT contact shown on `Auth/CompanyNotEnabled` (null hides the link).
-    'support_email' => env('GESTOR_SUPPORT_EMAIL') ?: null,
+    // IT contact shown on `Auth/CompanyNotEnabled` (empty hides the link).
+    'support_email' => env('GESTOR_SUPPORT_EMAIL', 'jhon.castro@segurex.com') ?: null,
 
     /*
     | Defaults of `App\Support\Settings` (table `settings` stores only the
@@ -81,9 +81,10 @@ return [
         // from Jhon: the rate to use (no live exchange rate is fetched).
         'ai.usd_cop_rate' => 4000,
 
-        // AI spend: monthly cap in USD (0 = not configured yet; pending
-        // from Jhon) and warning threshold in percent of the cap.
-        'ai.monthly_cost_cap_usd' => 0.0,
+        // AI spend: monthly cap in USD (US$ 10 confirmed by Jhon; 0 = no
+        // cap) and warning threshold in percent of the cap. Reaching it
+        // turns the chat and the suggestions off (`off_cap`).
+        'ai.monthly_cost_cap_usd' => (float) env('GESTOR_AI_MONTHLY_CAP_USD', 10),
         'ai.cost_warning_percent' => 80,
 
         // AI provider and model (keys of `ai.providers` below), changed from
@@ -91,10 +92,12 @@ return [
         'ai.provider' => 'deepseek',
         'ai.model' => 'deepseek-chat',
 
-        // GitHub organization of the Gestor (Stage D uses it).
-        'github.organization' => null,
+        // GitHub account of the Gestor (Stage D uses it): GrupoRyR, a user
+        // account (`services.github.account_type`), confirmed by Jhon. The
+        // key keeps its name; Administración › Integraciones can change it.
+        'github.organization' => env('GITHUB_ACCOUNT', 'GrupoRyR') ?: null,
 
-        // Installation of the GitHub App on the organization; set by
+        // Installation of the GitHub App on the account; set by
         // App\Services\GitHub\RepositorySync, cleared by "Desconectar GitHub".
         'github.installation_id' => null,
 

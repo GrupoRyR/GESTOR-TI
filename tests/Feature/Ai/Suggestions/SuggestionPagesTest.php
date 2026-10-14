@@ -5,7 +5,6 @@ namespace Tests\Feature\Ai\Suggestions;
 use App\Enums\Ai\RequestStatus;
 use App\Models\AiInteraction;
 use App\Models\AiSuggestion;
-use App\Support\Settings;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -78,11 +77,12 @@ class SuggestionPagesTest extends SuggestionsTestCase
         );
 
         config(['services.deepseek.api_key' => 'test-deepseek-key']);
-        app(Settings::class)->set('ai.monthly_cost_cap_usd', 10);
+        // Default cap: US$ 10 a month.
         AiInteraction::query()->create(['provider' => 'deepseek', 'model' => 'deepseek-chat', 'feature' => 'assistant', 'status' => 'ok', 'cost' => '10.5']);
         $this->actingAs($this->jhon)->get(route('ai.requests.show', $request))->assertInertia(fn (Assert $page) => $page
             ->where('ai_availability', 'off_cap')
             ->where('ai_usage.spent_label', 'US$ 10,50')
+            ->where('ai_usage.cap_label', 'US$ 10')
             ->where('suggestions', null)
         );
     }

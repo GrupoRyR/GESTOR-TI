@@ -48,6 +48,9 @@ return [
 
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        // Display name of the bot ("Ingenierito"); the @username stays in
+        // TELEGRAM_BOT_USERNAME (null until the bot exists).
+        'bot_name' => env('TELEGRAM_BOT_NAME', 'Ingenierito'),
         'bot_username' => env('TELEGRAM_BOT_USERNAME'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
         // Also require the `X-Telegram-Bot-Api-Secret-Token` header (sent by
@@ -96,6 +99,11 @@ return [
         'private_key_path' => env('GITHUB_PRIVATE_KEY_PATH'),
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'token' => env('GITHUB_TOKEN'),
+        // Kind of the account that owns the repositories (`github.organization`
+        // setting): `user` (GrupoRyR is a personal account) or `organization`.
+        // It picks the installation lookup, the repository creation endpoint
+        // and the "Administrar instalación" link.
+        'account_type' => env('GITHUB_ACCOUNT_TYPE', 'user') === 'organization' ? 'organization' : 'user',
     ],
 
     'vault' => [

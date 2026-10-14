@@ -51,7 +51,7 @@ class RepositorySyncTest extends TestCase
         GitHubRepository::factory()->create(['github_id' => 3, 'full_name' => 'GrupoRyR/borrado', 'name' => 'borrado']);
 
         Http::fake([
-            'api.github.com/orgs/GrupoRyR/installation' => Http::response(['id' => 42]),
+            'api.github.com/users/GrupoRyR/installation' => Http::response(['id' => 42]),
             'api.github.com/app/installations/42/access_tokens' => Http::response(['token' => 't', 'expires_at' => now()->addHour()->toIso8601String()], 201),
             'api.github.com/installation/repositories*' => Http::response(['total_count' => 2, 'repositories' => [
                 $this->repo(1, 'portafolio', ['language' => 'TypeScript']),
@@ -82,7 +82,7 @@ class RepositorySyncTest extends TestCase
 
     public function test_it_needs_the_organization_installation(): void
     {
-        Http::fake(['api.github.com/orgs/GrupoRyR/installation' => Http::response(['message' => 'Not Found'], 404)]);
+        Http::fake(['api.github.com/users/GrupoRyR/installation' => Http::response(['message' => 'Not Found'], 404)]);
 
         try {
             app(RepositorySync::class)->sync();
