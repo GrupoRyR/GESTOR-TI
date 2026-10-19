@@ -347,7 +347,7 @@ npm run typecheck
 | Money (`formatCOP`) | "$ 14.200.000" (no decimals, no-break space) |
 | Hours (`formatHours`) | "6 h 20 min" |
 | Locale and zone | `es-CO`, `America/Bogota`; ISO 8601 in, built from `formatToParts` |
-| Unknown facts | Bracket placeholders: `[DOMINIO DEL GESTOR]`, `[RUTA EN SAP]` |
+| Unknown facts | Bracket placeholders: `[RUTA EN SAP]`, `[TIEMPO DE RETENCIÓN]` |
 | Never invent | Menu paths, product steps, people's titles: use a placeholder and list it as an open point |
 
 ## 8. Accessibility checklist

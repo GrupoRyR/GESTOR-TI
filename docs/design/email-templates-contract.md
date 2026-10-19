@@ -34,6 +34,6 @@ The approved mockups are on the design canvas, page "Plantillas de correo". **Th
 - **Reply box:** "También puedes responder este correo" (`it-question`) is sent only if the app processes email replies.
 
 ## Open points
-- **Placeholders:** `[DOMINIO DEL GESTOR]` in sample URLs.
+- **Domain:** sample URLs use `ti.segurex.co` (confirmed 2026-10-19).
 - **Sample routes:** the preferences route (`/perfil/avisos`) and the rating link path are sample values.
 - **Preheader texts:** they were written by design and can be adjusted.

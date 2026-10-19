@@ -62,7 +62,7 @@ export interface GitHubConnection {
     /** Where to change the installed repositories on github.com. */
     manage_url: string;
     webhook: {
-        /** "https://[DOMINIO DEL GESTOR]/api/github/webhook". */
+        /** "https://ti.segurex.co/api/github/webhook". */
         url: string;
         /** Secret set and signature checked. The secret itself is never sent. */
         configured: boolean;

@@ -38,7 +38,7 @@ Builds on the [Stage A](stage-a-contract.md) to [Stage D](stage-d-contract.md) c
 - `read_write`: adds `crear_tarea`, `actualizar_tarea`, `agregar_nota` and `adjuntar_documento`.
 
 **MCP server**
-- Over HTTP at `https://[DOMINIO DEL GESTOR]/mcp`, with `Authorization: Bearer <token>`.
+- Over HTTP at `https://ti.segurex.co/mcp`, with `Authorization: Bearer <token>`.
 - Expired or revoked token: `401`.
 - Read-only token calling a write tool: `403`, logged as "Rechazada · token de solo lectura".
 - Every call is audited: token, tool, target, when and result.
@@ -46,7 +46,7 @@ Builds on the [Stage A](stage-a-contract.md) to [Stage D](stage-d-contract.md) c
 - It must work on the shared hosting. `server.active = false` shows "El conector aún no está activo en este servidor".
 
 ## Open points
-- **Placeholders:** `[DOMINIO DEL GESTOR]`, `[PASOS EN CLAUDE]` (exact Claude menu steps, never invented), `[TIEMPO DE RETENCIÓN]` (activity log retention) and `[PASO DE ACTIVACIÓN EN EL HOSTING]`.
+- **Placeholders:** `[PASOS EN CLAUDE]` (exact Claude menu steps, never invented), `[TIEMPO DE RETENCIÓN]` (activity log retention) and `[PASO DE ACTIVACIÓN EN EL HOSTING]`.
 - **Token format:** the real format is not defined; the mock uses `gti_mcp_…`.
 - **Optional field `last_client`:** the client name, taken from MCP `clientInfo` and used as the token subtitle.
 - **"Expiring soon":** a token is flagged at 7 days or less before expiry.

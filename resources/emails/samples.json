@@ -1,22 +1,22 @@
 {
     "shared": {
-        "preferences_url": "https://[DOMINIO DEL GESTOR]/perfil/avisos"
+        "preferences_url": "https://ti.segurex.co/perfil/avisos"
     },
     "companies": {
         "segurex": {
             "company_name": "Segurex",
             "company_sender": "segurex.info@segurex.com",
             "brand_color": "#C4470F",
-            "logo_url": "https://[DOMINIO DEL GESTOR]/brand/logo-segurex.png",
-            "logo_dark_url": "https://[DOMINIO DEL GESTOR]/brand/logo-segurex-dark.png",
+            "logo_url": "https://ti.segurex.co/brand/logo-segurex.png",
+            "logo_dark_url": "https://ti.segurex.co/brand/logo-segurex-dark.png",
             "logo_width": 175
         },
         "derivados": {
             "company_name": "Derivados",
             "company_sender": "derivados.info@derivadoscol.com",
             "brand_color": "#183F94",
-            "logo_url": "https://[DOMINIO DEL GESTOR]/brand/logo-derivados.png",
-            "logo_dark_url": "https://[DOMINIO DEL GESTOR]/brand/logo-derivados-dark.png",
+            "logo_url": "https://ti.segurex.co/brand/logo-derivados.png",
+            "logo_dark_url": "https://ti.segurex.co/brand/logo-derivados-dark.png",
             "logo_width": 154
         }
     },
@@ -26,7 +26,7 @@
             "company": "segurex",
             "to": "Jhon Castro <jhon.castro@segurex.com>",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-149",
+                "action_url": "https://ti.segurex.co/solicitudes/GIA-149",
                 "request_key": "GIA-149",
                 "request_title": "Reporte de comisiones en Excel",
                 "area_name": "Ventas",
@@ -40,7 +40,7 @@
             "company": "segurex",
             "to": "Juan Pérez <[CORREO DE JUAN]>",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-149",
+                "action_url": "https://ti.segurex.co/solicitudes/GIA-149",
                 "request_key": "GIA-149",
                 "request_title": "Reporte de comisiones en Excel",
                 "review_due_date": "martes 13 oct"
@@ -51,7 +51,7 @@
             "company": "derivados",
             "to": "Andrés Méndez <[CORREO DE ANDRÉS]>",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-146",
+                "action_url": "https://ti.segurex.co/solicitudes/GIA-146",
                 "request_key": "GIA-146",
                 "request_title": "Portafolio de productos: exportar fichas técnicas en PDF",
                 "status_label": "Pendiente de aprobación",
@@ -123,7 +123,7 @@
             "company": "derivados",
             "to": "Andrés Méndez <[CORREO DE ANDRÉS]>",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-150",
+                "action_url": "https://ti.segurex.co/solicitudes/GIA-150",
                 "request_key": "GIA-150",
                 "request_title": "Comparar precios de proveedores en el Portafolio",
                 "asker_name": "Jhon Castro",
@@ -137,7 +137,7 @@
             "company": "derivados",
             "to": "Andrés Méndez <[CORREO DE ANDRÉS]>",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar",
+                "action_url": "https://ti.segurex.co/solicitudes/GIA-118/calificar",
                 "request_key": "GIA-118",
                 "request_title": "Buscador por referencia",
                 "requester_first_name": "Andrés",
@@ -149,11 +149,11 @@
                     "Ahora puedes encontrar un producto escribiendo su referencia en el buscador, aunque escribas solo una parte. Ya no hace falta recorrer las categorías una por una.",
                     "Los resultados aparecen mientras escribes."
                 ],
-                "rating_url_1": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=1",
-                "rating_url_2": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=2",
-                "rating_url_3": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=3",
-                "rating_url_4": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=4",
-                "rating_url_5": "https://[DOMINIO DEL GESTOR]/solicitudes/GIA-118/calificar?nota=5"
+                "rating_url_1": "https://ti.segurex.co/solicitudes/GIA-118/calificar?nota=1",
+                "rating_url_2": "https://ti.segurex.co/solicitudes/GIA-118/calificar?nota=2",
+                "rating_url_3": "https://ti.segurex.co/solicitudes/GIA-118/calificar?nota=3",
+                "rating_url_4": "https://ti.segurex.co/solicitudes/GIA-118/calificar?nota=4",
+                "rating_url_5": "https://ti.segurex.co/solicitudes/GIA-118/calificar?nota=5"
             }
         },
         "requirement": {
@@ -161,7 +161,7 @@
             "company": "derivados",
             "to": "[RESPONSABLE MERCADEO]",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/requerimientos/[ID DEL REQUERIMIENTO]",
+                "action_url": "https://ti.segurex.co/requerimientos/[ID DEL REQUERIMIENTO]",
                 "project_key": "P-05",
                 "request_key": "GIA-131",
                 "request_title": "Portafolio: conectar la API de WooCommerce",
@@ -187,7 +187,7 @@
             "company": "segurex",
             "to": "Jhon Castro, Edward Ramanan",
             "data": {
-                "action_url": "https://[DOMINIO DEL GESTOR]/proyectos/P-07/informe",
+                "action_url": "https://ti.segurex.co/proyectos/P-07/informe",
                 "can_view_costs": true,
                 "project_key": "P-07",
                 "project_name": "Visualizador de cartera",
