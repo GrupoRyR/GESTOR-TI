@@ -53,7 +53,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
    ln -s ~/gestor-ti/public ~/ti.segurex.co
    ```
 3. **PHP 8.3.** En *MultiPHP Manager* elige PHP 8.3 para el subdominio. En *Select PHP Version → Extensions* (o *MultiPHP INI Editor*) activa:
-   - Obligatorias (las exigen las dependencias): `ctype`, `dom`, `fileinfo`, `filter`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `pdo_mysql`, `session`, `sodium`, `tokenizer`, `xmlreader`, `zip`.
+   - Obligatorias (las exigen las dependencias): `ctype`, `dom`, `fileinfo`, `filter`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `pdo_mysql` (en cPanel basta con `nd_pdo_mysql`, la versión con mysqlnd; si está activa, `pdo_mysql` sale como "conflicting" y se deja apagada), `session`, `sodium`, `tokenizer`, `xmlreader`, `zip`.
    - Recomendadas: `curl`, `intl` y `gd` (imágenes en PDF de dompdf).
    - `zip`, `xmlreader` y `dom` las usa la importación de Excel (openspout) y `zip` también los respaldos.
 4. **PHP por SSH.** Revisa que la consola use la misma versión:
