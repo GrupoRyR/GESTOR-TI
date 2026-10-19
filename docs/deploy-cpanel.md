@@ -4,7 +4,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 
 > **Secretos.** Contraseñas, tokens y llaves van **solo** en el `.env` del servidor o en los *secrets* de GitHub. Nunca en el repositorio, en un correo ni en un chat. Los ejemplos de esta guía usan valores ficticios.
 
-> **Dominio.** `ti.segurex.com` es un ejemplo: el dominio definitivo está **pendiente**. Donde aparezca, reemplázalo por el real. `<usuario>` es el usuario de cPanel.
+> **Dominio.** El Gestor TI vive en `ti.segurex.co` (con **.co**, confirmado; los correos siguen en `@segurex.com`). `<usuario>` es el usuario de cPanel.
 
 ## 0. Resumen y orden
 
@@ -12,7 +12,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 
 | Qué | Para qué | Quién |
 |---|---|---|
-| Dominio o subdominio (por ejemplo `ti.segurex.com`) | URL pública con SSL | Jhon |
+| Subdominio `ti.segurex.co` | URL pública con SSL | Jhon |
 | Registro de aplicación en Microsoft Entra (multiempresa) | Inicio de sesión y sincronización de colaboradores | Jhon |
 | Cuenta de envío SMTP + permiso "Enviar como" sobre `segurex.info@segurex.com` y `derivados.info@derivadoscol.com` | Correos con plantilla | Jhon |
 | Bot de Telegram (BotFather) | Avisos, aprobaciones y asistente por Telegram | Jhon |
@@ -47,10 +47,10 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 
 ## 1. Preparar cPanel (una vez)
 
-1. **Subdominio con SSL.** En *Domains* crea el subdominio (por ejemplo `ti.segurex.com`) y activa el SSL (*SSL/TLS Status* → *Run AutoSSL*). La app debe abrir en `https://`.
+1. **Subdominio con SSL.** En *Domains* crea el subdominio `ti.segurex.co` y activa el SSL (*SSL/TLS Status* → *Run AutoSSL*). La app debe abrir en `https://`.
 2. **Raíz del documento → `public`.** Apunta la raíz del subdominio a `/home/<usuario>/gestor-ti/public`. Si cPanel no deja cambiarla, borra la carpeta del subdominio y crea un enlace por SSH:
    ```bash
-   ln -s ~/gestor-ti/public ~/ti.segurex.com
+   ln -s ~/gestor-ti/public ~/ti.segurex.co
    ```
 3. **PHP 8.3.** En *MultiPHP Manager* elige PHP 8.3 para el subdominio. En *Select PHP Version → Extensions* (o *MultiPHP INI Editor*) activa:
    - Obligatorias (las exigen las dependencias): `ctype`, `dom`, `fileinfo`, `filter`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `pdo_mysql`, `session`, `sodium`, `tokenizer`, `xmlreader`, `zip`.
@@ -127,7 +127,7 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 | `APP_ENV` | Sí | `production` | |
 | `APP_KEY` | Sí | `base64:…` | Generada arriba. Nunca cambiarla |
 | `APP_DEBUG` | Sí | `false` | Nunca `true` en producción |
-| `APP_URL` | Sí | `https://ti.segurex.com` | URL pública **exacta**, con `https` y sin `/` al final. La usan Microsoft, Telegram, MCP y los correos |
+| `APP_URL` | Sí | `https://ti.segurex.co` | URL pública **exacta**, con `https` y sin `/` al final. La usan Microsoft, Telegram, MCP y los correos |
 | `APP_TIMEZONE` | No | `America/Bogota` | Valor por defecto |
 | `APP_LOCALE` | No | `es` | Valor por defecto |
 | `LOG_CHANNEL` | No | `stack` | Por defecto escribe en `storage/logs/laravel.log` |
@@ -170,7 +170,7 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 |---|---|---|---|
 | `MICROSOFT_CLIENT_ID` | Sí | `00000000-0000-…` | Id. de la aplicación (cliente) |
 | `MICROSOFT_CLIENT_SECRET` | Sí | (secreto) | Anota su fecha de vencimiento |
-| `MICROSOFT_REDIRECT_URI` | Sí | `https://ti.segurex.com/auth/microsoft/callback` | Debe coincidir letra por letra con la de Entra |
+| `MICROSOFT_REDIRECT_URI` | Sí | `https://ti.segurex.co/auth/microsoft/callback` | Debe coincidir letra por letra con la de Entra |
 | `MICROSOFT_TENANT` | No | `organizations` | Valor por defecto (multiempresa) |
 | `EMERGENCY_ADMIN_EMAIL` | Sí | `emergencia.ti@segurex.com` | Sin este valor, `/emergency-login` responde 404 |
 | `GESTOR_SUPER_ADMIN_EMAILS` | Sí | `a@segurex.com,b@segurex.com` | Separados por coma |
@@ -266,7 +266,7 @@ El proveedor y el modelo no van en el `.env`: se configuran en *Administración 
    ```bash
    php artisan gestor:emergency-admin emergencia.ti@segurex.com
    ```
-   Muestra la contraseña **una sola vez**: guárdala en el gestor de contraseñas. Volver a correrlo rota la contraseña. El ingreso es por `https://ti.segurex.com/emergency-login`.
+   Muestra la contraseña **una sola vez**: guárdala en el gestor de contraseñas. Volver a correrlo rota la contraseña. El ingreso es por `https://ti.segurex.co/emergency-login`.
 5. **Llaves de Passport** (conector MCP):
    ```bash
    php artisan passport:keys
@@ -298,7 +298,7 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
 
 1. En el inquilino de Segurex: *Microsoft Entra → App registrations → New registration*.
    - Tipos de cuenta: **cuentas de cualquier directorio organizativo** (multiempresa).
-   - URI de redirección, tipo *Web*: `https://ti.segurex.com/auth/microsoft/callback`.
+   - URI de redirección, tipo *Web*: `https://ti.segurex.co/auth/microsoft/callback`.
 2. *Certificates & secrets → New client secret*. El valor va a `MICROSOFT_CLIENT_SECRET`; el Id. de la aplicación a `MICROSOFT_CLIENT_ID`. Anota la fecha de vencimiento del secreto y crea un recordatorio.
 3. *API permissions*:
    - Delegados (inicio de sesión): `openid`, `profile`, `email`, `User.Read`.
@@ -335,7 +335,7 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
    ```bash
    php artisan gestor:telegram-webhook
    ```
-   Lo registra en `https://ti.segurex.com/api/telegram/webhook/{secreto}`.
+   Lo registra en `https://ti.segurex.co/api/telegram/webhook/{secreto}`.
 4. Cada persona vincula su cuenta en *Perfil › Telegram* (`/profile/telegram`).
 
 **Verificar:** el botón de prueba de Telegram en *Integraciones*; escribir al bot desde una cuenta vinculada.
@@ -354,7 +354,7 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
 ### 5.5 GitHub App
 
 1. En la cuenta `GrupoRyR` de GitHub (es una cuenta personal, no una organización): *Settings › Developer settings › GitHub Apps › New GitHub App*.
-2. Webhook URL: `https://ti.segurex.com/api/github/webhook`, tipo JSON, con un secreto largo (va a `GITHUB_WEBHOOK_SECRET`).
+2. Webhook URL: `https://ti.segurex.co/api/github/webhook`, tipo JSON, con un secreto largo (va a `GITHUB_WEBHOOK_SECRET`).
 3. Permisos de repositorio: Contents (lectura y escritura), Administration (lectura y escritura, para crear repos), Issues (lectura y escritura), Pull requests (lectura), Actions (lectura), Metadata (lectura).
 4. Eventos: Issues, Pull request, Release, Workflow run, Push. Los de instalación llegan solos.
 5. Genera la llave privada y súbela al servidor **fuera** de la app y de `public`:
@@ -377,10 +377,10 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
 
 ### 5.6 Conector MCP (Claude)
 
-El Gestor IA queda como servidor MCP en `https://ti.segurex.com/mcp`. Solo lo usa quien tiene el permiso `ai.mcp.use`, y cada persona entra con su propia identidad:
+El Gestor IA queda como servidor MCP en `https://ti.segurex.co/mcp`. Solo lo usa quien tiene el permiso `ai.mcp.use`, y cada persona entra con su propia identidad:
 
 - **Claude Code y scripts:** token personal creado en *Perfil › Conector para Claude* (`/profile/mcp`), de `read` o `read_write`, con vencimiento de 30, 90 o 180 días. El valor se muestra una sola vez.
-- **claude.ai web y escritorio:** OAuth. Se agrega como conector personalizado con la URL `https://ti.segurex.com/mcp` (pasos de Claude: https://claude.com/docs/connectors/custom/add-unlisted). Claude se registra solo y pide iniciar sesión con Microsoft y autorizar.
+- **claude.ai web y escritorio:** OAuth. Se agrega como conector personalizado con la URL `https://ti.segurex.co/mcp` (pasos de Claude: https://claude.com/docs/connectors/custom/add-unlisted). Claude se registra solo y pide iniciar sesión con Microsoft y autorizar.
 
 Pasos en el servidor:
 
@@ -393,7 +393,7 @@ Pasos en el servidor:
 
 1. Crea un token `read` y agrégalo en Claude Code:
    ```bash
-   claude mcp add --transport http gestor-ia https://ti.segurex.com/mcp --header "Authorization: Bearer <token>"
+   claude mcp add --transport http gestor-ia https://ti.segurex.co/mcp --header "Authorization: Bearer <token>"
    ```
    Pide "busca solicitudes de facturación" y revisa la llamada en *Actividad* del perfil.
 2. Con ese token pide crear una tarea: debe salir rechazada ("token de solo lectura").
@@ -441,7 +441,7 @@ Todas salen del cron de cada minuto (`schedule:run`). Horas en `America/Bogota`.
 ## 8. Verificación final
 
 - [ ] *Actions* de GitHub: último despliegue y CI en verde.
-- [ ] `https://ti.segurex.com` abre con SSL y muestra el inicio de sesión.
+- [ ] `https://ti.segurex.co` abre con SSL y muestra el inicio de sesión.
 - [ ] Inicio de sesión con una cuenta de Segurex y otra de Derivados; los roles iniciales quedaron bien.
 - [ ] `/emergency-login` acepta la cuenta de emergencia.
 - [ ] `php artisan about` muestra `production`, debug apagado y caché de configuración activa.
