@@ -124,8 +124,8 @@ Branch for this doc: `claude/diseno-handoff-update`. Tests on `main` after #46: 
   - The monthly AI cap is **US$ 10**.
   - The GitHub account is **GrupoRyR**.
   - The IT support email is **jhon.castro@segurex.com**.
+  - The Gestor domain is **ti.segurex.co** (confirmed 2026-10-19; emails stay @segurex.com). Replaced in PR #50; the canvas boards still show `[DOMINIO DEL GESTOR]`.
 - **Still open:**
-  - The Gestor domain: there is none yet, so `[DOMINIO DEL GESTOR]` stays as a placeholder.
   - The bot's Telegram `@username`: it must end in "bot".
   - `[RUTA EN SAP]`, `[PASOS EN CLAUDE]`, `[TAMAÑO]`, `[FRECUENCIA]` and `[VERSIÓN]`.
 - **Not design data:** product owners, IT hourly rates and area hour values. Jhon enters them later in Administración and on each product page; the mocks keep sample values (rate $ 160.000/h).
