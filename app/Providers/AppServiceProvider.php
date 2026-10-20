@@ -10,11 +10,13 @@ use App\Models\Role;
 use App\Notifications\Channels\TelegramChannel;
 use App\Services\Ai\AiRuntime;
 use App\Support\Audit\AuditOrigin;
+use App\Support\DeployedRevision;
 use App\Support\Tenancy\CurrentCompany;
 use App\Telegram\Assistant\TypingIndicator;
 use App\Telegram\CallbackRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Event;
@@ -62,6 +64,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(SocialiteWasCalled::class, [MicrosoftExtendSocialite::class, 'handle']);
+
+        // `php artisan about --only=gestor_ti`: commit installed by the last deploy.
+        AboutCommand::add('Gestor TI', fn () => [
+            'Commit desplegado' => DeployedRevision::current()['short'] ?? 'sin dato',
+            'Fecha del despliegue' => DeployedRevision::current()['deployed_at'] ?? 'sin dato',
+        ]);
 
         // Every activity log entry records where it came from (web, api,
         // telegram, system) and the request IP (Administración › Auditoría).

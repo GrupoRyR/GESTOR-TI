@@ -315,7 +315,9 @@ class EmployeesTest extends TestCase
                 ->has('accesses', 1)
                 ->where('accesses.0', fn ($access) => collect($access)->keys()->sort()->values()->all() === ['id', 'last_rotated_at', 'notes', 'system', 'username'])
                 ->where('accesses.0.system', ['id' => $this->office->id, 'name' => 'Office 365'])
-                ->where('accesses.0.username', 'ana@segurex.com')
+                // Usernames and notes only with credentials.view (can_reveal).
+                ->where('accesses.0.username', null)
+                ->where('accesses.0.notes', null)
                 ->where('can_reveal', false)
                 ->where('can_manage', false)
                 ->where('areas', [['id' => $this->ventas->id, 'name' => 'Ventas']])
@@ -327,7 +329,10 @@ class EmployeesTest extends TestCase
     {
         $this->actingAs($this->user(['employees.view', 'credentials.view']))
             ->get(route('employees.show', $this->ana))
-            ->assertInertia(fn (Assert $page) => $page->where('can_reveal', true));
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can_reveal', true)
+                ->where('accesses.0.username', 'ana@segurex.com')
+            );
     }
 
     public function test_show_of_another_company_is_not_found(): void
