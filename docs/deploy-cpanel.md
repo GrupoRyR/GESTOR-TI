@@ -33,7 +33,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 
 ### Cómo funciona el despliegue
 
-- Cada `push` a `main` (o *Run workflow* en la pestaña *Actions*) ejecuta `.github/workflows/deploy.yml`:
+- El despliegue es **manual**: *Actions → Deploy (cPanel) → Run workflow* sobre `main` ejecuta `.github/workflows/deploy.yml` (fusionar a `main` no despliega solo, para ahorrar minutos de Actions):
   1. Instala dependencias y corre las pruebas (`php artisan test`). Si fallan, **no se despliega**.
   2. Compila el front-end (`npm ci` + `npm run build`).
   3. Instala `vendor` sin dependencias de desarrollo.
@@ -43,7 +43,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 - `rsync` **nunca sube ni borra** en el servidor: `.git/`, `.github/`, `.env`, `.env.*`, `.user.ini`, `.well-known/`, `node_modules/`, `tests/`, `odd/`, `storage/`, `bootstrap/cache/`, `public/storage`, `public/hot`.
 - **Todo lo demás se reemplaza.** Un archivo que subas a mano fuera de esa lista (por ejemplo en `public/brand/`) se borra en el siguiente despliegue.
 - El despliegue **no corre seeders**. Se corren a mano una sola vez, en la primera instalación.
-- `.github/workflows/ci.yml` corre en cada pull request y en cada push a `main`: Pint (`vendor/bin/pint --test`), pruebas, compilación del front-end y tipos (`npx tsc --noEmit`).
+- `.github/workflows/ci.yml` corre en los pull requests hacia `main` y en cada push a `main`: Pint (`vendor/bin/pint --test`), pruebas, compilación del front-end y tipos (`npx tsc --noEmit`).
 
 ## 1. Preparar cPanel (una vez)
 
@@ -255,7 +255,7 @@ El proveedor y el modelo no van en el `.env`: se configuran en *Administración 
 ## 4. Primera instalación
 
 1. **`.env` listo** con al menos: aplicación, base de datos, correo, Microsoft y acceso, `VAULT_KEY` ([sección 3](#3-el-env-completo)). Las integraciones pueden esperar.
-2. **Primer despliegue.** Haz push a `main` o *Actions → Deploy (cPanel) → Run workflow*. Sube el código, corre las migraciones y crea `public/storage`. Espera a que salga en verde.
+2. **Primer despliegue.** *Actions → Deploy (cPanel) → Run workflow* sobre `main`. Sube el código, corre las migraciones y crea `public/storage`. Espera a que salga en verde.
 3. **Datos iniciales.** Por SSH, **una sola vez**:
    ```bash
    cd ~/gestor-ti
@@ -456,7 +456,7 @@ Todas salen del cron de cada minuto (`schedule:run`). Horas en `America/Bogota`.
 
 ## 9. Operación diaria y despliegues siguientes
 
-- **Desplegar:** merge del pull request a `main`. El workflow prueba, compila, sube, migra y optimiza solo. No hay que entrar por SSH.
+- **Desplegar:** fusiona el pull request a `main` y luego *Actions → Deploy (cPanel) → Run workflow* sobre `main`. El workflow prueba, compila, sube, migra y optimiza solo. No hay que entrar por SSH.
 - **No se toca a mano en el servidor:** código, `public/build`, `vendor`. Se reemplazan en cada despliegue.
 - **Sí vive solo en el servidor:** `.env`, `.user.ini`, `storage/` (archivos, registros, respaldos, llaves de Passport) y la llave de GitHub fuera de la app.
 - **Seeders nunca en un redespliegue.** `RolesAndPermissionsSeeder` reinicia la matriz de roles y `CompanySeeder` sobrescribe los datos de las empresas editados en *Administración*.

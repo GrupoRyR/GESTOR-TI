@@ -13,9 +13,9 @@ name: Deploy (cPanel)
 # (docs/deploy-cpanel.md); re-running RolesAndPermissionsSeeder would reset
 # the role matrix.
 
+# Manual only (Actions → Deploy (cPanel) → Run workflow, on main): merges do
+# not deploy by themselves, to save the account's shared Actions minutes.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
