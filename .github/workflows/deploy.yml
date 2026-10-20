@@ -52,6 +52,10 @@ jobs:
 
       # Never deploy a red build.
       - name: Test
+        env:
+          # .env.example leaves it empty and spatie/laravel-backup rejects an
+          # empty address while booting (same fix as ci.yml).
+          BACKUP_NOTIFICATION_EMAIL: ci@example.com
         run: |
           composer install --no-interaction --no-progress --prefer-dist
           cp .env.example .env
