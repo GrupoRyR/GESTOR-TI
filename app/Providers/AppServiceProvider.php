@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Domain\Assistant\AiDraftParser;
 use App\Domain\Assistant\DraftParser;
 use App\Domain\Assistant\HeuristicDraftParser;
+use App\Mail\Transport\GraphTransport;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Notifications\Channels\TelegramChannel;
 use App\Services\Ai\AiRuntime;
+use App\Services\Microsoft\GraphClient;
 use App\Support\Audit\AuditOrigin;
 use App\Support\Tenancy\CurrentCompany;
 use App\Telegram\Assistant\TypingIndicator;
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -89,6 +92,13 @@ class AppServiceProvider extends ServiceProvider
         // (push + workflow_run + pull_request) from a few hook addresses.
         RateLimiter::for('github-webhook', fn (Request $request) => Limit::perMinute(300)
             ->by('github-webhook:'.$request->ip()));
+
+        // `graph` mailer (MAIL_MAILER=graph): Microsoft Graph sendMail from
+        // the sender company's tenant (docs/deploy-cpanel.md 5.2).
+        Mail::extend('graph', fn (array $config = []) => new GraphTransport(
+            $this->app->make(GraphClient::class),
+            (bool) ($config['save_to_sent_items'] ?? true),
+        ));
 
         // `telegram` notification channel (App\Notifications\GestorNotification).
         Notification::resolved(function (ChannelManager $channels): void {

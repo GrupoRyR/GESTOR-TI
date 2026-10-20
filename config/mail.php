@@ -29,7 +29,7 @@ return [
     | when delivering an email. You may specify which one you're using for
     | your mailers below. You may also add additional mailers if needed.
     |
-    | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
+    | Supported: "graph", "smtp", "sendmail", "mailgun", "ses", "ses-v2",
     |            "postmark", "resend", "log", "array",
     |            "failover", "roundrobin"
     |
@@ -47,6 +47,13 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        // Microsoft Graph sendMail per company tenant (App\Mail\Transport\GraphTransport).
+        // Reuses MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET; needs Mail.Send.
+        'graph' => [
+            'transport' => 'graph',
+            'save_to_sent_items' => (bool) env('MAIL_GRAPH_SAVE_TO_SENT', true),
         ],
 
         'ses' => [
