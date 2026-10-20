@@ -85,8 +85,8 @@ describe('toolsFor', () => {
 
 describe('claudeCodeCommand', () => {
     it('builds the claude mcp add command with a token placeholder', () => {
-        expect(claudeCodeCommand('https://[DOMINIO DEL GESTOR]/mcp')).toBe(
-            'claude mcp add --transport http gestor-ia https://[DOMINIO DEL GESTOR]/mcp --header "Authorization: Bearer <token>"',
+        expect(claudeCodeCommand('https://ti.segurex.co/mcp')).toBe(
+            'claude mcp add --transport http gestor-ia https://ti.segurex.co/mcp --header "Authorization: Bearer <token>"',
         );
     });
 

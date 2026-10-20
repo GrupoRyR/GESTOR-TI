@@ -34,7 +34,7 @@ import {
 import { sharedFor, type MockUserKey, type MockVariant } from './shared';
 
 /** Absolute links the server would send (the preview has no Ziggy). */
-const GESTOR_URL = 'https://[DOMINIO DEL GESTOR]';
+const GESTOR_URL = 'https://ti.segurex.co';
 
 function without(key: MockUserKey, ...permissions: Permission[]): SharedProps {
     const removed: string[] = permissions;

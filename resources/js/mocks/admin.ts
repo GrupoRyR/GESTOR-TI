@@ -116,7 +116,7 @@ const companiesProps = { ...sharedFor('jhon'), ...companiesBase } satisfies Comp
 // ---- Wizard -----------------------------------------------------------------
 
 const CONSENT_TEMPLATE =
-    'https://login.microsoftonline.com/{tenant}/adminconsent?client_id=[ID DE LA APP DEL GESTOR]&redirect_uri=https%3A%2F%2F[DOMINIO DEL GESTOR]%2Fadmin%2Fempresas%2Fconsentimiento';
+    'https://login.microsoftonline.com/{tenant}/adminconsent?client_id=[ID DE LA APP DEL GESTOR]&redirect_uri=https%3A%2F%2Fti.segurex.co%2Fadmin%2Fempresas%2Fconsentimiento';
 
 const ANDINA_DRAFT: CompanyDraft = {
     name: 'Andina Pruebas S.A.S.',

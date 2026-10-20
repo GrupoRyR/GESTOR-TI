@@ -59,7 +59,7 @@ export interface McpCreatedToken {
 }
 
 export interface McpServer {
-    /** `https://[DOMINIO DEL GESTOR]/mcp`. */
+    /** `https://ti.segurex.co/mcp`. */
     url: string;
     /** `false` = the endpoint is not enabled on this hosting yet. */
     active: boolean;

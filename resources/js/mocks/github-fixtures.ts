@@ -62,7 +62,7 @@ export const GITHUB_CONNECTION: GitHubConnection = {
     private_key_configured: true,
     manage_url: `${GH}/settings/installations`,
     webhook: {
-        url: 'https://[DOMINIO DEL GESTOR]/api/github/webhook',
+        url: 'https://ti.segurex.co/api/github/webhook',
         configured: true,
         events: ['issues', 'pull_request', 'release', 'workflow_run', 'push'],
         last_delivery_at: '2026-10-07T09:36:00-05:00',
@@ -533,7 +533,7 @@ export const BRIEF_PRODUCT_VISUALIZADOR: BriefProduct = {
 export const BRIEF_LINKS_VISUALIZADOR: BriefLink[] = [
     { label: 'Repositorio', url: repoUrl('visualizador-cartera') },
     { label: 'Instrucciones para Claude (CLAUDE.md)', url: `${repoUrl('visualizador-cartera')}/blob/main/CLAUDE.md` },
-    { label: 'Manual técnico y de despliegue', url: 'https://[DOMINIO DEL GESTOR]/ai/documentacion/5' },
+    { label: 'Manual técnico y de despliegue', url: 'https://ti.segurex.co/ai/documentacion/5' },
 ];
 
 const GIA_139_CRITERIA = ['Filtrar por asesor.', 'Filtrar por zona.', 'Combinar ambos filtros.', 'Exportar el resultado a Excel.'];

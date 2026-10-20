@@ -12,7 +12,7 @@ type McpPage = PageProps<ProfileMcpProps>;
 
 export const MCP_NOW = '2026-10-10T09:24:00-05:00';
 
-const SERVER_URL = 'https://[DOMINIO DEL GESTOR]/mcp';
+const SERVER_URL = 'https://ti.segurex.co/mcp';
 
 export const MCP_HOLDERS = ['Jhon Castro', 'Leonardo Herrera'];
 
