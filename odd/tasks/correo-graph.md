@@ -11,7 +11,7 @@ Send every Gestor TI email through Microsoft Graph (`POST /users/{sender}/sendMa
 ## Decisions
 - 2026-10-20, user: "sí, implementa el envío por Graph".
 - The custom mailer is named `graph` (`MAIL_MAILER=graph`). Templates, the per-company sender and logos stay as they are.
-- Tests fake Graph with `Http::fake`. A real send needs `Mail.Send` (application) consented in each tenant, restricted to the two mailboxes through Exchange RBAC for Applications.
+- Tests fake Graph with `Http::fake`. A real send needs the Exchange RBAC role "Application Mail.Send" scoped to the company mailbox in each tenant, and NOT `Mail.Send` consented in Entra: both grants add together, so Entra consent would allow every mailbox.
 
 ## Delivery
 - Branch `feat/mail-graph-transport` from `main`. A single PR. RDD off.
@@ -29,7 +29,7 @@ Send every Gestor TI email through Microsoft Graph (`POST /users/{sender}/sendMa
 
 ## Progress / evidence
 
-### G1 — done
+### G1 — done (`b260285`)
 - Classes: `App\Mail\Transport\GraphTransport` (Symfony `AbstractTransport`, registered with `Mail::extend('graph')` in `AppServiceProvider`), `App\Mail\Transport\GraphMailException` (extends Symfony `TransportException`; English `getMessage()` for logs, Spanish `userMessage()`, `reason`, `status`, `retryable`). `GraphClient` gained `sendMail($token, $mailbox, $payload)` (single attempt, no throw) and `forgetToken($tenantId)`; tokens still come from `GraphClient::token()` (encrypted per-tenant cache).
 - Config: `config/mail.php` `mailers.graph = ['transport' => 'graph', 'save_to_sent_items' => env('MAIL_GRAPH_SAVE_TO_SENT', true)]`. Default stays `MAIL_MAILER` (default `log`). No new secrets.
 - Request shape (verified against https://learn.microsoft.com/en-us/graph/api/user-sendmail): `POST https://graph.microsoft.com/v1.0/users/{urlencoded sender}/sendMail`, JSON `{message: {subject, body: {contentType: HTML|Text, content}, from, toRecipients, ccRecipients, bccRecipients, replyTo, attachments: [{@odata.type: #microsoft.graph.fileAttachment, name, contentType, contentBytes (base64), isInline[, contentId]}]}, saveToSentItems}`; empty lists omitted; 202 = accepted.
