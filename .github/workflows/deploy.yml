@@ -71,6 +71,10 @@ jobs:
       - name: Production dependencies
         run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
 
+      # `php artisan about --only=gestor_ti` shows it on the server.
+      - name: Record revision
+        run: printf '%s %s\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > REVISION
+
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}

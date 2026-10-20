@@ -14,6 +14,7 @@ use App\Http\Controllers\AI\AreaBoardController;
 use App\Http\Controllers\AI\BacklogController;
 use App\Http\Controllers\AI\BoardController;
 use App\Http\Controllers\AI\DocumentController;
+use App\Http\Controllers\AI\GestorEntryController;
 use App\Http\Controllers\AI\GitHubController;
 use App\Http\Controllers\AI\InboxController;
 use App\Http\Controllers\AI\KnowledgeSearchController;
@@ -130,7 +131,7 @@ Route::get('/ai/requests/{request}/rating/{score}', QuickRatingController::class
     ->name('ai.ratings.quick');
 
 Route::middleware(['module:ai', 'auth'])->prefix('ai')->name('ai.')->group(function () {
-    Route::inertia('/', 'AI/Index')->name('index');
+    Route::get('/', GestorEntryController::class)->name('index');
 
     // Requester pages (B3, types/pages/ai-requester.ts). `{request}` is the
     // key (GIA-n), bound through CompanyScope (other companies answer 404);
@@ -472,7 +473,8 @@ Route::middleware(['module:assistant', 'auth'])->prefix('assistant')->name('assi
 });
 
 Route::middleware(['module:admin', 'auth'])->prefix('admin')->name('admin.')->group(function () {
-    Route::inertia('/', 'Admin/Index')->name('index');
+    // No admin landing page: the module entry is Empresas (config/modules.php).
+    Route::redirect('/', '/admin/companies')->name('index');
 
     // Empresas (`Admin/Companies/Index|Create`). Creating a company (wizard
     // included) or changing its tenant also requires `companies.manage_tenant`

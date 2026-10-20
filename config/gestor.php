@@ -44,6 +44,9 @@ return [
     // IT contact shown on `Auth/CompanyNotEnabled` (empty hides the link).
     'support_email' => env('GESTOR_SUPPORT_EMAIL', 'jhon.castro@segurex.com') ?: null,
 
+    // Written by the deploy workflow: `<commit sha> <UTC date>` (App\Support\DeployedRevision).
+    'revision_file' => base_path('REVISION'),
+
     /*
     | Defaults of `App\Support\Settings` (table `settings` stores only the
     | overrides made later from Administración). Keep the PHP type of each

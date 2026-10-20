@@ -132,6 +132,9 @@ class EmployeeController extends Controller
             ->get();
 
         $user = $request->user();
+        // Usernames and notes of accesses are credential data: only for
+        // `credentials.view` (the same gate as revealing a password).
+        $canReveal = (bool) $user?->can(EmployeeCredentialService::PERMISSION);
 
         return Inertia::render('Admin/Employees/Show', [
             'employee' => $employee->toListArray() + [
@@ -141,11 +144,11 @@ class EmployeeController extends Controller
             'accesses' => $accesses->map(fn (EmployeeAccess $access) => [
                 'id' => $access->id,
                 'system' => ['id' => $access->system->id, 'name' => $access->system->name],
-                'username' => $access->username,
-                'notes' => $access->notes,
+                'username' => $canReveal ? $access->username : null,
+                'notes' => $canReveal ? $access->notes : null,
                 'last_rotated_at' => $access->last_rotated_at?->toIso8601String(),
             ])->values()->all(),
-            'can_reveal' => (bool) $user?->can(EmployeeCredentialService::PERMISSION),
+            'can_reveal' => $canReveal,
             'can_manage' => (bool) $user?->can('employees.manage'),
             'areas' => Area::withoutGlobalScopes()
                 ->where('company_id', $employee->company_id)

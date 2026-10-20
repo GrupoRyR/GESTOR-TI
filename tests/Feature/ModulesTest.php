@@ -141,14 +141,32 @@ class ModulesTest extends TestCase
         $this->get(route('employees.index'))->assertRedirect(route('login'));
     }
 
-    public function test_active_module_route_renders_its_page_for_authenticated_user(): void
+    public function test_gestor_ia_entry_sends_requesters_to_their_requests(): void
     {
         $user = $this->userWith(config('modules.ai.permission'));
 
-        $this->actingAs($user)
-            ->get(route('ai.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('AI/Index', false));
+        $this->actingAs($user)->get(route('ai.index'))->assertRedirect(route('ai.requests.mine'));
+    }
+
+    public function test_gestor_ia_entry_sends_it_staff_to_the_inbox(): void
+    {
+        $user = $this->userWith('ai.manage');
+
+        $this->actingAs($user)->get(route('ai.index'))->assertRedirect(route('ai.inbox.index'));
+    }
+
+    public function test_admin_entry_redirects_to_companies(): void
+    {
+        $user = $this->userWith('admin.access');
+
+        $this->actingAs($user)->get(route('admin.index'))->assertRedirect(route('admin.companies.index'));
+    }
+
+    public function test_gestor_ia_entry_without_request_permission_shows_the_roadmap(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get(route('ai.index'))->assertRedirect(route('ai.roadmap.index'));
     }
 
     public function test_module_route_is_unreachable_when_module_is_toggled_off(): void
