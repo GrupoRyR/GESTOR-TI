@@ -363,6 +363,40 @@ class IntegrationsAdminTest extends TestCase
         $this->assertFalse($this->settings()->get('integrations.mail.last_test')['ok']);
     }
 
+    public function test_mail_test_through_graph_sends_from_the_company_mailbox(): void
+    {
+        config(['mail.default' => 'graph']);
+        Http::fake([
+            'login.microsoftonline.com/*' => Http::response(['access_token' => 'graph-token-abc', 'expires_in' => 3600]),
+            'graph.microsoft.com/*' => Http::response(null, 202),
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.integrations.mail.test'))
+            ->assertSessionHas('success', 'Te enviamos un correo de prueba a jhon.castro@segurex.com.');
+
+        Http::assertSent(fn (Request $request) => $request->url() === 'https://graph.microsoft.com/v1.0/users/segurex.info%40segurex.com/sendMail'
+            && $request['message']['toRecipients'][0]['emailAddress']['address'] === 'jhon.castro@segurex.com');
+        $this->assertTrue($this->settings()->get('integrations.mail.last_test')['ok']);
+    }
+
+    public function test_mail_test_through_graph_explains_a_missing_mail_send_permission(): void
+    {
+        config(['mail.default' => 'graph']);
+        Http::fake([
+            'login.microsoftonline.com/*' => Http::response(['access_token' => 'graph-token-abc', 'expires_in' => 3600]),
+            'graph.microsoft.com/*' => Http::response(['error' => ['code' => 'ErrorAccessDenied', 'message' => 'Access is denied.']], 403),
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.integrations.mail.test'))
+            ->assertSessionHas('error', 'No se pudo enviar el correo de prueba: Microsoft rechazó el envío desde segurex.info@segurex.com: '
+                .'falta el permiso Mail.Send (aplicación) en ese inquilino o el buzón está fuera del ámbito permitido a la aplicación (código graph_403 ErrorAccessDenied).');
+
+        $this->assertFalse($this->settings()->get('integrations.mail.last_test')['ok']);
+        $this->assertStringNotContainsString('graph-token-abc', (string) session('error'));
+    }
+
     public function test_telegram_test_sends_to_the_linked_chat_and_refreshes_the_webhook(): void
     {
         $this->fakeWebhook();

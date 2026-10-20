@@ -6,6 +6,7 @@ use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\LazyCollection;
@@ -17,7 +18,8 @@ use Throwable;
  *
  * Uses the multitenant app registration of `config('services.microsoft')`
  * (client credentials grant). Each tenant must grant admin consent to the
- * `User.Read.All` application permission.
+ * `User.Read.All` application permission (employee sync) and, for the
+ * `graph` mailer, `Mail.Send` (see docs/deploy-cpanel.md 5.2).
  *
  * Tokens are cached per tenant (encrypted) until 60 seconds before they
  * expire. Requests time out after 30 s and are retried twice on 429/5xx or
@@ -143,6 +145,34 @@ class GraphClient
                 $url = is_string($next) && $next !== '' ? $next : null;
             }
         });
+    }
+
+    /**
+     * Drops the cached token of the tenant (after Graph answered 401).
+     */
+    public function forgetToken(string $tenantId): void
+    {
+        $this->cache->forget('microsoft-graph:token:'.strtolower(trim($tenantId)));
+    }
+
+    /**
+     * `POST /users/{mailbox}/sendMail` (JSON) with an app-only token of the
+     * mailbox's tenant (App\Mail\Transport\GraphTransport). A single
+     * attempt and no thrown HTTP errors: sending is not idempotent, so the
+     * caller inspects the status (202 = accepted) and the queue retries.
+     *
+     * @param  array<string, mixed>  $payload  `{message, saveToSentItems}`
+     *
+     * @throws ConnectionException
+     */
+    public function sendMail(string $token, string $mailbox, array $payload): Response
+    {
+        return Http::timeout(self::TIMEOUT_SECONDS)
+            ->connectTimeout(10)
+            ->withToken($token)
+            ->acceptJson()
+            ->asJson()
+            ->post(self::GRAPH_URL.'/users/'.rawurlencode($mailbox).'/sendMail', $payload);
     }
 
     private function request(): PendingRequest

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateAiIntegrationRequest;
 use App\Http\Requests\Admin\UpdateGithubIntegrationRequest;
 use App\Mail\IntegrationTestMail;
+use App\Mail\Transport\GraphMailException;
 use App\Models\Company;
 use App\Models\User;
 use App\Services\Microsoft\GraphClient;
@@ -84,6 +85,12 @@ class IntegrationController extends Controller
 
         try {
             Mail::to($user->email)->send(new IntegrationTestMail($user->company, $user->name));
+        } catch (GraphMailException $exception) {
+            // Graph failures carry a readable, secret-free reason.
+            $mail->recordTest(false);
+            Log::warning('Integraciones: falló el correo de prueba.', ['user_id' => $user->id, 'exception' => $exception::class, 'reason' => $exception->reason, 'status' => $exception->status]);
+
+            return back()->with('error', 'No se pudo enviar el correo de prueba: '.$exception->userMessage());
         } catch (Throwable $exception) {
             $mail->recordTest(false);
             Log::warning('Integraciones: falló el correo de prueba.', ['user_id' => $user->id, 'exception' => $exception::class]);

@@ -14,7 +14,7 @@ Guía completa para instalar el Gestor TI por primera vez en el hosting comparti
 |---|---|---|
 | Dominio o subdominio (por ejemplo `ti.segurex.com`) | URL pública con SSL | Jhon |
 | Registro de aplicación en Microsoft Entra (multiempresa) | Inicio de sesión y sincronización de colaboradores | Jhon |
-| Cuenta de envío SMTP + permiso "Enviar como" sobre `segurex.info@segurex.com` y `derivados.info@derivadoscol.com` | Correos con plantilla | Jhon |
+| Permiso `Mail.Send` de Microsoft Graph para la aplicación, limitado a `segurex.info@segurex.com` y `derivados.info@derivadoscol.com`, en cada inquilino | Correos con plantilla | Jhon |
 | Bot de Telegram (BotFather) | Avisos, aprobaciones y asistente por Telegram | Jhon |
 | Llave de DeepSeek (tope mensual confirmado: US$ 10) | Asistente TI y sugerencias de IA | Jhon |
 | Organización de GitHub + GitHub App | Repositorios, issues y releases | Jhon |
@@ -155,14 +155,11 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 
 | Clave | Obligatoria | Ejemplo | Nota |
 |---|---|---|---|
-| `MAIL_MAILER` | Sí | `smtp` | Por defecto `log` (no envía nada) |
-| `MAIL_HOST` | Sí | `smtp.office365.com` | |
-| `MAIL_PORT` | Sí | `587` | |
-| `MAIL_SCHEME` | No | `smtp` | `smtp` para 587 (STARTTLS) o `smtps` para 465 |
-| `MAIL_USERNAME` | Sí | `notificaciones@segurex.com` | Cuenta que autentica y tiene "Enviar como" sobre los buzones de las empresas |
-| `MAIL_PASSWORD` | Sí | (secreto) | |
-| `MAIL_FROM_ADDRESS` | Sí | `notificaciones@segurex.com` | Remitente cuando el correo no es de una empresa |
+| `MAIL_MAILER` | Sí | `graph` | `graph` envía por Microsoft Graph desde el buzón de cada empresa ([sección 5.2](#52-correo)). Por defecto `log` (no envía nada): déjalo así hasta terminar la 5.2. `smtp` queda solo como alternativa |
+| `MAIL_GRAPH_SAVE_TO_SENT` | No | `true` | Guarda una copia en "Elementos enviados" del buzón remitente. Por defecto `true` |
+| `MAIL_FROM_ADDRESS` | Sí | `segurex.info@segurex.com` | Remitente cuando el correo no es de una empresa (por ejemplo, avisos de respaldos). Con `graph` debe ser un buzón de una empresa o de uno de sus dominios |
 | `MAIL_FROM_NAME` | No | `"Gestor TI"` | Por defecto `APP_NAME` |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_SCHEME`, `MAIL_USERNAME`, `MAIL_PASSWORD` | Solo con `smtp` | `smtp.office365.com`, `587` | Alternativa SMTP ([sección 5.2](#52-correo)). Con `graph` no se usan: no hay contraseña de buzón |
 
 ### Microsoft Entra y acceso
 
@@ -314,16 +311,53 @@ Haz una a la vez. Después de cada cambio en el `.env`, corre `php artisan optim
 
 ### 5.2 Correo
 
-1. Crea o elige la cuenta de envío (`MAIL_USERNAME`) en Microsoft 365 y habilítale **SMTP autenticado** (*Microsoft 365 admin → Usuarios → Correo → Administrar aplicaciones de correo*).
-2. Dale permiso **"Enviar como"** sobre cada buzón de empresa: `segurex.info@segurex.com` y `derivados.info@derivadoscol.com` (*Exchange admin → Buzones → Delegación*). Cada correo sale del buzón de la empresa del registro (`companies.sender_email`, editable en *Administración › Empresas*).
-3. Completa `MAIL_*` en el `.env` y corre `php artisan optimize`.
-4. **Logos en PNG.** Los correos nunca usan SVG, y los logos que crea el `CompanySeeder` son SVG. Orden en que se busca el logo de cada empresa:
+Cada correo sale del buzón de la empresa del registro (`companies.sender_email`, editable en *Administración › Empresas*) a través de **Microsoft Graph** (`POST /users/{buzón}/sendMail`), con un token de aplicación del inquilino de esa empresa. Se usa la misma aplicación de Entra de la [sección 5.1](#51-microsoft-entra-inicio-de-sesión-multiempresa): no hay contraseñas de buzón ni secretos nuevos.
+
+Cómo elige el inquilino: la empresa cuyo correo remitente es el remitente del mensaje; si ninguna, la empresa cuyos dominios incluyen el dominio del remitente. Si no hay empresa, o no tiene inquilino, el correo **no se envía** y el error queda en el registro.
+
+1. **Deja `MAIL_MAILER=log`** mientras completas los pasos 2 y 3.
+2. **Permiso `Mail.Send` limitado a los buzones de las empresas**, en **cada inquilino** (Segurex y Derivados), con *RBAC para aplicaciones* de Exchange Online. Es el método actual de Microsoft: reemplaza a las *Application Access Policies*.
+   - **No agregues `Mail.Send` en *API permissions* de Entra.** Los permisos de Entra y los de Exchange se suman: si `Mail.Send` tiene consentimiento en Entra, la aplicación puede enviar como **cualquier** buzón del inquilino y el ámbito de Exchange no la limita. Si ya lo agregaste, quítalo y revoca su consentimiento (*Enterprise applications → la aplicación → Permissions*).
+   - Necesitas el rol **Organization Management** en Exchange (o administrador de Exchange en Entra). En PowerShell, en cada inquilino:
+     ```powershell
+     Connect-ExchangeOnline -UserPrincipalName admin@segurex.com
+
+     # 1. Puntero al principal de servicio de la aplicación en ESTE inquilino.
+     #    AppId = MICROSOFT_CLIENT_ID; ObjectId = "Object ID" en
+     #    Entra → Enterprise applications → la aplicación (no el de App registrations).
+     New-ServicePrincipal -AppId <MICROSOFT_CLIENT_ID> -ObjectId <object-id-enterprise-app> -DisplayName "Gestor TI"
+
+     # 2. Ámbito: solo el buzón remitente de la empresa.
+     New-ManagementScope -Name "Gestor TI - remitente" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'segurex.info@segurex.com'"
+
+     # 3. Rol "Application Mail.Send" con ese ámbito.
+     New-ManagementRoleAssignment -Name "Gestor TI - Mail.Send" -Role "Application Mail.Send" -App <MICROSOFT_CLIENT_ID> -CustomResourceScope "Gestor TI - remitente"
+
+     # 4. Comprobar: InScope = True para el buzón de la empresa y False para otro.
+     Test-ServicePrincipalAuthorization -Identity <MICROSOFT_CLIENT_ID> -Resource segurex.info@segurex.com
+     Test-ServicePrincipalAuthorization -Identity <MICROSOFT_CLIENT_ID> -Resource otro.buzon@segurex.com
+     ```
+     En el inquilino de Derivados, lo mismo con `derivados.info@derivadoscol.com`. El `AppId` es el mismo; el `ObjectId` es distinto en cada inquilino.
+   - Los cambios tardan entre 30 minutos y 2 horas en aplicarse (caché de Exchange).
+   - Referencias: [Role Based Access Control for Applications in Exchange Online](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac) y [user: sendMail](https://learn.microsoft.com/en-us/graph/api/user-sendmail).
+   - Alternativa más simple, sin límite de buzones: agregar `Mail.Send` (de aplicación) en *API permissions* y repetir el consentimiento de administrador de la [sección 5.1](#51-microsoft-entra-inicio-de-sesión-multiempresa) en cada inquilino. Funciona, pero la aplicación podría enviar como cualquier buzón de la empresa. No recomendada.
+3. **Buzones remitentes.** Revisa en *Administración › Empresas* que cada empresa tenga su correo remitente y su inquilino. `MAIL_FROM_ADDRESS` también debe ser un buzón de una empresa (o de uno de sus dominios) y estar dentro del ámbito del paso 2.
+4. En el `.env`: `MAIL_MAILER=graph` (opcional: `MAIL_GRAPH_SAVE_TO_SENT=false` para no guardar copia en "Elementos enviados"). Luego `php artisan optimize`.
+5. **Logos en PNG.** Los correos nunca usan SVG, y los logos que crea el `CompanySeeder` son SVG. Orden en que se busca el logo de cada empresa:
    1. El logo cargado en *Administración › Empresas* si es PNG, JPG o GIF. **Esta es la opción recomendada**: queda en `storage/` y sobrevive a los despliegues.
    2. `public/brand/logo-{slug}.png` y `public/brand/logo-{slug}-dark.png` (por ejemplo `logo-segurex.png`). Ojo: esa carpeta la reemplaza cada despliegue; un PNG subido a mano se borra. Solo funciona si los PNG se agregan al repositorio.
 
    Formato sugerido: PNG con fondo transparente, 56 px de alto (se muestra a 28 px). El logo oscuro es opcional; si falta, se usa el claro.
-5. **Color del botón.** Sale de `colors.button` de la empresa si está guardado; si no, se deriva del color principal (hoy: Segurex `#CD4B00`, Derivados `#183F94`). No hay pantalla para `colors.button`.
-6. `mail.reply_by_email` queda apagado: la app todavía no procesa respuestas por correo.
+6. **Color del botón.** Sale de `colors.button` de la empresa si está guardado; si no, se deriva del color principal (hoy: Segurex `#CD4B00`, Derivados `#183F94`). No hay pantalla para `colors.button`.
+7. `mail.reply_by_email` queda apagado: la app todavía no procesa respuestas por correo.
+
+Límites y errores:
+
+- **Adjuntos:** hasta **3 MB en total por correo** (Graph acepta como máximo 4 MB por solicitud y el adjunto viaja en base64). Un correo con más no se envía y el error queda en el registro. El único adjunto que envía la app hoy es el PDF del informe semanal de proyecto.
+- **401/403:** falta el permiso del paso 2, el buzón está fuera del ámbito o el cambio aún no se aplica. El botón de prueba lo dice así.
+- **429 o 5xx:** Microsoft limitó o falló; la cola reintenta el correo.
+
+**Alternativa SMTP** (`MAIL_MAILER=smtp`): solo si Graph no es posible. Necesita una cuenta con SMTP autenticado (`smtp.office365.com`, puerto 587) y "Enviar como" sobre los buzones, y solo sirve para buzones del mismo inquilino que la cuenta. Microsoft está retirando SMTP AUTH con autenticación básica (usuario y contraseña), así que esta opción dejará de funcionar.
 
 **Verificar:** en *Integraciones*, el botón de prueba de correo. Los correos salen por la cola: llegan en menos de 1 minuto si el cron está activo.
 
@@ -486,7 +520,9 @@ Todas salen del cron de cada minuto (`schedule:run`). Horas en `America/Bogota`.
 | GitHub "no conectado" o `github:sync` falla | Ruta o permisos del `.pem`, `GITHUB_APP_ID` errado o app sin instalar | Revisa `GITHUB_PRIVATE_KEY_PATH` (ruta absoluta, archivo legible) y la instalación en la cuenta `GrupoRyR` |
 | El bot de Telegram no responde | Webhook sin registrar o `APP_URL` sin `https` | `php artisan gestor:telegram-webhook`; revisa que el comando no muestre error |
 | Correos sin logo o con imagen rota | La empresa solo tiene logo SVG y no hay PNG | Carga el logo en PNG en *Administración › Empresas* ([sección 5.2](#52-correo)) |
-| Correos rechazados por el servidor SMTP | Falta SMTP autenticado o "Enviar como" | Revisa ambos permisos en Microsoft 365 ([sección 5.2](#52-correo)) |
+| Prueba de correo: "falta el permiso Mail.Send" (código `graph_401` o `graph_403`) | El inquilino no tiene la asignación "Application Mail.Send", el buzón está fuera del ámbito o el cambio aún no se aplica (hasta 2 h) | Revisa el paso 2 de la [sección 5.2](#52-correo) con `Test-ServicePrincipalAuthorization` |
+| Prueba de correo: "ninguna empresa tiene el buzón remitente…" o "no tiene inquilino de Microsoft" | El remitente no es el correo remitente de una empresa ni de sus dominios, o la empresa no tiene inquilino | Corrige la empresa en *Administración › Empresas* o `MAIL_FROM_ADDRESS` ([sección 5.2](#52-correo)) |
+| Correo no enviado: "los adjuntos suman … MB" | Más de 3 MB de adjuntos en un correo | Límite de Graph por envío ([sección 5.2](#52-correo)) |
 | MCP responde 401 | Token vencido, revocado o mal copiado; llaves de Passport faltantes o distintas | Crea un token nuevo; revisa `storage/oauth-*.key` o `PASSPORT_*_KEY` |
 | MCP responde 403 | La persona no tiene `ai.mcp.use`, o el firewall de GoDaddy bloquea | Revisa el rol; si es una página de GoDaddy, pide excepción para `/.well-known/*`, `/oauth/*`, `/mcp` |
 | MCP responde 404 | `MCP_ENABLED=false` | Ponlo en `true` y `php artisan optimize` |
