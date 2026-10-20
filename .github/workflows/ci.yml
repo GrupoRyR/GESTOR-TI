@@ -1,21 +1,31 @@
 name: CI
 
+# Runs only for PRs targeting main and pushes to main: stacked PRs spend no
+# minutes until their base is changed to main.
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
 
 permissions:
   contents: read
 
+# A new commit cancels the previous run of the same PR; runs on main never
+# cancel each other.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
     name: PHP (Pint + tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # .env.example leaves it empty and spatie/laravel-backup rejects an
+      # empty address while booting. Process env wins over .env in Laravel.
+      BACKUP_NOTIFICATION_EMAIL: ci@example.com
     steps:
       - uses: actions/checkout@v4
 
@@ -50,6 +60,7 @@ jobs:
   frontend:
     name: Front-end (build + types)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
