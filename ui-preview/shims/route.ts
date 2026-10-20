@@ -4,4 +4,7 @@
  */
 globalThis.route = (name: string) => `#${name}`;
 
+// The reveal endpoint is the only `fetch` a page makes; answer it in the preview too.
+import './revealFetch';
+
 export {};

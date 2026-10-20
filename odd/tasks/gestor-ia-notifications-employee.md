@@ -52,7 +52,7 @@ Build the two pages the server already renders but that have no React page in `m
 - [x] T1 Notifications page.
   - Types, helpers (tests first), page, mocks: list, unread, empty, alert without url.
   - **Route:** delegated (writer trigger, several non-trivial files).
-- [ ] T2 Employee detail page.
+- [x] T2 Employee detail page.
   - Types, reveal hook or component (tests first for the countdown), page, mocks: with permission, without permission, no area, no user.
   - **Route:** delegated.
 - [ ] T3 Contract `docs/design/stage-a-pending-contract.md`, docs index, handoff, PR.
@@ -66,6 +66,7 @@ Build the two pages the server already renders but that have no React page in `m
 ## Progress
 - 2026-10-20: branch created, document written.
 - 2026-10-20: T1 done (delegated writer). RED 21/21 helper tests failing on a stub, then GREEN; typecheck, `npm test` (619 passed), `build` and `build:preview` pass. Page checked in ui-preview at phone, tablet and desktop. Not committed yet.
+- 2026-10-20: T2 done (delegated writer). RED 23/24 `accessReveal` tests failing on a stub, then GREEN 24/24; typecheck, `npm test` (643 passed), `build` and `build:preview` pass. Reveal (preview shim placeholder), hide, 30 s auto-hide and focus return checked in ui-preview at 375, 768 and 1280 px; no horizontal overflow. Not committed yet.
 
 ## Next step
-T2.
+T3.
