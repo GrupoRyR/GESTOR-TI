@@ -460,6 +460,7 @@ Todas salen del cron de cada minuto (`schedule:run`). Horas en `America/Bogota`.
 - **No se toca a mano en el servidor:** código, `public/build`, `vendor`. Se reemplazan en cada despliegue.
 - **Sí vive solo en el servidor:** `.env`, `.user.ini`, `storage/` (archivos, registros, respaldos, llaves de Passport) y la llave de GitHub fuera de la app.
 - **Seeders nunca en un redespliegue.** `RolesAndPermissionsSeeder` reinicia la matriz de roles y `CompanySeeder` sobrescribe los datos de las empresas editados en *Administración*.
+- **Qué versión está instalada:** `php artisan about --only=gestor_ti` muestra el commit y la fecha del último despliegue (archivo `REVISION`, lo escribe el workflow). Compáralo con el commit de la última corrida verde de *Actions → Deploy (cPanel)*.
 - **Cambio en el `.env`:** `php artisan optimize`.
 - **Retirar el acceso MCP por OAuth de una persona:**
   ```bash
