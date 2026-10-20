@@ -204,7 +204,6 @@ php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # VAULT_KEY (
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` | No | (secreto) | Solo si se elige otro proveedor en *Integraciones* |
 | `OLLAMA_BASE_URL` | No | | No aplica en hosting compartido |
 | `ASSISTANT_IMPORT_MAX_KB` | No | `10240` | Tamaño máximo del Excel de conocimiento |
-
 | `GESTOR_AI_MONTHLY_CAP_USD` | No | `10` (por defecto) | Tope mensual de gasto de IA en USD; `0` lo quita. Después se cambia en *Integraciones* |
 
 El proveedor y el modelo no van en el `.env`: se configuran en *Administración › Integraciones* ([sección 5.4](#54-deepseek-asistente-y-sugerencias)).
