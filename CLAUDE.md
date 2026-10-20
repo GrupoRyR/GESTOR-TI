@@ -33,6 +33,11 @@ IT platform for Grupo Empresarial RYR (Segurex Latam, Soluciones y Derivados de 
   4. The next stage starts.
 - Keep stacks short: at most about 6 open PRs per agent. Past that, merge what is ready before stacking more.
 - Before opening or updating a PR, update from `main` and run the checks (`php artisan test`, `vendor/bin/pint --test`, `npm run typecheck`, `npm test`, `npm run build`). A PR that conflicts with `main` is fixed the same day.
+- GitHub Actions minutes are shared by every private repo of the account (2,000 min/month). To save them:
+  - Before pushing, run Pint, the tests and the build locally. CI confirms the result; it is not where you find failures.
+  - Do not push each small commit on its own. Push a finished work unit.
+  - CI runs only for PRs into `main` and pushes to `main`. Stacked PRs run it once their base is `main`.
+  - Before merging, sync with `main` and wait for CI to be green.
 
 ## Commands
 - `php artisan test` — test suite.
