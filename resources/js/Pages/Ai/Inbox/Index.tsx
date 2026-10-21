@@ -19,7 +19,7 @@ import { cx } from '@/Components/ui/utils';
 import { GestorLayout } from '@/Layouts/GestorLayout';
 import { can } from '@/lib/can';
 import { formatRelative } from '@/lib/format';
-import { route } from '@/lib/route';
+import { hasRoute, route } from '@/lib/route';
 import type { RequestSummary } from '@/types/ai';
 import type { InboxFilters, InboxIndexProps, InboxQuick } from '@/types/pages/ai-triage';
 import type { PageProps } from '@/types/shared';
@@ -234,7 +234,7 @@ export default function InboxIndex(props: PageProps<InboxIndexProps>) {
                                 Ir a aprobaciones
                             </Button>
                         ) : null}
-                        {canPropose ? (
+                        {canPropose && hasRoute('ai.proposals.create') ? (
                             <Button variant="dark" icon="plus" href={route('ai.proposals.create')}>
                                 Proponer proyecto
                             </Button>

@@ -13,7 +13,7 @@ import { StatusChip } from '@/Components/ui/StatusChip';
 import { GestorLayout } from '@/Layouts/GestorLayout';
 import { can } from '@/lib/can';
 import { formatShortDate } from '@/lib/format';
-import { route } from '@/lib/route';
+import { hasRoute, route } from '@/lib/route';
 import { PHASE_LABELS, requestStatus } from '@/lib/status';
 import type { ProjectStatus } from '@/types/ai';
 import type { ProjectFilters, ProjectListItem, ProjectsIndexProps } from '@/types/pages/ai-projects';
@@ -133,7 +133,7 @@ export default function ProjectsIndex(props: PageProps<ProjectsIndexProps>) {
                         <Button variant="secondary" icon="list" href={route('ai.backlog.index')}>
                             Ver backlog
                         </Button>
-                        {can(auth.user, 'ai.manage') ? (
+                        {can(auth.user, 'ai.manage') && hasRoute('ai.proposals.create') ? (
                             <Button variant="dark" icon="plus" href={route('ai.proposals.create')}>
                                 Proponer proyecto
                             </Button>

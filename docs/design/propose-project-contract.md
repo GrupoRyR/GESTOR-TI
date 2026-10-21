@@ -51,7 +51,7 @@ Everything happens in one transaction. If anything fails, nothing is created, an
 - `draft` is gallery-only; the server never sends it.
 
 ## Entry points (frontend, gated by `ai.manage`)
-- "Proponer proyecto" in the Bandeja header (`Ai/Inbox/Index`) and the Proyectos header (`Ai/Projects/Index`).
+- "Proponer proyecto" in the Bandeja header (`Ai/Inbox/Index`) and the Proyectos header (`Ai/Projects/Index`). These buttons render only once `ai.proposals.create` exists in Ziggy (`hasRoute`), so this PR can land before the backend without breaking either page.
 - "Pedir un desarrollo" at the right end of the Gestor IA tab strip, from 1024 px wide, linking to the existing wizard `ai.requests.create`.
 
 ## Body rules (mirror them on the server)
