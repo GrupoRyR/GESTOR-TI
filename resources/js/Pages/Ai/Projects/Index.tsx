@@ -129,9 +129,16 @@ export default function ProjectsIndex(props: PageProps<ProjectsIndexProps>) {
                             <span>{wipText(wip)}: para empezar otro, uno debe pasar a pruebas.</span>
                         </p>
                     </div>
-                    <Button variant="secondary" icon="list" href={route('ai.backlog.index')}>
-                        Ver backlog
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" icon="list" href={route('ai.backlog.index')}>
+                            Ver backlog
+                        </Button>
+                        {can(auth.user, 'ai.manage') ? (
+                            <Button variant="dark" icon="plus" href={route('ai.proposals.create')}>
+                                Proponer proyecto
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">

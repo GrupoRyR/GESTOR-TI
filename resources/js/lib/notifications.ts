@@ -45,6 +45,8 @@ const EVENT_ICONS: Record<string, IconName> = {
     'ai.task.unblocked': 'subtasks',
     'ai.project.budget': 'trend',
     'ai.project.reapproval': 'check-circle',
+    /** "P-08 · Jhon Castro propuso y aprobó un proyecto": informative notice to the other approvers. */
+    'ai.project.proposed': 'code',
     'ai.release.published': 'rocket',
     'ai.hours.reminder': 'clock',
     'vault.accessed': 'lock',

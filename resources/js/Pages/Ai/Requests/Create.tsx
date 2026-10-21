@@ -11,6 +11,7 @@ import {
     type SaveState,
 } from '@/Components/ai/requests/WizardParts';
 import { teamHoursLine } from '@/Components/ai/requests/requestView';
+import { urgencyOptions } from '@/Components/ai/requests/urgency';
 import { Alert } from '@/Components/ui/Alert';
 import { brandScopeStyle } from '@/Components/ui/brandScope';
 import { Button } from '@/Components/ui/Button';
@@ -22,8 +23,7 @@ import { Select } from '@/Components/ui/Select';
 import { TextArea } from '@/Components/ui/TextArea';
 import { TextField } from '@/Components/ui/TextField';
 import { brandCompany } from '@/Layouts/AppLayout';
-import { formatDate, formatShortDate } from '@/lib/format';
-import type { Urgency } from '@/lib/priority';
+import { formatDate } from '@/lib/format';
 import { route } from '@/lib/route';
 import {
     emptyDraft,
@@ -46,18 +46,6 @@ type WizardForm = RequestDraftPayload & { attachments: File[] };
 type Errors = Record<string, string | undefined>;
 
 const TYPE_ICONS: Record<RequestType, IconName> = { new: 'plus', improvement: 'trend', bug: 'alert-triangle', idea: 'question' };
-
-/** "Este mes · Antes del 31 oct" is computed from `today`. */
-function urgencyOptions(today: string): ChoiceOption<Urgency>[] {
-    const [year, month] = today.split('-').map(Number);
-    const monthEnd = new Date(Date.UTC(year ?? 2026, month ?? 1, 0)).toISOString().slice(0, 10);
-    return [
-        { value: 'low', title: 'Puede esperar', description: 'No frena el trabajo' },
-        { value: 'medium', title: 'Este trimestre', description: 'En los próximos tres meses' },
-        { value: 'high', title: 'Este mes', description: `Antes del ${formatShortDate(monthEnd)}` },
-        { value: 'urgent', title: 'Urgente', description: 'Se pierde plata o clientes hoy' },
-    ];
-}
 
 const PROMPTS = ['¿Quién lo sufre?', '¿Cómo se hace hoy?', '¿Qué pasa si sigue así?'];
 

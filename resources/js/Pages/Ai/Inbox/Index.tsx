@@ -52,6 +52,7 @@ export default function InboxIndex(props: PageProps<InboxIndexProps>) {
     const allCompanies = current_company_id === null;
     const canViewCosts = can(auth.user, 'ai.costs.view');
     const canApprove = can(auth.user, 'ai.projects.approve');
+    const canPropose = can(auth.user, 'ai.manage');
     const rows = requests.data;
     const companyOf = (id: number) => companies.find((company) => company.id === id);
     const selectedRows = rows.filter((row) => selected.includes(row.key));
@@ -231,6 +232,11 @@ export default function InboxIndex(props: PageProps<InboxIndexProps>) {
                         {canApprove ? (
                             <Button variant="secondary" icon="hourglass" href={route('ai.approvals.index')}>
                                 Ir a aprobaciones
+                            </Button>
+                        ) : null}
+                        {canPropose ? (
+                            <Button variant="dark" icon="plus" href={route('ai.proposals.create')}>
+                                Proponer proyecto
                             </Button>
                         ) : null}
                     </div>

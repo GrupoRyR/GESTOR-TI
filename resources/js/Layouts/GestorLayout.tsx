@@ -159,12 +159,18 @@ export function GestorLayout({
     const resolved = mode ?? (can(shared.auth.user, 'ai.manage') ? 'it' : 'requester');
     const tabs =
         resolved === 'it' ? (
-            <Tabs
-                label="Secciones del Gestor IA"
-                items={gestorTabsFor(shared, counts)}
-                current={tab ?? ''}
-                className="border-b border-line bg-surface px-2 md:px-3 lg:px-6"
-            />
+            <div className="flex items-stretch border-b border-line bg-surface px-2 md:px-3 lg:pr-5 lg:pl-6">
+                <Tabs label="Secciones del Gestor IA" items={gestorTabsFor(shared, counts)} current={tab ?? ''} className="min-w-0 flex-1" />
+                {/* IT can still file a request the normal way (board B-ProposeEntry). */}
+                {can(shared.auth.user, 'ai.manage') ? (
+                    <Link
+                        href={route('ai.requests.create')}
+                        className="ml-2 hidden h-11 shrink-0 items-center self-center rounded-control px-3 text-sm font-semibold whitespace-nowrap text-fg-soft underline underline-offset-[3px] hover:bg-subtle hover:text-fg lg:inline-flex"
+                    >
+                        Pedir un desarrollo
+                    </Link>
+                ) : null}
+            </div>
         ) : null;
 
     return (
