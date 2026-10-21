@@ -41,7 +41,7 @@ Let an `ai.manage` user propose a project in one step.
   - Entry points: Bandeja header, Proyectos header and the GestorLayout "Pedir un desarrollo" link, all gated by `ai.manage`.
   - Notification kind for the new event in `lib/notifications.ts`.
   - **Route:** delegated.
-- [ ] T2 Contract `docs/design/propose-project-contract.md`, docs index, PR.
+- [x] T2 Contract `docs/design/propose-project-contract.md`, docs index, PR.
   - **Route:** inline.
 
 ## Acceptance criteria
@@ -52,7 +52,8 @@ Let an `ai.manage` user propose a project in one step.
 
 ## Progress
 - 2026-10-21: branch created, document written.
-- 2026-10-21: T1 done (delegated writer, uncommitted): page, `lib/proposal.ts` (RED: module missing + `ai.project.proposed` icon → GREEN 27 + 1 tests), mocks `selfApprove`/`toApproval`/`withErrors`/`noAppsNoKeys`, entry points, notification icon; typecheck, 671 tests, build and build:preview pass; gallery checked at 375/768/1280/1440.
+- 2026-10-21: T1 done (delegated writer, uncommitted): page, `lib/proposal.ts` (RED: module missing + `ai.project.proposed` icon → GREEN 27 + 1 tests), mocks `selfApprove`/`toApproval`/`withErrors`/`noAppsNoKeys`, entry points, notification icon; typecheck, 671 tests, build and build:preview pass; gallery checked at 375/768/1280/1440. Parent deduplicated the wizard's urgency options to the shared `urgency.ts`. Commit 6765aac.
+- 2026-10-21: T2 inline: `docs/design/propose-project-contract.md`, docs index, PR.
 
 ## Next step
-T2.
+Merge the PR; the app agent builds `ai.proposals.*` and the `ai.project.proposed` notice.
