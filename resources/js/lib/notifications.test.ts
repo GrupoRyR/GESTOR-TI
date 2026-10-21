@@ -50,6 +50,12 @@ describe('resolveNotificationKind', () => {
         expect(resolveNotificationKind(item({ event: 'ai.project.budget' })).icon).toBe('trend');
     });
 
+    it('maps the self-approved proposal notice to Gestor IA with the project icon', () => {
+        const proposed = item({ event: 'ai.project.proposed' });
+        proposed.data = { ...proposed.data, title: 'P-08 · Jhon Castro propuso y aprobó un proyecto' };
+        expect(resolveNotificationKind(proposed)).toEqual({ event: 'ai.project.proposed', module: 'Gestor IA', icon: 'code' });
+    });
+
     it('maps vault and Asistente events to their modules', () => {
         expect(resolveNotificationKind(item({ event: 'vault.accessed' }))).toMatchObject({ module: 'Bóveda', icon: 'lock' });
         expect(resolveNotificationKind(item({ event: 'vault.reminder' }))).toMatchObject({ module: 'Bóveda', icon: 'lock' });

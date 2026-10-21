@@ -16,12 +16,12 @@ import type { Evaluation, EvaluationPayload, RiskLevel } from '@/types/pages/ai-
 import type { Suggestion } from '@/types/suggestions';
 import type { RequestAction } from './actions/RequestActionDialogs';
 
-const SIZES: EffortSize[] = ['S', 'M', 'L', 'XL'];
+export const SIZES: EffortSize[] = ['S', 'M', 'L', 'XL'];
 const SIZE_LEVEL: Record<EffortSize, number> = { S: 1, M: 2, L: 3, XL: 4 };
 
 export const URGENCY_LABELS: Record<Urgency, string> = { low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente' };
 
-const RISKS: { value: RiskLevel; label: string }[] = [
+export const RISKS: { value: RiskLevel; label: string }[] = [
     { value: 'none', label: 'Ninguno' },
     { value: 'low', label: 'Bajo: reprocesos internos' },
     { value: 'medium', label: 'Medio: errores en datos' },
@@ -33,7 +33,7 @@ const WEEKS_PER_MONTH = 52 / 12;
 
 const number = (value: number) => value.toLocaleString('es-CO', { maximumFractionDigits: 1 });
 
-function SizeBars({ size }: { size: EffortSize }) {
+export function SizeBars({ size }: { size: EffortSize }) {
     return (
         <span aria-hidden="true" className="flex items-end gap-0.5">
             {[5, 8, 11, 14].map((height, index) => (
